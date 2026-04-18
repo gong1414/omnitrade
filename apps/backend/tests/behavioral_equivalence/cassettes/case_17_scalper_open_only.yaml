@@ -1,0 +1,18 @@
+interactions:
+- request:
+    method: POST
+    uri: https://fixtures.omnitrade.test/v1/chat/completions
+    body: '{}'
+    headers:
+      content-type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      content-type:
+      - application/json
+    body:
+      string: '{"id": "chatcmpl-case_17_scalper_open_only", "object": "chat.completion", "model": "deepseek-chat", "choices": [{"index": 0, "message": {"role": "assistant", "content": null, "tool_calls": [{"id": "call-case_17_scalper_open_only", "type": "function", "function": {"name": "openPosition", "arguments": "{\"symbol\": \"BTC\", \"side\": \"long\", \"leverage\": 15, \"positionSizePercent\": 20}"}}]}, "finish_reason": "tool_calls"}]}'
+version: 1
