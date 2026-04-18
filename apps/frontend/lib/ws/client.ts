@@ -11,6 +11,7 @@
 import type {
   AccountUpdatePayload,
   DecisionUpdatePayload,
+  OrchestratorErrorPayload,
   PositionUpdatePayload,
   WsEnvelope,
   WsEventType,
@@ -27,6 +28,7 @@ export type WsPayloadMap = {
   account_update: AccountUpdatePayload;
   position_update: PositionUpdatePayload;
   decision_update: DecisionUpdatePayload;
+  orchestrator_error: OrchestratorErrorPayload;
 };
 
 export type WsListener<T extends WsEventType> = (

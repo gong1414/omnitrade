@@ -52,8 +52,8 @@ services:
   # ── frontend: Next.js 14 App Router ──────────────────────────────────
   frontend:
     build:
-      context: apps/frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/frontend/Dockerfile
     ports:
       - "3000:3000"
     environment:
