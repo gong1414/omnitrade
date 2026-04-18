@@ -1,0 +1,18 @@
+{
+  "id": "case_10_swingsmith_partial_stage1",
+  "captured_at": "2026-04-17T10:00:00+08:00",
+  "strategy": "arena-swingsmith",
+  "interval_minutes": 20,
+  "iteration": 495,
+  "risk_params": {"MAX_LEVERAGE": 25, "MAX_POSITIONS": 5, "MAX_HOLDING_HOURS": 36, "EXTREME_STOP_LOSS_PERCENT": -30},
+  "account_info": {"initialBalance": 1000.0, "peakBalance": 1650.0, "totalBalance": 1645.0, "availableBalance": 600.0, "returnPercent": 64.50},
+  "positions": [
+    {"symbol": "ETH", "side": "long", "quantity": 25, "entry_price": 3400.0, "current_price": 3740.0, "liquidation_price": 3200.0, "leverage": 5, "unrealized_pnl": 425.0, "stop_loss": null, "trailing_peak_pnl_pct": 50.0, "cumulative_close_pct": 0.0, "opened_at": "2026-04-15T12:00:00+08:00", "entry_order_id": "gate-2010"}
+  ],
+  "market_data": {"ETH": {"price": 3740.0, "ema20": 3680.0, "macd": 1.05, "rsi7": 68.0, "rsi14": 62.0, "fundingRate": 1.5e-5}},
+  "news_data": {},
+  "external_data": {},
+  "trade_history": [],
+  "recent_decisions": [],
+  "close_path_expected": "partial_profit"
+}

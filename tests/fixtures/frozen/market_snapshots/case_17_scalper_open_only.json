@@ -1,0 +1,16 @@
+{
+  "id": "case_17_scalper_open_only",
+  "captured_at": "2026-04-17T10:45:00+08:00",
+  "strategy": "arena-scalper",
+  "interval_minutes": 5,
+  "iteration": 2100,
+  "risk_params": {"MAX_LEVERAGE": 25, "MAX_POSITIONS": 5, "MAX_HOLDING_HOURS": 36, "EXTREME_STOP_LOSS_PERCENT": -30},
+  "account_info": {"initialBalance": 1000.0, "peakBalance": 1050.0, "totalBalance": 1050.0, "availableBalance": 1050.0, "returnPercent": 5.00},
+  "positions": [],
+  "market_data": {"BTC": {"price": 68500.0, "ema20": 68200.0, "macd": 0.32, "rsi7": 68.0, "rsi14": 60.0, "fundingRate": 1.1e-5}},
+  "news_data": {},
+  "external_data": {},
+  "trade_history": [],
+  "recent_decisions": [],
+  "close_path_expected": "none"
+}

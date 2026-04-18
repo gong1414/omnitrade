@@ -1,0 +1,16 @@
+{
+  "case_id": "case_18_steward_open_short",
+  "strategy": "arena-steward",
+  "close_path": "none",
+  "tool_calls": [
+    {"tool": "openPosition", "args": {"symbol": "ETH", "side": "short", "leverage": 6, "positionSizePercent": 25}, "initiated_by": "ai"}
+  ],
+  "state_writes": {
+    "positions_updates": [],
+    "positions_deletes": [],
+    "trades_inserts": [{"symbol": "ETH", "side": "short", "type": "open", "quantity": 4, "price": 3500.0, "leverage": 6, "pnl_sign": null}],
+    "positions_inserts": [{"symbol": "ETH", "side": "short", "quantity": 4, "entry_price": 3500.0, "leverage": 6, "cumulative_close_pct": 0.0, "trailing_peak_pnl_pct": 0.0, "stop_loss": null}],
+    "agent_decisions_insert": {"iteration": 1520, "trigger": "open_position"}
+  },
+  "notes": "arena-steward positionSizeRecommend.good = 25-28%, AI picks 25%. Bearish MACD+RSI under 40 supports short."
+}

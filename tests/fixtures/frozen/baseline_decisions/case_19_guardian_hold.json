@@ -1,0 +1,15 @@
+{
+  "case_id": "case_19_guardian_hold",
+  "strategy": "arena-guardian",
+  "close_path": "none",
+  "tool_calls": [
+    {"tool": "hold", "args": {}, "initiated_by": "ai", "trigger": "no_signal"}
+  ],
+  "state_writes": {
+    "positions_updates": [],
+    "positions_deletes": [],
+    "trades_inserts": [],
+    "agent_decisions_insert": {"iteration": 830, "trigger": "hold", "rationale": "market_flat_conservative_filter"}
+  },
+  "notes": "arena-guardian entryCondition is strict (multi-timeframe confluence required). MACD ~0 and RSI near 50 -> AI holds (no trade)."
+}

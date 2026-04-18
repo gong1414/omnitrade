@@ -1,0 +1,15 @@
+{
+  "case_id": "case_06_guardian_sl_low",
+  "strategy": "arena-guardian",
+  "close_path": "stop_loss",
+  "tool_calls": [
+    {"tool": "closePosition", "args": {"symbol": "SOL", "percentage": 100}, "initiated_by": "monitor", "trigger": "stop_loss.low"}
+  ],
+  "state_writes": {
+    "positions_updates": [],
+    "positions_deletes": ["SOL"],
+    "trades_inserts": [{"symbol": "SOL", "side": "long", "type": "close", "quantity": 50, "price": 178.11, "leverage": 2, "pnl_sign": "negative"}],
+    "agent_decisions_insert": {"iteration": 0, "trigger": "stop_loss", "band": "low", "threshold_pct": -2.0, "observed_pct": -2.10}
+  },
+  "notes": "arena-guardian stopLoss.low=-2.0%. long pnl%=2*(178.11-180)/180*100=-2.10% <= -2% -> stop_loss. Leverage=2 is in lowest band."
+}

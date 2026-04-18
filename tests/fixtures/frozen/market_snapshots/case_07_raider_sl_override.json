@@ -1,0 +1,18 @@
+{
+  "id": "case_07_raider_sl_override",
+  "captured_at": "2026-04-17T09:25:00+08:00",
+  "strategy": "arena-raider",
+  "interval_minutes": 5,
+  "iteration": 3120,
+  "risk_params": {"MAX_LEVERAGE": 25, "MAX_POSITIONS": 5, "MAX_HOLDING_HOURS": 36, "EXTREME_STOP_LOSS_PERCENT": -30},
+  "account_info": {"initialBalance": 1000.0, "peakBalance": 1640.3, "totalBalance": 1587.1, "availableBalance": 450.0, "returnPercent": 58.71},
+  "positions": [
+    {"symbol": "BTC", "side": "long", "quantity": 4, "entry_price": 68000.0, "current_price": 67912.0, "liquidation_price": 66500.0, "leverage": 20, "unrealized_pnl": -35.2, "stop_loss": -1.0, "trailing_peak_pnl_pct": 0.0, "cumulative_close_pct": 0.0, "opened_at": "2026-04-17T09:20:00+08:00", "entry_order_id": "gate-2007"}
+  ],
+  "market_data": {"BTC": {"price": 67912.0, "ema20": 68100.1, "macd": -0.11, "rsi7": 43.1, "rsi14": 47.2, "fundingRate": 1.0e-5}},
+  "news_data": {},
+  "external_data": {},
+  "trade_history": [],
+  "recent_decisions": [],
+  "close_path_expected": "stop_loss"
+}

@@ -1,0 +1,18 @@
+{
+  "id": "case_08_scalper_partial_stage1",
+  "captured_at": "2026-04-17T09:30:00+08:00",
+  "strategy": "arena-scalper",
+  "interval_minutes": 5,
+  "iteration": 2050,
+  "risk_params": {"MAX_LEVERAGE": 25, "MAX_POSITIONS": 5, "MAX_HOLDING_HOURS": 36, "EXTREME_STOP_LOSS_PERCENT": -30},
+  "account_info": {"initialBalance": 1000.0, "peakBalance": 1220.0, "totalBalance": 1217.3, "availableBalance": 700.0, "returnPercent": 21.73},
+  "positions": [
+    {"symbol": "BTC", "side": "long", "quantity": 2, "entry_price": 68000.0, "current_price": 68680.0, "liquidation_price": 64000.0, "leverage": 15, "unrealized_pnl": 136.0, "stop_loss": null, "trailing_peak_pnl_pct": 15.0, "cumulative_close_pct": 0.0, "opened_at": "2026-04-17T09:00:00+08:00", "entry_order_id": "gate-2008"}
+  ],
+  "market_data": {"BTC": {"price": 68680.0, "ema20": 68300.0, "macd": 0.18, "rsi7": 66.1, "rsi14": 60.4, "fundingRate": 1.1e-5}},
+  "news_data": {},
+  "external_data": {},
+  "trade_history": [],
+  "recent_decisions": [],
+  "close_path_expected": "partial_profit"
+}

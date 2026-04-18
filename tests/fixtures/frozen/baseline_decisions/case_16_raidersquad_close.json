@@ -1,0 +1,19 @@
+{
+  "case_id": "case_16_raidersquad_close",
+  "strategy": "arena-raider-squad",
+  "close_path": "ai_decision",
+  "tool_calls": [
+    {"tool": "trendExpert", "args": {"symbol": "BTC"}, "initiated_by": "main_agent"},
+    {"tool": "predictionExpert", "args": {"symbol": "BTC"}, "initiated_by": "main_agent"},
+    {"tool": "moneyFlowExpert", "args": {"symbol": "BTC"}, "initiated_by": "main_agent"},
+    {"tool": "riskControlExpert", "args": {"symbol": "BTC"}, "initiated_by": "main_agent"},
+    {"tool": "closePosition", "args": {"symbol": "BTC", "percentage": 100}, "initiated_by": "ai", "trigger": "team_vote_exit"}
+  ],
+  "state_writes": {
+    "positions_updates": [],
+    "positions_deletes": ["BTC"],
+    "trades_inserts": [{"symbol": "BTC", "side": "long", "type": "close", "quantity": 5, "price": 68442.0, "leverage": 20, "pnl_sign": "positive"}],
+    "agent_decisions_insert": {"iteration": 3300, "trigger": "ai_decision", "rationale": "team_majority_close_btc_keep_eth"}
+  },
+  "notes": "arena-raider-squad requires >=2 positions (urgent-warning guard). After closing BTC, ETH remains so warning not triggered. Team sub-agents (trend/prediction/moneyflow/risk) vote before main agent executes closePosition."
+}

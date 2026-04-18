@@ -1,0 +1,18 @@
+{
+  "id": "case_05_steward_sl_mid",
+  "captured_at": "2026-04-17T09:15:00+08:00",
+  "strategy": "arena-steward",
+  "interval_minutes": 10,
+  "iteration": 1501,
+  "risk_params": {"MAX_LEVERAGE": 25, "MAX_POSITIONS": 5, "MAX_HOLDING_HOURS": 36, "EXTREME_STOP_LOSS_PERCENT": -30},
+  "account_info": {"initialBalance": 1000.0, "peakBalance": 1120.0, "totalBalance": 1085.6, "availableBalance": 760.0, "returnPercent": 8.56},
+  "positions": [
+    {"symbol": "ETH", "side": "short", "quantity": 10, "entry_price": 3500.0, "current_price": 3526.9, "liquidation_price": 3900.0, "leverage": 6, "unrealized_pnl": -18.3, "stop_loss": null, "trailing_peak_pnl_pct": 0.1, "cumulative_close_pct": 0.0, "opened_at": "2026-04-17T08:00:00+08:00", "entry_order_id": "gate-2005"}
+  ],
+  "market_data": {"ETH": {"price": 3526.9, "ema20": 3510.2, "macd": 0.12, "rsi7": 62.4, "rsi14": 58.8, "fundingRate": 8.0e-6}},
+  "news_data": {},
+  "external_data": {},
+  "trade_history": [],
+  "recent_decisions": [],
+  "close_path_expected": "stop_loss"
+}

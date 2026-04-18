@@ -1,0 +1,15 @@
+{
+  "case_id": "case_22_swingsmith_trailing_edge",
+  "strategy": "arena-swingsmith",
+  "close_path": "trailing_stop",
+  "tool_calls": [
+    {"tool": "closePosition", "args": {"symbol": "ETH", "percentage": 100}, "initiated_by": "monitor", "trigger": "trailing_stop.level1_edge"}
+  ],
+  "state_writes": {
+    "positions_updates": [],
+    "positions_deletes": ["ETH"],
+    "trades_inserts": [{"symbol": "ETH", "side": "long", "type": "close", "quantity": 10, "price": 3454.4, "leverage": 5, "pnl_sign": "positive"}],
+    "agent_decisions_insert": {"iteration": 0, "trigger": "trailing_stop", "level": "level1", "trailing_peak_pnl_pct": 15.0, "stop_at": 8, "edge_case": "current_equals_stopAt"}
+  },
+  "notes": "EDGE CASE: pnl%=5*(3454.4-3400)/3400*100=8.0% exactly equals L1.stopAt=8. The comparison `currentPnlPercent <= level.stopAt` is inclusive -> triggers close. Use `<=` not `<` (contract decision)."
+}

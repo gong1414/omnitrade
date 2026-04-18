@@ -1,0 +1,15 @@
+{
+  "case_id": "case_14_autopilot_close_partial",
+  "strategy": "arena-autopilot",
+  "close_path": "ai_decision",
+  "tool_calls": [
+    {"tool": "closePosition", "args": {"symbol": "BTC", "percentage": 50}, "initiated_by": "ai", "trigger": "ai.scale_out_half"}
+  ],
+  "state_writes": {
+    "positions_updates": [{"symbol": "BTC", "cumulative_close_pct": 50.0}],
+    "positions_deletes": [],
+    "trades_inserts": [{"symbol": "BTC", "side": "long", "type": "close", "quantity": 1, "price": 68612.0, "leverage": 10, "pnl_sign": "positive"}],
+    "agent_decisions_insert": {"iteration": 4501, "trigger": "ai_decision", "rationale": "ai_partial_profit_lock"}
+  },
+  "notes": "AI proactively locks half profit via a 50% close. The close tool itself writes the cumulative partial-close percentage atomically (three-way state contract) so the monitor on the next tick sees a consistent row."
+}

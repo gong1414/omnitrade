@@ -1,0 +1,18 @@
+{
+  "id": "case_14_autopilot_close_partial",
+  "captured_at": "2026-04-17T10:25:00+08:00",
+  "strategy": "arena-autopilot",
+  "interval_minutes": 5,
+  "iteration": 4501,
+  "risk_params": {"MAX_LEVERAGE": 25, "MAX_POSITIONS": 5, "MAX_HOLDING_HOURS": 36, "EXTREME_STOP_LOSS_PERCENT": -30},
+  "account_info": {"initialBalance": 1000.0, "peakBalance": 1510.0, "totalBalance": 1502.0, "availableBalance": 700.0, "returnPercent": 50.20},
+  "positions": [
+    {"symbol": "BTC", "side": "long", "quantity": 2, "entry_price": 68000.0, "current_price": 68612.0, "liquidation_price": 65000.0, "leverage": 10, "unrealized_pnl": 122.4, "stop_loss": null, "trailing_peak_pnl_pct": 9.0, "cumulative_close_pct": 0.0, "opened_at": "2026-04-17T09:45:00+08:00", "entry_order_id": "gate-2014"}
+  ],
+  "market_data": {"BTC": {"price": 68612.0, "ema20": 68450.0, "macd": 0.12, "rsi7": 61.0, "rsi14": 58.0, "fundingRate": 1.0e-5}},
+  "news_data": {},
+  "external_data": {"fearGreedIndex": 62},
+  "trade_history": [],
+  "recent_decisions": [],
+  "close_path_expected": "ai_decision"
+}

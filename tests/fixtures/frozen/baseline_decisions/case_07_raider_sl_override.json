@@ -1,0 +1,15 @@
+{
+  "case_id": "case_07_raider_sl_override",
+  "strategy": "arena-raider",
+  "close_path": "stop_loss",
+  "tool_calls": [
+    {"tool": "closePosition", "args": {"symbol": "BTC", "percentage": 100}, "initiated_by": "monitor", "trigger": "stop_loss.override"}
+  ],
+  "state_writes": {
+    "positions_updates": [],
+    "positions_deletes": ["BTC"],
+    "trades_inserts": [{"symbol": "BTC", "side": "long", "type": "close", "quantity": 4, "price": 67912.0, "leverage": 20, "pnl_sign": "negative"}],
+    "agent_decisions_insert": {"iteration": 0, "trigger": "stop_loss", "band": "override", "threshold_pct": -1.0, "observed_pct": -2.588}
+  },
+  "notes": "positions.stop_loss override = -1.0 is read by the stop-loss monitor's threshold resolver BEFORE the strategy band. pnl%=20*(67912-68000)/68000*100=-2.588% <= -1.0 -> stop_loss. Override logic is mission-critical for the characterization gate."
+}

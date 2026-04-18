@@ -1,0 +1,18 @@
+{
+  "id": "case_13_autopilot_close_full",
+  "captured_at": "2026-04-17T10:20:00+08:00",
+  "strategy": "arena-autopilot",
+  "interval_minutes": 5,
+  "iteration": 4500,
+  "risk_params": {"MAX_LEVERAGE": 25, "MAX_POSITIONS": 5, "MAX_HOLDING_HOURS": 36, "EXTREME_STOP_LOSS_PERCENT": -30},
+  "account_info": {"initialBalance": 1000.0, "peakBalance": 1480.0, "totalBalance": 1470.0, "availableBalance": 650.0, "returnPercent": 47.00},
+  "positions": [
+    {"symbol": "ETH", "side": "long", "quantity": 15, "entry_price": 3500.0, "current_price": 3582.1, "liquidation_price": 3200.0, "leverage": 12, "unrealized_pnl": 123.15, "stop_loss": null, "trailing_peak_pnl_pct": 3.6, "cumulative_close_pct": 0.0, "opened_at": "2026-04-17T09:30:00+08:00", "entry_order_id": "gate-2013"}
+  ],
+  "market_data": {"ETH": {"price": 3582.1, "ema20": 3580.0, "macd": -0.05, "rsi7": 48.0, "rsi14": 50.0, "fundingRate": 8.0e-6}},
+  "news_data": {"headlines": ["SEC opens investigation into major stablecoin issuer", "ETH ETF flows turn sharply negative"]},
+  "external_data": {"fearGreedIndex": 28, "cryptoNewsSentiment": -0.42},
+  "trade_history": [],
+  "recent_decisions": [],
+  "close_path_expected": "ai_decision"
+}

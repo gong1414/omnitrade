@@ -1,0 +1,15 @@
+{
+  "case_id": "case_11_steward_partial_stage3",
+  "strategy": "arena-steward",
+  "close_path": "partial_profit",
+  "tool_calls": [
+    {"tool": "closePosition", "args": {"symbol": "SOL", "percentage": 100}, "initiated_by": "monitor", "trigger": "partial_profit.stage3"}
+  ],
+  "state_writes": {
+    "positions_updates": [{"symbol": "SOL", "cumulative_close_pct": 100.0, "stop_loss": "n/a_deleted", "trailing_peak_pnl_pct": 25.0}],
+    "positions_deletes": ["SOL"],
+    "trades_inserts": [{"symbol": "SOL", "side": "long", "type": "close", "quantity": 12, "price": 168.0, "leverage": 6, "pnl_sign": "positive"}],
+    "agent_decisions_insert": {"iteration": 0, "trigger": "partial_profit", "stage": "stage3", "threshold_pct": 25, "close_pct_of_original": 100}
+  },
+  "notes": "arena-steward stage3 trigger=25 closePercent=100 (full tail). pnl%=6*(168-160)/160*100=30 >= 25. Remaining 40% of original 30 = 12 contracts. After this, cumulative_close_pct=100 so position deleted."
+}

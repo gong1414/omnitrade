@@ -1,0 +1,18 @@
+{
+  "case_id": "case_21_tribunal_close_half",
+  "strategy": "arena-tribunal",
+  "close_path": "ai_decision",
+  "tool_calls": [
+    {"tool": "technicalAnalyst", "args": {"symbol": "BTC"}, "initiated_by": "judge"},
+    {"tool": "trendAnalyst", "args": {"symbol": "BTC"}, "initiated_by": "judge"},
+    {"tool": "riskAssessor", "args": {"symbol": "BTC"}, "initiated_by": "judge"},
+    {"tool": "closePosition", "args": {"symbol": "BTC", "percentage": 50}, "initiated_by": "ai", "trigger": "jury_majority_partial_exit"}
+  ],
+  "state_writes": {
+    "positions_updates": [{"symbol": "BTC", "cumulative_close_pct": 50.0}],
+    "positions_deletes": [],
+    "trades_inserts": [{"symbol": "BTC", "side": "long", "type": "close", "quantity": 1, "price": 68476.0, "leverage": 10, "pnl_sign": "positive"}],
+    "agent_decisions_insert": {"iteration": 880, "trigger": "ai_decision", "rationale": "jury_consensus_scale_out_50pct"}
+  },
+  "notes": "arena-tribunal: 1 judge (main) + 3 jurors (technical/trend/risk). Jurors return analyses, judge aggregates and calls closePosition(50)."
+}

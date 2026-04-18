@@ -1,0 +1,15 @@
+{
+  "case_id": "case_08_scalper_partial_stage1",
+  "strategy": "arena-scalper",
+  "close_path": "partial_profit",
+  "tool_calls": [
+    {"tool": "closePosition", "args": {"symbol": "BTC", "percentage": 50}, "initiated_by": "monitor", "trigger": "partial_profit.stage1"}
+  ],
+  "state_writes": {
+    "positions_updates": [{"symbol": "BTC", "cumulative_close_pct": 50.0, "stop_loss": "tightened_via_getProfitProtectionStopPercent", "trailing_peak_pnl_pct": 15.0}],
+    "positions_deletes": [],
+    "trades_inserts": [{"symbol": "BTC", "side": "long", "type": "close", "quantity": 1, "price": 68680.0, "leverage": 15, "pnl_sign": "positive"}],
+    "agent_decisions_insert": {"iteration": 0, "trigger": "partial_profit", "stage": "stage1", "threshold_pct": 15, "close_pct_of_original": 50}
+  },
+  "notes": "arena-scalper partialTakeProfit.stage1 trigger=15, closePercent=50. pnl%=15*(68680-68000)/68000*100=15.0% -> stage1 fires, closes 50-0=50% of original qty=2 => 1 contract. Atomic UPDATE on {cumulative_close_pct, stop_loss, trailing_peak_pnl_pct} per the three-way state contract."
+}

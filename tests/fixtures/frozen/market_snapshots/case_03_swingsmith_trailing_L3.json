@@ -1,0 +1,18 @@
+{
+  "id": "case_03_swingsmith_trailing_L3",
+  "captured_at": "2026-04-17T09:00:00+08:00",
+  "strategy": "arena-swingsmith",
+  "interval_minutes": 20,
+  "iteration": 483,
+  "risk_params": {"MAX_LEVERAGE": 25, "MAX_POSITIONS": 5, "MAX_HOLDING_HOURS": 36, "EXTREME_STOP_LOSS_PERCENT": -30},
+  "account_info": {"initialBalance": 1000.0, "peakBalance": 1520.5, "totalBalance": 1510.2, "availableBalance": 900.4, "returnPercent": 51.02},
+  "positions": [
+    {"symbol": "SOL", "side": "long", "quantity": 200, "entry_price": 160.0, "current_price": 171.2, "liquidation_price": 150.0, "leverage": 5, "unrealized_pnl": 220.0, "stop_loss": null, "trailing_peak_pnl_pct": 52.0, "cumulative_close_pct": 0.0, "opened_at": "2026-04-16T12:00:00+08:00", "entry_order_id": "gate-2003"}
+  ],
+  "market_data": {"SOL": {"price": 171.2, "ema20": 168.9, "macd": 0.44, "rsi7": 47.0, "rsi14": 55.1, "fundingRate": 1.1e-5}},
+  "news_data": {},
+  "external_data": {},
+  "trade_history": [],
+  "recent_decisions": [],
+  "close_path_expected": "trailing_stop"
+}

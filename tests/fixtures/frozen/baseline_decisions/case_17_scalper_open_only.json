@@ -1,0 +1,16 @@
+{
+  "case_id": "case_17_scalper_open_only",
+  "strategy": "arena-scalper",
+  "close_path": "none",
+  "tool_calls": [
+    {"tool": "openPosition", "args": {"symbol": "BTC", "side": "long", "leverage": 15, "positionSizePercent": 20}, "initiated_by": "ai", "trigger": "ai.open_only"}
+  ],
+  "state_writes": {
+    "positions_updates": [],
+    "positions_deletes": [],
+    "trades_inserts": [{"symbol": "BTC", "side": "long", "type": "open", "quantity": 3, "price": 68500.0, "leverage": 15, "pnl_sign": null}],
+    "positions_inserts": [{"symbol": "BTC", "side": "long", "quantity": 3, "entry_price": 68500.0, "leverage": 15, "cumulative_close_pct": 0.0, "trailing_peak_pnl_pct": 0.0, "stop_loss": null}],
+    "agent_decisions_insert": {"iteration": 2100, "trigger": "open_position"}
+  },
+  "notes": "arena-scalper entryCondition: >=2 timeframes aligned. MACD+RSI7 show bullish signal -> new long opened. No close path since no prior position."
+}

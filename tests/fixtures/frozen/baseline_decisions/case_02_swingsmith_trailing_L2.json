@@ -1,0 +1,15 @@
+{
+  "case_id": "case_02_swingsmith_trailing_L2",
+  "strategy": "arena-swingsmith",
+  "close_path": "trailing_stop",
+  "tool_calls": [
+    {"tool": "closePosition", "args": {"symbol": "ETH", "percentage": 100}, "initiated_by": "monitor", "trigger": "trailing_stop.level2"}
+  ],
+  "state_writes": {
+    "positions_updates": [],
+    "positions_deletes": ["ETH"],
+    "trades_inserts": [{"symbol": "ETH", "side": "long", "type": "close", "quantity": 20, "price": 3540.6, "leverage": 5, "pnl_sign": "positive"}],
+    "agent_decisions_insert": {"iteration": 0, "trigger": "trailing_stop", "level": "level2", "trailing_peak_pnl_pct": 31.0, "stop_at": 20}
+  },
+  "notes": "peak=31%>=L2.trigger=30, current pnl%=5*(3540.6-3400)/3400*100=20.68 -> just crosses L3 not met (50), L2 met with stopAt=20 -> close. Exercises the trailing-stop levels loop."
+}

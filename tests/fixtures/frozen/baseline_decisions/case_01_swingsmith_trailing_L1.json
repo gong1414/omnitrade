@@ -1,0 +1,15 @@
+{
+  "case_id": "case_01_swingsmith_trailing_L1",
+  "strategy": "arena-swingsmith",
+  "close_path": "trailing_stop",
+  "tool_calls": [
+    {"tool": "closePosition", "args": {"symbol": "BTC", "percentage": 100}, "initiated_by": "monitor", "trigger": "trailing_stop.level1"}
+  ],
+  "state_writes": {
+    "positions_updates": [],
+    "positions_deletes": ["BTC"],
+    "trades_inserts": [{"symbol": "BTC", "side": "long", "type": "close", "quantity": 3, "price": 67522.4, "leverage": 5, "pnl_sign": "positive"}],
+    "agent_decisions_insert": {"iteration": 0, "trigger": "trailing_stop", "level": "level1", "trailing_peak_pnl_pct": 16.2, "stop_at": 8}
+  },
+  "notes": "Trailing-stop monitor checks L3->L2->L1 in order; peak=16.2% satisfies L1.trigger=15 and current=7.78%<=L1.stopAt=8 -> close. arena-swingsmith has enableCodeLevelProtection=true."
+}

@@ -1,0 +1,15 @@
+{
+  "case_id": "case_13_autopilot_close_full",
+  "strategy": "arena-autopilot",
+  "close_path": "ai_decision",
+  "tool_calls": [
+    {"tool": "closePosition", "args": {"symbol": "ETH", "percentage": 100}, "initiated_by": "ai", "trigger": "ai.bearish_news_full_exit"}
+  ],
+  "state_writes": {
+    "positions_updates": [],
+    "positions_deletes": ["ETH"],
+    "trades_inserts": [{"symbol": "ETH", "side": "long", "type": "close", "quantity": 15, "price": 3582.1, "leverage": 12, "pnl_sign": "positive"}],
+    "agent_decisions_insert": {"iteration": 4500, "trigger": "ai_decision", "rationale": "bearish_news_plus_macd_flip"}
+  },
+  "notes": "arena-autopilot has enableCodeLevelProtection=true AND allowAiOverrideProtection=true (dual protection). AI sees negative news+fear/greed=28 and preemptively closes. Min-hold check: opened 09:30, now 10:20 -> 50min >= intervalMinutes/2 = 2.5min -> passes."
+}

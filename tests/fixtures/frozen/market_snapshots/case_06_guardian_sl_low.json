@@ -1,0 +1,18 @@
+{
+  "id": "case_06_guardian_sl_low",
+  "captured_at": "2026-04-17T09:20:00+08:00",
+  "strategy": "arena-guardian",
+  "interval_minutes": 15,
+  "iteration": 810,
+  "risk_params": {"MAX_LEVERAGE": 25, "MAX_POSITIONS": 5, "MAX_HOLDING_HOURS": 36, "EXTREME_STOP_LOSS_PERCENT": -30},
+  "account_info": {"initialBalance": 1000.0, "peakBalance": 1040.0, "totalBalance": 1019.0, "availableBalance": 820.0, "returnPercent": 1.90},
+  "positions": [
+    {"symbol": "SOL", "side": "long", "quantity": 50, "entry_price": 180.0, "current_price": 178.11, "liquidation_price": 160.0, "leverage": 2, "unrealized_pnl": -1.9, "stop_loss": null, "trailing_peak_pnl_pct": 0.05, "cumulative_close_pct": 0.0, "opened_at": "2026-04-17T08:30:00+08:00", "entry_order_id": "gate-2006"}
+  ],
+  "market_data": {"SOL": {"price": 178.11, "ema20": 179.4, "macd": -0.05, "rsi7": 38.2, "rsi14": 44.0, "fundingRate": 8.5e-6}},
+  "news_data": {},
+  "external_data": {},
+  "trade_history": [],
+  "recent_decisions": [],
+  "close_path_expected": "stop_loss"
+}

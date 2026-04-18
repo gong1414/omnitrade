@@ -1,0 +1,15 @@
+{
+  "case_id": "case_05_steward_sl_mid",
+  "strategy": "arena-steward",
+  "close_path": "stop_loss",
+  "tool_calls": [
+    {"tool": "closePosition", "args": {"symbol": "ETH", "percentage": 100}, "initiated_by": "monitor", "trigger": "stop_loss.mid"}
+  ],
+  "state_writes": {
+    "positions_updates": [],
+    "positions_deletes": ["ETH"],
+    "trades_inserts": [{"symbol": "ETH", "side": "short", "type": "close", "quantity": 10, "price": 3526.9, "leverage": 6, "pnl_sign": "negative"}],
+    "agent_decisions_insert": {"iteration": 0, "trigger": "stop_loss", "band": "mid", "threshold_pct": -2.0, "observed_pct": -4.61}
+  },
+  "notes": "arena-steward stopLoss.mid=-2.0%. short pnl%=6*(3500-3526.9)/3500*100=-4.61% <= -2% -> stop_loss. Leverage=6 is between arena-steward's leverageMin(ceil(0.3*25)=8) lower floor - note arena-steward has min floor 3/max floor 8; 6 -> mid band (33-67% of leverage range)."
+}

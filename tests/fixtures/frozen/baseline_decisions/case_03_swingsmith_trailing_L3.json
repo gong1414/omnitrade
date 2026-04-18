@@ -1,0 +1,15 @@
+{
+  "case_id": "case_03_swingsmith_trailing_L3",
+  "strategy": "arena-swingsmith",
+  "close_path": "trailing_stop",
+  "tool_calls": [
+    {"tool": "closePosition", "args": {"symbol": "SOL", "percentage": 100}, "initiated_by": "monitor", "trigger": "trailing_stop.level3"}
+  ],
+  "state_writes": {
+    "positions_updates": [],
+    "positions_deletes": ["SOL"],
+    "trades_inserts": [{"symbol": "SOL", "side": "long", "type": "close", "quantity": 200, "price": 171.2, "leverage": 5, "pnl_sign": "positive"}],
+    "agent_decisions_insert": {"iteration": 0, "trigger": "trailing_stop", "level": "level3", "trailing_peak_pnl_pct": 52.0, "stop_at": 35}
+  },
+  "notes": "peak=52%>=L3.trigger=50, current=5*(171.2-160)/160*100=35.0% -> at or below L3.stopAt=35 -> close per `current <= stopAt`."
+}

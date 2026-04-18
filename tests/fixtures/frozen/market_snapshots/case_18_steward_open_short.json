@@ -1,0 +1,16 @@
+{
+  "id": "case_18_steward_open_short",
+  "captured_at": "2026-04-17T10:50:00+08:00",
+  "strategy": "arena-steward",
+  "interval_minutes": 10,
+  "iteration": 1520,
+  "risk_params": {"MAX_LEVERAGE": 25, "MAX_POSITIONS": 5, "MAX_HOLDING_HOURS": 36, "EXTREME_STOP_LOSS_PERCENT": -30},
+  "account_info": {"initialBalance": 1000.0, "peakBalance": 1100.0, "totalBalance": 1095.0, "availableBalance": 1095.0, "returnPercent": 9.50},
+  "positions": [],
+  "market_data": {"ETH": {"price": 3500.0, "ema20": 3540.0, "macd": -0.18, "rsi7": 34.0, "rsi14": 40.0, "fundingRate": 7.0e-6}},
+  "news_data": {},
+  "external_data": {"fearGreedIndex": 36},
+  "trade_history": [],
+  "recent_decisions": [],
+  "close_path_expected": "none"
+}

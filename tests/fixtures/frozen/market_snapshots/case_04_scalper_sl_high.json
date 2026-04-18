@@ -1,0 +1,18 @@
+{
+  "id": "case_04_scalper_sl_high",
+  "captured_at": "2026-04-17T09:10:00+08:00",
+  "strategy": "arena-scalper",
+  "interval_minutes": 5,
+  "iteration": 2014,
+  "risk_params": {"MAX_LEVERAGE": 25, "MAX_POSITIONS": 5, "MAX_HOLDING_HOURS": 36, "EXTREME_STOP_LOSS_PERCENT": -30},
+  "account_info": {"initialBalance": 1000.0, "peakBalance": 1080.2, "totalBalance": 1058.3, "availableBalance": 612.0, "returnPercent": 5.83},
+  "positions": [
+    {"symbol": "BTC", "side": "long", "quantity": 1, "entry_price": 68000.0, "current_price": 67926.8, "liquidation_price": 64000.0, "leverage": 15, "unrealized_pnl": -11.0, "stop_loss": null, "trailing_peak_pnl_pct": 0.3, "cumulative_close_pct": 0.0, "opened_at": "2026-04-17T08:55:00+08:00", "entry_order_id": "gate-2004"}
+  ],
+  "market_data": {"BTC": {"price": 67926.8, "ema20": 68015.0, "macd": -0.04, "rsi7": 41.2, "rsi14": 46.1, "fundingRate": 9.0e-6}},
+  "news_data": {},
+  "external_data": {},
+  "trade_history": [],
+  "recent_decisions": [],
+  "close_path_expected": "stop_loss"
+}

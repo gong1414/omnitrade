@@ -1,0 +1,15 @@
+{
+  "case_id": "case_15_dualsignal_close",
+  "strategy": "arena-dual-signal",
+  "close_path": "ai_decision",
+  "tool_calls": [
+    {"tool": "closePosition", "args": {"symbol": "SOL", "percentage": 100}, "initiated_by": "ai", "trigger": "ai.target_reached"}
+  ],
+  "state_writes": {
+    "positions_updates": [],
+    "positions_deletes": ["SOL"],
+    "trades_inserts": [{"symbol": "SOL", "side": "short", "type": "close", "quantity": 60, "price": 176.4, "leverage": 10, "pnl_sign": "positive"}],
+    "agent_decisions_insert": {"iteration": 7022, "trigger": "ai_decision", "rationale": "alpha_beta_autonomous_exit"}
+  },
+  "notes": "arena-dual-signal: minimal guardrails, AI self-directs. 'Zero strategy guidance' prompt per strategy file. Min-hold 2.5min satisfied (opened 2h ago)."
+}

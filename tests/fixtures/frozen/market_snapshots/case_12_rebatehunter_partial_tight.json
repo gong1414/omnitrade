@@ -1,0 +1,18 @@
+{
+  "id": "case_12_rebatehunter_partial_tight",
+  "captured_at": "2026-04-17T10:15:00+08:00",
+  "strategy": "arena-rebate-hunter",
+  "interval_minutes": 2,
+  "iteration": 9821,
+  "risk_params": {"MAX_LEVERAGE": 25, "MAX_POSITIONS": 5, "MAX_HOLDING_HOURS": 36, "EXTREME_STOP_LOSS_PERCENT": -30},
+  "account_info": {"initialBalance": 1000.0, "peakBalance": 1040.2, "totalBalance": 1038.1, "availableBalance": 920.0, "returnPercent": 3.81},
+  "positions": [
+    {"symbol": "BTC", "side": "long", "quantity": 1, "entry_price": 68000.0, "current_price": 68068.0, "liquidation_price": 65000.0, "leverage": 10, "unrealized_pnl": 6.8, "stop_loss": null, "trailing_peak_pnl_pct": 1.0, "cumulative_close_pct": 0.0, "opened_at": "2026-04-17T10:13:30+08:00", "entry_order_id": "gate-2012"}
+  ],
+  "market_data": {"BTC": {"price": 68068.0, "ema20": 68010.0, "macd": 0.02, "rsi7": 54.0, "rsi14": 52.0, "fundingRate": 1.1e-5}},
+  "news_data": {},
+  "external_data": {},
+  "trade_history": [],
+  "recent_decisions": [],
+  "close_path_expected": "partial_profit"
+}

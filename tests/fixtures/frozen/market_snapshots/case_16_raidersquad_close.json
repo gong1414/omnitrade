@@ -1,0 +1,19 @@
+{
+  "id": "case_16_raidersquad_close",
+  "captured_at": "2026-04-17T10:40:00+08:00",
+  "strategy": "arena-raider-squad",
+  "interval_minutes": 5,
+  "iteration": 3300,
+  "risk_params": {"MAX_LEVERAGE": 25, "MAX_POSITIONS": 5, "MAX_HOLDING_HOURS": 36, "EXTREME_STOP_LOSS_PERCENT": -30},
+  "account_info": {"initialBalance": 1000.0, "peakBalance": 1800.0, "totalBalance": 1750.0, "availableBalance": 400.0, "returnPercent": 75.00},
+  "positions": [
+    {"symbol": "BTC", "side": "long", "quantity": 5, "entry_price": 68000.0, "current_price": 68442.0, "liquidation_price": 66500.0, "leverage": 20, "unrealized_pnl": 221.0, "stop_loss": null, "trailing_peak_pnl_pct": 12.0, "cumulative_close_pct": 0.0, "opened_at": "2026-04-17T10:15:00+08:00", "entry_order_id": "gate-2016"},
+    {"symbol": "ETH", "side": "long", "quantity": 20, "entry_price": 3500.0, "current_price": 3519.25, "liquidation_price": 3300.0, "leverage": 18, "unrealized_pnl": 69.3, "stop_loss": null, "trailing_peak_pnl_pct": 4.0, "cumulative_close_pct": 0.0, "opened_at": "2026-04-17T10:18:00+08:00", "entry_order_id": "gate-2017"}
+  ],
+  "market_data": {"BTC": {"price": 68442.0, "ema20": 68200.0, "macd": 0.18, "rsi7": 74.0, "rsi14": 66.0, "fundingRate": 1.3e-5}, "ETH": {"price": 3519.25, "ema20": 3500.0, "macd": 0.04, "rsi7": 55.0, "rsi14": 53.0, "fundingRate": 1.0e-5}},
+  "news_data": {},
+  "external_data": {},
+  "trade_history": [],
+  "recent_decisions": [],
+  "close_path_expected": "ai_decision"
+}

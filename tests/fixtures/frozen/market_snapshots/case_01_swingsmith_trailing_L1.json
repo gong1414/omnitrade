@@ -1,0 +1,18 @@
+{
+  "id": "case_01_swingsmith_trailing_L1",
+  "captured_at": "2026-04-17T08:10:00+08:00",
+  "strategy": "arena-swingsmith",
+  "interval_minutes": 20,
+  "iteration": 481,
+  "risk_params": {"MAX_LEVERAGE": 25, "MAX_POSITIONS": 5, "MAX_HOLDING_HOURS": 36, "EXTREME_STOP_LOSS_PERCENT": -30},
+  "account_info": {"initialBalance": 1000.0, "peakBalance": 1320.1, "totalBalance": 1286.4, "availableBalance": 742.0, "returnPercent": 28.64, "sharpeRatio": 1.38},
+  "positions": [
+    {"symbol": "BTC", "side": "long", "quantity": 3, "entry_price": 67000.0, "current_price": 67522.4, "liquidation_price": 63120.0, "leverage": 5, "unrealized_pnl": 31.4, "stop_loss": null, "trailing_peak_pnl_pct": 16.2, "cumulative_close_pct": 0.0, "opened_at": "2026-04-17T02:00:00+08:00", "entry_order_id": "gate-2001", "confidence": 0.72}
+  ],
+  "market_data": {"BTC": {"price": 67522.4, "ema20": 67200.1, "macd": 0.214, "rsi7": 56.4, "rsi14": 54.1, "fundingRate": 1.2e-5}},
+  "news_data": {},
+  "external_data": {},
+  "trade_history": [],
+  "recent_decisions": [],
+  "close_path_expected": "trailing_stop"
+}

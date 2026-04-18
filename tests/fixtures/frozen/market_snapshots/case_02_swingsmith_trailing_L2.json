@@ -1,0 +1,18 @@
+{
+  "id": "case_02_swingsmith_trailing_L2",
+  "captured_at": "2026-04-17T08:20:00+08:00",
+  "strategy": "arena-swingsmith",
+  "interval_minutes": 20,
+  "iteration": 482,
+  "risk_params": {"MAX_LEVERAGE": 25, "MAX_POSITIONS": 5, "MAX_HOLDING_HOURS": 36, "EXTREME_STOP_LOSS_PERCENT": -30},
+  "account_info": {"initialBalance": 1000.0, "peakBalance": 1410.0, "totalBalance": 1390.1, "availableBalance": 820.2, "returnPercent": 39.01},
+  "positions": [
+    {"symbol": "ETH", "side": "long", "quantity": 20, "entry_price": 3400.0, "current_price": 3540.6, "liquidation_price": 3150.0, "leverage": 5, "unrealized_pnl": 165.2, "stop_loss": null, "trailing_peak_pnl_pct": 31.0, "cumulative_close_pct": 0.0, "opened_at": "2026-04-16T20:00:00+08:00", "entry_order_id": "gate-2002", "confidence": 0.78}
+  ],
+  "market_data": {"ETH": {"price": 3540.6, "ema20": 3520.1, "macd": 0.82, "rsi7": 51.2, "rsi14": 54.9, "fundingRate": 1.0e-5}},
+  "news_data": {},
+  "external_data": {},
+  "trade_history": [],
+  "recent_decisions": [],
+  "close_path_expected": "trailing_stop"
+}

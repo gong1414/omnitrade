@@ -1,0 +1,15 @@
+{
+  "case_id": "case_10_swingsmith_partial_stage1",
+  "strategy": "arena-swingsmith",
+  "close_path": "partial_profit",
+  "tool_calls": [
+    {"tool": "closePosition", "args": {"symbol": "ETH", "percentage": 40}, "initiated_by": "monitor", "trigger": "partial_profit.stage1"}
+  ],
+  "state_writes": {
+    "positions_updates": [{"symbol": "ETH", "cumulative_close_pct": 40.0, "stop_loss": "tightened_to_positive_protection", "trailing_peak_pnl_pct": 50.0}],
+    "positions_deletes": [],
+    "trades_inserts": [{"symbol": "ETH", "side": "long", "type": "close", "quantity": 10, "price": 3740.0, "leverage": 5, "pnl_sign": "positive"}],
+    "agent_decisions_insert": {"iteration": 0, "trigger": "partial_profit", "stage": "stage1", "threshold_pct": 50, "close_pct_of_original": 40}
+  },
+  "notes": "arena-swingsmith stage1 trigger=50 closePercent=40. pnl%=5*(3740-3400)/3400*100=50% -> fires. Closes 40% of 25 = 10 contracts. Remaining 15 qty held with stop_loss tightened."
+}

@@ -1,0 +1,18 @@
+{
+  "id": "case_11_steward_partial_stage3",
+  "captured_at": "2026-04-17T10:10:00+08:00",
+  "strategy": "arena-steward",
+  "interval_minutes": 10,
+  "iteration": 1510,
+  "risk_params": {"MAX_LEVERAGE": 25, "MAX_POSITIONS": 5, "MAX_HOLDING_HOURS": 36, "EXTREME_STOP_LOSS_PERCENT": -30},
+  "account_info": {"initialBalance": 1000.0, "peakBalance": 1310.0, "totalBalance": 1305.0, "availableBalance": 880.0, "returnPercent": 30.50},
+  "positions": [
+    {"symbol": "SOL", "side": "long", "quantity": 30, "entry_price": 160.0, "current_price": 168.0, "liquidation_price": 150.0, "leverage": 6, "unrealized_pnl": 240.0, "stop_loss": 12.0, "trailing_peak_pnl_pct": 25.0, "cumulative_close_pct": 60.0, "opened_at": "2026-04-17T06:00:00+08:00", "entry_order_id": "gate-2011"}
+  ],
+  "market_data": {"SOL": {"price": 168.0, "ema20": 165.0, "macd": 0.25, "rsi7": 71.0, "rsi14": 63.0, "fundingRate": 1.0e-5}},
+  "news_data": {},
+  "external_data": {},
+  "trade_history": [],
+  "recent_decisions": [],
+  "close_path_expected": "partial_profit"
+}

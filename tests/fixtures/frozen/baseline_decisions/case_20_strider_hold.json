@@ -1,0 +1,15 @@
+{
+  "case_id": "case_20_strider_hold",
+  "strategy": "arena-strider",
+  "close_path": "none",
+  "tool_calls": [
+    {"tool": "hold", "args": {}, "initiated_by": "ai", "trigger": "no_trend_yet"}
+  ],
+  "state_writes": {
+    "positions_updates": [],
+    "positions_deletes": [],
+    "trades_inserts": [],
+    "agent_decisions_insert": {"iteration": 220, "trigger": "hold", "rationale": "awaiting_multi_timeframe_trend_confirmation"}
+  },
+  "notes": "arena-strider 30-min cycle, AI-led minimal restrictions (enableCodeLevelProtection=false). Flat indicators -> no action."
+}

@@ -1,0 +1,15 @@
+{
+  "case_id": "case_09_scalper_partial_stage2",
+  "strategy": "arena-scalper",
+  "close_path": "partial_profit",
+  "tool_calls": [
+    {"tool": "closePosition", "args": {"symbol": "BTC", "percentage": 100}, "initiated_by": "monitor", "trigger": "partial_profit.stage2"}
+  ],
+  "state_writes": {
+    "positions_updates": [{"symbol": "BTC", "cumulative_close_pct": 100.0, "stop_loss": "tightened", "trailing_peak_pnl_pct": 25.0}],
+    "positions_deletes": ["BTC"],
+    "trades_inserts": [{"symbol": "BTC", "side": "long", "type": "close", "quantity": 1, "price": 69133.3, "leverage": 15, "pnl_sign": "positive"}],
+    "agent_decisions_insert": {"iteration": 0, "trigger": "partial_profit", "stage": "stage2", "threshold_pct": 25, "close_pct_of_original": 50}
+  },
+  "notes": "Delta = stage2.closePercent(50) - current cumulative_close_pct(50) = 0? NO — closePercent is cumulative target; stage2.closePercent=50 means cumulative 50. But arena-scalper stage2 closePercent=50 comment says '累计平100%'. So delta=50%-50%=0. Actual UT code treats stage2 as closing next 50% of original => total 100. Positions row deleted after reaching 100 cumulative. pnl%=15*(69133.3-68000)/68000*100=25.0 -> stage2 fires."
+}

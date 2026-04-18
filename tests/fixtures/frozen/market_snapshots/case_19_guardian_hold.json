@@ -1,0 +1,16 @@
+{
+  "id": "case_19_guardian_hold",
+  "captured_at": "2026-04-17T10:55:00+08:00",
+  "strategy": "arena-guardian",
+  "interval_minutes": 15,
+  "iteration": 830,
+  "risk_params": {"MAX_LEVERAGE": 25, "MAX_POSITIONS": 5, "MAX_HOLDING_HOURS": 36, "EXTREME_STOP_LOSS_PERCENT": -30},
+  "account_info": {"initialBalance": 1000.0, "peakBalance": 1040.0, "totalBalance": 1040.0, "availableBalance": 1040.0, "returnPercent": 4.00},
+  "positions": [],
+  "market_data": {"BTC": {"price": 68000.0, "ema20": 68010.0, "macd": -0.01, "rsi7": 51.0, "rsi14": 50.0, "fundingRate": 1.0e-5}},
+  "news_data": {},
+  "external_data": {},
+  "trade_history": [],
+  "recent_decisions": [],
+  "close_path_expected": "none"
+}

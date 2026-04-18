@@ -1,0 +1,15 @@
+{
+  "case_id": "case_12_rebatehunter_partial_tight",
+  "strategy": "arena-rebate-hunter",
+  "close_path": "partial_profit",
+  "tool_calls": [
+    {"tool": "closePosition", "args": {"symbol": "BTC", "percentage": 100}, "initiated_by": "monitor", "trigger": "partial_profit.stage1"}
+  ],
+  "state_writes": {
+    "positions_updates": [{"symbol": "BTC", "cumulative_close_pct": 100.0, "stop_loss": "n/a_deleted", "trailing_peak_pnl_pct": 1.0}],
+    "positions_deletes": ["BTC"],
+    "trades_inserts": [{"symbol": "BTC", "side": "long", "type": "close", "quantity": 1, "price": 68068.0, "leverage": 10, "pnl_sign": "positive_thin"}],
+    "agent_decisions_insert": {"iteration": 0, "trigger": "partial_profit", "stage": "stage1", "threshold_pct": 1, "close_pct_of_original": 100}
+  },
+  "notes": "arena-rebate-hunter uses very tight partialTakeProfit thresholds (stage1 ~1% full close) per strategy file header. pnl%=10*(68068-68000)/68000*100=1.0% -> stage1 fires full close. High-frequency micro-profit + fee rebate."
+}

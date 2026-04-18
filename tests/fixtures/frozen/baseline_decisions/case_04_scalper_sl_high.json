@@ -1,0 +1,15 @@
+{
+  "case_id": "case_04_scalper_sl_high",
+  "strategy": "arena-scalper",
+  "close_path": "stop_loss",
+  "tool_calls": [
+    {"tool": "closePosition", "args": {"symbol": "BTC", "percentage": 100}, "initiated_by": "monitor", "trigger": "stop_loss.high"}
+  ],
+  "state_writes": {
+    "positions_updates": [],
+    "positions_deletes": ["BTC"],
+    "trades_inserts": [{"symbol": "BTC", "side": "long", "type": "close", "quantity": 1, "price": 67926.8, "leverage": 15, "pnl_sign": "negative"}],
+    "agent_decisions_insert": {"iteration": 0, "trigger": "stop_loss", "band": "high", "threshold_pct": -1.5, "observed_pct": -1.614}
+  },
+  "notes": "arena-scalper stopLoss.high=-1.5%. pnl%=15*(67926.8-68000)/68000*100=-1.614% <= -1.5% -> stop_loss. Leverage=15 places into 'high' band per getStopLossThreshold (leverageMin=3, leverageMax=5 for arena-scalper with maxLev=25 actually 13-19; 15 is in high band)."
+}
