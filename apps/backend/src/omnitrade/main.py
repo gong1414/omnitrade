@@ -13,6 +13,7 @@ from typing import Any
 
 import structlog
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
 
 from omnitrade.api.container import ApiContainer, build_api_container
@@ -159,7 +160,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
 
     # ── Middleware (outer → inner) ─────────────────────────────────────── #
-    # IP blacklist runs first so rejected requests never reach TraceContext.
+    # CORS must be outermost so preflight OPTIONS responses carry the
+    # Access-Control-Allow-* headers before any other middleware runs.
+    # Permissive default for local/testnet dev; tighten via reverse proxy
+    # in production (nginx / cloudflare).
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://frontend:3000",
+        ],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    # IP blacklist runs after CORS so browser preflight is never blocked.
     app.add_middleware(IPBlacklistMiddleware)
     app.add_middleware(TraceContextMiddleware)
 

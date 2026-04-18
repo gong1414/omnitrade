@@ -6,8 +6,8 @@ WORKDIR /app
 # Install uv for fast dependency resolution
 RUN pip install --no-cache-dir uv
 
-# Copy dependency manifests first (layer cache)
-COPY pyproject.toml ./
+# Copy dependency manifests + README (hatchling reads project.readme)
+COPY pyproject.toml README.md ./
 
 # Install production dependencies
 RUN uv pip install --system --no-cache .
@@ -16,6 +16,10 @@ RUN uv pip install --system --no-cache .
 COPY src/ ./src/
 COPY alembic/ ./alembic/
 COPY alembic.ini ./
+
+# Make the package importable without re-running the install step when only
+# src/ changes (layer-cache friendly).
+ENV PYTHONPATH=/app/src
 
 # Create data directory (volume mount will overlay this)
 RUN mkdir -p /app/data
