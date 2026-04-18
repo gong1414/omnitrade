@@ -98,3 +98,6 @@ Thumbs.db
 .claude/
 .omc/
 .specstory/
+
+# Playwright CLI workspace — runtime snapshots / screenshots (regenerated each run)
+.playwright-cli/
