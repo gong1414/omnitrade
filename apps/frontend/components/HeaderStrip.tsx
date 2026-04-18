@@ -7,11 +7,11 @@ import { Chip, StatusDot } from "./obs/Panel";
 
 export function HeaderStrip({ state }: { state: ConnectionState }) {
   const { decisions } = useDecisions({ limit: 1 });
-  const [now, setNow] = useState<string>(() =>
-    new Date().toLocaleTimeString(undefined, { hour12: false }),
-  );
+  // Start as null so SSR and first client render match; fill in after mount.
+  const [now, setNow] = useState<string | null>(null);
 
   useEffect(() => {
+    setNow(new Date().toLocaleTimeString(undefined, { hour12: false }));
     const t = setInterval(
       () => setNow(new Date().toLocaleTimeString(undefined, { hour12: false })),
       1000,
@@ -50,7 +50,9 @@ export function HeaderStrip({ state }: { state: ConnectionState }) {
         <span className="text-obs-text">
           iter #{decisions[0]?.iteration ?? "—"}
         </span>
-        <span className="text-obs-text-dim">{now} utc</span>
+        <span className="text-obs-text-dim" suppressHydrationWarning>
+          {now ?? "--:--:--"} utc
+        </span>
         <Chip tone="amber">testnet</Chip>
       </div>
     </header>

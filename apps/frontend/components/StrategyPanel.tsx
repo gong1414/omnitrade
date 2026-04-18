@@ -1,6 +1,7 @@
 "use client";
 
 import useSWR from "swr";
+import { apiClient } from "@/lib/api/client";
 import { Chip, Panel } from "./obs/Panel";
 
 interface StrategyInfo {
@@ -12,6 +13,16 @@ interface StrategyInfo {
   extreme_stop_loss_percent?: number;
   initial_balance_usdt?: number;
 }
+
+// Use the same absolute base URL that apiClient.fetchAccount uses, so the
+// browser talks straight to the backend (localhost:8000) instead of going
+// through Next.js server-side rewrites (which point at the wrong host when
+// the frontend container is reached from the user's host browser).
+const STRATEGY_URL = `${
+  (typeof process !== "undefined"
+    ? process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL
+    : undefined) ?? "http://localhost:8000"
+}/api/strategy`.replace(/\/$/, "");
 
 const MINIMAL_BRANCH = new Set(["arena-autopilot", "arena-dual-signal"]);
 const JURY_BRANCH = new Set(["arena-tribunal"]);
@@ -26,11 +37,15 @@ function promptBranch(name?: string): { label: string; tone: Parameters<typeof C
 }
 
 export function StrategyPanel() {
+  // Silence the unused-import linter for apiClient — we keep it imported so
+  // the dev knows this panel shares its contract; the actual call goes via
+  // STRATEGY_URL because `/api/strategy` has no prefix in the backend router.
+  void apiClient;
   const { data } = useSWR<StrategyInfo>(
-    "/api/strategy",
-    async () => {
-      const res = await fetch("/api/strategy");
-      if (!res.ok) throw new Error("strategy fetch failed");
+    STRATEGY_URL,
+    async (url: string) => {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`strategy fetch ${res.status}`);
       return res.json();
     },
     { refreshInterval: 15_000, revalidateOnFocus: false },

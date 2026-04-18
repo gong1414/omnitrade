@@ -33,10 +33,17 @@ export function SessionMeta({
 }) {
   const { decisions } = useDecisions({ limit: 1 });
   const { count: openPositions } = usePositions();
-  const [now, setNow] = useState<number>(() => Date.now());
-  const [bootTs] = useState<number>(() => Date.now());
+  // `mounted` guards every time-dependent string so SSR and first client
+  // render produce identical markup (avoids React hydration errors 425/418).
+  const [mounted, setMounted] = useState(false);
+  const [now, setNow] = useState<number>(0);
+  const [bootTs, setBootTs] = useState<number>(0);
 
   useEffect(() => {
+    const start = Date.now();
+    setBootTs(start);
+    setNow(start);
+    setMounted(true);
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
@@ -53,10 +60,15 @@ export function SessionMeta({
             <StatusDot tone={wsTone} breath={state !== "open"} />
             stream · {state}
           </span>
-          <span className="font-mono text-[11px] tabular-nums text-obs-text">
-            {lastDisconnectAt && state !== "open"
-              ? `off ${formatUptime(now - lastDisconnectAt)}`
-              : "live"}
+          <span
+            className="font-mono text-[11px] tabular-nums text-obs-text"
+            suppressHydrationWarning
+          >
+            {!mounted
+              ? "—"
+              : lastDisconnectAt && state !== "open"
+                ? `off ${formatUptime(now - lastDisconnectAt)}`
+                : "live"}
           </span>
         </div>
 
@@ -67,7 +79,9 @@ export function SessionMeta({
             <dt className="text-obs-text-ghost uppercase tracking-[0.18em] text-[9px]">
               Deck uptime
             </dt>
-            <dd className="text-obs-text">{formatUptime(now - bootTs)}</dd>
+            <dd className="text-obs-text" suppressHydrationWarning>
+              {mounted ? formatUptime(now - bootTs) : "—"}
+            </dd>
           </div>
           <div className="flex flex-col text-right">
             <dt className="text-obs-text-ghost uppercase tracking-[0.18em] text-[9px]">
@@ -85,7 +99,9 @@ export function SessionMeta({
             <dt className="text-obs-text-ghost uppercase tracking-[0.18em] text-[9px]">
               Last decision
             </dt>
-            <dd className="text-obs-text">{formatAgo(latest?.timestamp, now)}</dd>
+            <dd className="text-obs-text" suppressHydrationWarning>
+              {mounted ? formatAgo(latest?.timestamp, now) : "—"}
+            </dd>
           </div>
         </dl>
 
