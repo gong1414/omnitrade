@@ -1,0 +1,25 @@
+[
+  {
+    "id": "123456",
+    "symbol": "BTC/USDT:USDT",
+    "contracts": 0.1,
+    "contractSize": 0.1,
+    "side": "long",
+    "entryPrice": 63000.0,
+    "markPrice": 64005.0,
+    "liquidationPrice": 58000.0,
+    "unrealizedPnl": 100.5,
+    "leverage": 10,
+    "marginType": "isolated",
+    "info": {
+      "contract": "BTC_USDT",
+      "size": "1",
+      "leverage": "10",
+      "entry_price": "63000.0",
+      "mark_price": "64005.0",
+      "liq_price": "58000.0",
+      "unrealised_pnl": "100.5",
+      "mode": "single"
+    }
+  }
+]

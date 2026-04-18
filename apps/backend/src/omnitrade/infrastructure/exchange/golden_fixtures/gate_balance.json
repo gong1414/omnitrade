@@ -1,0 +1,13 @@
+{
+  "total": {"USDT": 10000.0},
+  "free": {"USDT": 8500.0},
+  "used": {"USDT": 1500.0},
+  "info": {
+    "currency": "usdt",
+    "total": "10000.0",
+    "unrealised_pnl": "125.50",
+    "position_margin": "1500.0",
+    "order_margin": "0.0",
+    "available": "8500.0"
+  }
+}
