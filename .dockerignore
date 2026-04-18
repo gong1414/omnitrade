@@ -1,0 +1,114 @@
+# ──────────────────────────────────────────────────────
+# Python
+# ──────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+env/
+.Python
+*.egg-info/
+*.egg
+.pytest_cache/
+.hypothesis/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+.tox/
+
+# ──────────────────────────────────────────────────────
+# Node / Next.js
+# ──────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# ──────────────────────────────────────────────────────
+# Env & secrets — templates (*.example) stay available to the builder
+# ──────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+!.env.production.example
+
+# ──────────────────────────────────────────────────────
+# Local data (mounted as volume in production)
+# ──────────────────────────────────────────────────────
+data/
+*.db
+*.db-shm
+*.db-wal
+*.bak
+logs/
+*.log
+
+# ──────────────────────────────────────────────────────
+# Git / VCS
+# ──────────────────────────────────────────────────────
+.git/
+.gitignore
+.gitattributes
+.gitmodules
+
+# ──────────────────────────────────────────────────────
+# Editor / IDE / OS
+# ──────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+**/.DS_Store
+Thumbs.db
+
+# ──────────────────────────────────────────────────────
+# Tests / CI output
+# ──────────────────────────────────────────────────────
+coverage/
+test-results/
+playwright-report/
+apps/frontend/test-results/
+apps/backend/tests/behavioral_equivalence/reports/*.json
+
+# ──────────────────────────────────────────────────────
+# Local tool state
+# ──────────────────────────────────────────────────────
+.omc/
+.claude/
+.cursor/
+.specstory/
+
+# ──────────────────────────────────────────────────────
+# Docs & meta files (not needed at runtime)
+# ──────────────────────────────────────────────────────
+README*.md
+LICENSE
+docs/
+
+# ──────────────────────────────────────────────────────
+# Guards
+# ──────────────────────────────────────────────────────
+# Root-level src/ is reserved; our source lives at apps/backend/src/.
+/src/
+
+# ──────────────────────────────────────────────────────
+# Temp
+# ──────────────────────────────────────────────────────
+tmp/
+temp/
+*.tmp
+*.temp
+.cache/
+scripts/temp-*
+scripts/TEMP-*

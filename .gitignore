@@ -1,0 +1,100 @@
+# ===========================================
+# Secrets & env — templates (.env.example) stay committed
+# ===========================================
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+.env.*.local
+
+# Credentials / local-only config
+ip-blacklist.txt
+
+# ===========================================
+# Python (apps/backend/)
+# ===========================================
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.hypothesis/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# ===========================================
+# Node / Next.js (apps/frontend/)
+# ===========================================
+node_modules/
+.next/
+.pnp
+.pnp.js
+*.tsbuildinfo
+apps/frontend/test-results/
+apps/frontend/playwright-report/
+
+# ===========================================
+# Build artifacts
+# ===========================================
+dist/
+build/
+# Root-level src/ was purged in Phase 9; guard against reintroduction.
+# apps/backend/src/ is the real source tree and MUST remain tracked.
+/src/
+
+# ===========================================
+# Logs
+# ===========================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ===========================================
+# Local data — SQLite ships with migrations, not with rows
+# ===========================================
+data/
+*.db
+*.db-shm
+*.db-wal
+*.bak
+
+# ===========================================
+# Temp files
+# ===========================================
+*.tmp
+*.temp
+.cache/
+scripts/temp-*
+scripts/TEMP-*
+
+# ===========================================
+# Editor / IDE
+# ===========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===========================================
+# OS
+# ===========================================
+**/.DS_Store
+Thumbs.db
+
+# ===========================================
+# Claude Code / OMC local state
+# ===========================================
+.claude/
+.omc/
+.specstory/

@@ -1,0 +1,137 @@
+# OmniTrade — docker-compose.prod.yml (production)
+#
+# Usage:
+#   cp .env.production.example .env.production   # fill in secrets (git-ignored)
+#   docker compose -f docker-compose.prod.yml build
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Hardening:
+#   - Non-root user (UID/GID 1000:1000)
+#   - Healthchecks on backend + frontend with start_period 30s
+#   - Resource limits via `deploy.resources`
+#   - Log rotation (json-file driver)
+#   - Volumes for SQLite DB + logs
+#   - Optional redis cache via `--profile cache`
+
+services:
+  db-init:
+    build:
+      context: apps/backend
+      dockerfile: Dockerfile
+    command: ["alembic", "upgrade", "head"]
+    user: "1000:1000"
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - path: .env.production
+        required: false
+    restart: "no"
+    networks:
+      - omnitrade-net
+
+  backend:
+    build:
+      context: apps/backend
+      dockerfile: Dockerfile
+    container_name: omnitrade-backend
+    user: "1000:1000"
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    env_file:
+      - path: .env.production
+        required: false
+    environment:
+      - PLATFORM_PORT=8000
+      - TZ=${TZ:-Asia/Shanghai}
+      - ENVIRONMENT=${ENVIRONMENT:-testnet}
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    networks:
+      - omnitrade-net
+
+  frontend:
+    build:
+      context: apps/frontend
+      dockerfile: Dockerfile
+    container_name: omnitrade-frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://backend:8000}
+      - TZ=${TZ:-Asia/Shanghai}
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    networks:
+      - omnitrade-net
+
+  # Optional Redis cache — enable with `--profile cache`
+  redis:
+    image: redis:7-alpine
+    container_name: omnitrade-redis
+    profiles: ["cache"]
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
+    networks:
+      - omnitrade-net
+
+networks:
+  omnitrade-net:
+    driver: bridge
+
+volumes:
+  redis-data:
+    driver: local

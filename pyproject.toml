@@ -1,0 +1,4 @@
+# Root workspace pyproject.toml
+# Declares uv workspace so `uv sync` from root picks up apps/backend
+[tool.uv.workspace]
+members = ["apps/backend"]

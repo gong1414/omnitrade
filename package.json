@@ -1,0 +1,14 @@
+{
+  "name": "omnitrade-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/frontend"
+  ],
+  "scripts": {
+    "dev:frontend": "npm run dev --workspace=apps/frontend",
+    "build:frontend": "npm run build --workspace=apps/frontend",
+    "type-check": "npm run type-check --workspace=apps/frontend",
+    "lint": "npm run lint --workspace=apps/frontend"
+  }
+}

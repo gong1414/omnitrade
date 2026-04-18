@@ -1,0 +1,70 @@
+# OmniTrade — docker-compose.yml (development)
+#
+# Usage:
+#   docker compose build
+#   docker compose up
+#
+# Prerequisites:
+#   1. Copy apps/backend/.env.example to .env at repo root, fill in secrets.
+#   2. Ensure ./data/ exists (volume mount target for SQLite).
+
+services:
+  # ── db-init: run Alembic migrations once, then exit ──────────────────
+  db-init:
+    build:
+      context: apps/backend
+      dockerfile: Dockerfile
+    command: ["alembic", "upgrade", "head"]
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - .env
+    restart: "no"
+
+  # ── backend: FastAPI + APScheduler ───────────────────────────────────
+  backend:
+    build:
+      context: apps/backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - .env
+    environment:
+      - PLATFORM_PORT=8000
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - "CMD"
+        - "python"
+        - "-c"
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    restart: unless-stopped
+
+  # ── frontend: Next.js 14 App Router ──────────────────────────────────
+  frontend:
+    build:
+      context: apps/frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    restart: unless-stopped
