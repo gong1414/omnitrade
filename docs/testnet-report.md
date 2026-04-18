@@ -35,3 +35,4 @@ Generated: 2026-04-19 · Gate.io testnet · DeepSeek v3.2
 | — | APScheduler auto-fire trading loop | Loop callables are still stubs; wiring real callables into live scheduler is a larger change. Manual run_cycle exercise via T3.2 + T5 already validates the individual components end-to-end. |
 | — | Multi-agent path (`arena-tribunal` / `arena-raider-squad`) | Requires `MULTI_AGENT_ENABLED=true` + orchestrator tool registration; safest to cover via characterization tests (case_16 / case_21, already green). |
 | — | Playwright emergency close-all | Would open + close a real testnet position just to click the button; redundant with T5. |
+| T9 | Full AI decision pipeline | ✅ pass | Gate live snapshot → DeepSeek → Decision(`hold`) → DB id=1 → `/api/v1/decisions` → dashboard "Recent Decisions" card shows `hold`. Reasoning: *"No clear trading signal — price at \$75,846.6 with minimal funding rate of -0.001%."* |
