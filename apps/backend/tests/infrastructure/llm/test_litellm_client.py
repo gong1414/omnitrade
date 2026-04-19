@@ -11,27 +11,42 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from omnitrade.agents.prompts.system import (
+    FULL_SYSTEM_PROMPT_TEMPLATE,
+    MINIMAL_SYSTEM_PROMPT_TEMPLATE,
+    format_system_prompt,
+)
 from omnitrade.domain.enums import StrategyName
 from omnitrade.domain.protocols import LLMClient
 from omnitrade.infrastructure.llm.litellm_client import LiteLLMClient
-from omnitrade.infrastructure.llm.prompt_templates import (
-    FULL_SYSTEM_PROMPT,
-    MINIMAL_SYSTEM_PROMPT,
-    build_messages,
-    format_system_prompt,
-)
+
+# Canonical sentinel strings that distinguish each branch.
+# These are substrings present in each template that do NOT appear in the other.
+_MINIMAL_SENTINEL = "自我复盘"  # unique to MINIMAL_SYSTEM_PROMPT_TEMPLATE
+_FULL_SENTINEL = "世界顶级"  # unique to FULL_SYSTEM_PROMPT_TEMPLATE
+
+
+def _build_messages(strategy: StrategyName, user_content: str) -> list[dict[str, str]]:
+    """Inline helper: build a messages list for LLMClient.complete()."""
+    return [
+        {"role": "system", "content": format_system_prompt(strategy)},
+        {"role": "user", "content": user_content},
+    ]
+
 
 # ── Prompt template tests ─────────────────────────────────────────────────
 
 
 def test_ai_autonomous_gets_minimal_prompt() -> None:
     prompt = format_system_prompt(StrategyName.AI_AUTONOMOUS)
-    assert prompt == MINIMAL_SYSTEM_PROMPT
+    assert _MINIMAL_SENTINEL in prompt
+    assert _FULL_SENTINEL not in prompt
 
 
 def test_alpha_beta_gets_minimal_prompt() -> None:
     prompt = format_system_prompt(StrategyName.ALPHA_BETA)
-    assert prompt == MINIMAL_SYSTEM_PROMPT
+    assert _MINIMAL_SENTINEL in prompt
+    assert _FULL_SENTINEL not in prompt
 
 
 @pytest.mark.parametrize(
@@ -50,19 +65,23 @@ def test_alpha_beta_gets_minimal_prompt() -> None:
 )
 def test_non_autonomous_strategies_get_full_prompt(strategy: StrategyName) -> None:
     prompt = format_system_prompt(strategy)
-    assert prompt == FULL_SYSTEM_PROMPT
+    assert _FULL_SENTINEL in prompt
+    assert _MINIMAL_SENTINEL not in prompt
 
 
 def test_build_messages_structure() -> None:
-    msgs = build_messages(StrategyName.CONSERVATIVE, "market data here")
+    msgs = _build_messages(StrategyName.CONSERVATIVE, "market data here")
     assert len(msgs) == 2
     assert msgs[0]["role"] == "system"
     assert msgs[1]["role"] == "user"
     assert msgs[1]["content"] == "market data here"
 
 
-def test_minimal_prompt_is_shorter_than_full() -> None:
-    assert len(MINIMAL_SYSTEM_PROMPT) < len(FULL_SYSTEM_PROMPT)
+def test_minimal_prompt_template_differs_from_full() -> None:
+    """The two template branches are distinct texts."""
+    assert MINIMAL_SYSTEM_PROMPT_TEMPLATE != FULL_SYSTEM_PROMPT_TEMPLATE
+    assert _MINIMAL_SENTINEL in MINIMAL_SYSTEM_PROMPT_TEMPLATE
+    assert _FULL_SENTINEL in FULL_SYSTEM_PROMPT_TEMPLATE
 
 
 # ── Protocol compliance ────────────────────────────────────────────────────
