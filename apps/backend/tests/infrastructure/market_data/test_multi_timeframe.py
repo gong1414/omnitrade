@@ -150,3 +150,69 @@ async def test_limit_kwarg_threads_to_exchange() -> None:
     sym = Symbol(value="ETH_USDT")
     await fetcher.fetch(sym, ["1h"])
     assert exchange.calls == [("ETH_USDT", "1h", 42)]
+
+
+# ── PR-D Phase D1: fetch_ohlcv_multi_tf ────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_fetch_ohlcv_multi_tf_returns_symbol_to_tf_map() -> None:
+    exchange = _StubExchange()
+    cache: InMemoryTTLCache[list[list[float]]] = InMemoryTTLCache()
+    fetcher = MultiTimeframeFetcher(exchange=exchange, cache=cache)  # type: ignore[arg-type]
+
+    result = await fetcher.fetch_ohlcv_multi_tf(
+        ["BTC_USDT", "ETH_USDT"],
+        timeframes=["15m", "1h", "4h"],
+    )
+    assert list(result.keys()) == ["BTC_USDT", "ETH_USDT"]
+    for tf_map in result.values():
+        assert list(tf_map.keys()) == ["15m", "1h", "4h"]
+        assert all(len(candles) == 100 for candles in tf_map.values())
+
+
+@pytest.mark.asyncio
+async def test_fetch_ohlcv_multi_tf_defaults_to_three_tfs() -> None:
+    exchange = _StubExchange()
+    cache: InMemoryTTLCache[list[list[float]]] = InMemoryTTLCache()
+    fetcher = MultiTimeframeFetcher(exchange=exchange, cache=cache)  # type: ignore[arg-type]
+
+    result = await fetcher.fetch_ohlcv_multi_tf(["BTC_USDT"])
+    assert list(result["BTC_USDT"].keys()) == ["15m", "1h", "4h"]
+
+
+@pytest.mark.asyncio
+async def test_fetch_ohlcv_multi_tf_swallows_symbol_failure() -> None:
+    class _BoomExchange(_StubExchange):
+        async def fetch_ohlcv(
+            self, symbol: Symbol, timeframe: str, limit: int = 100
+        ) -> list[list[float]]:
+            if symbol.value == "BAD_SYM":
+                raise RuntimeError("boom")
+            return await super().fetch_ohlcv(symbol, timeframe, limit)
+
+    exchange = _BoomExchange()
+    cache: InMemoryTTLCache[list[list[float]]] = InMemoryTTLCache()
+    fetcher = MultiTimeframeFetcher(exchange=exchange, cache=cache)  # type: ignore[arg-type]
+
+    result = await fetcher.fetch_ohlcv_multi_tf(
+        ["BTC_USDT", "BAD_SYM"], timeframes=["15m"]
+    )
+    # Both symbols present; BAD_SYM downgraded to empty lists per-TF.
+    assert set(result.keys()) == {"BTC_USDT", "BAD_SYM"}
+    assert result["BAD_SYM"]["15m"] == []
+    assert len(result["BTC_USDT"]["15m"]) == 100
+
+
+@pytest.mark.asyncio
+async def test_fetch_ohlcv_multi_tf_skips_invalid_symbol_strings() -> None:
+    exchange = _StubExchange()
+    cache: InMemoryTTLCache[list[list[float]]] = InMemoryTTLCache()
+    fetcher = MultiTimeframeFetcher(exchange=exchange, cache=cache)  # type: ignore[arg-type]
+
+    # Empty string is rejected by ``Symbol`` — it should be skipped, not
+    # raise, so the rest of the batch still runs.
+    result = await fetcher.fetch_ohlcv_multi_tf(
+        ["BTC_USDT", ""], timeframes=["15m"]
+    )
+    assert list(result.keys()) == ["BTC_USDT"]

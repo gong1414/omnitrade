@@ -110,6 +110,61 @@ class MultiTimeframeFetcher:
         # Preserve requested-order key iteration.
         return {tf: results[tf] for tf in timeframes if tf in results}
 
+    async def fetch_ohlcv_multi_tf(
+        self,
+        symbols: list[str],
+        timeframes: list[str] | None = None,
+    ) -> dict[str, dict[str, list[list[float]]]]:
+        """Fan out across every (symbol, timeframe) pair and return all OHLCV slices.
+
+        Args:
+            symbols: String symbols (e.g. ``"BTC_USDT"``). Invalid symbols
+                are skipped with a logged warning rather than aborting
+                the whole call.
+            timeframes: Timeframes to fetch; defaults to
+                ``["15m", "1h", "4h"]`` to match the PR-D Phase D1
+                rendering contract.
+
+        Returns:
+            ``{symbol: {tf: [[ts, o, h, l, c, v], ...]}}``. Per-``(symbol, tf)``
+            fetch failures are swallowed and rendered as an empty list
+            so downstream rendering can decide how to degrade.
+        """
+        if timeframes is None:
+            timeframes = ["15m", "1h", "4h"]
+
+        parsed: list[Symbol] = []
+        for raw in symbols:
+            try:
+                parsed.append(Symbol(value=raw))
+            except (ValueError, TypeError) as exc:
+                with_context(logger).warning(
+                    "market_data.multi_tf.invalid_symbol",
+                    symbol=raw,
+                    error=str(exc),
+                )
+
+        async def _fetch_for_symbol(sym: Symbol) -> tuple[str, dict[str, list[list[float]]]]:
+            try:
+                per_tf = await self.fetch(sym, timeframes)
+            except Exception as exc:  # exchange errors must not nuke the fan-out
+                with_context(logger).warning(
+                    "market_data.multi_tf.symbol_failed",
+                    symbol=sym.value,
+                    error=str(exc),
+                )
+                return sym.value, {tf: [] for tf in timeframes}
+            # Fill missing TFs with empty lists for a stable caller contract.
+            return sym.value, {tf: per_tf.get(tf, []) for tf in timeframes}
+
+        tasks = [asyncio.create_task(_fetch_for_symbol(sym)) for sym in parsed]
+        out: dict[str, dict[str, list[list[float]]]] = {}
+        for coro in asyncio.as_completed(tasks):
+            sym_value, per_tf = await coro
+            out[sym_value] = per_tf
+        # Preserve requested-symbol order in the final mapping.
+        return {sym.value: out[sym.value] for sym in parsed if sym.value in out}
+
     async def _fetch_one(
         self,
         symbol: Symbol,

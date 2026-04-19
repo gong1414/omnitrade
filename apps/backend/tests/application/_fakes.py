@@ -109,7 +109,25 @@ class FakeExchange:
         timeframe: str,
         limit: int,
     ) -> list[list[float]]:
-        return []
+        # Deterministic monotonic ramp so composition tests that consume
+        # indicator snapshots get a well-defined input without wiring
+        # cassette fixtures. Shape: [ts_ms, open, high, low, close, volume].
+        start = 100.0
+        step = 1.0
+        out: list[list[float]] = []
+        for i in range(limit):
+            close = start + i * step
+            out.append(
+                [
+                    float(i * 60_000),
+                    close - step / 2.0,
+                    close + 1.0,
+                    close - 1.0,
+                    close,
+                    10.0,
+                ]
+            )
+        return out
 
 
 class FakeEventBus:

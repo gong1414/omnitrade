@@ -11,11 +11,12 @@ import pytest
 
 from omnitrade.api.container import build_api_container
 from omnitrade.application.composition import (
+    _build_market_block,
     _build_tool_schemas,
     build_trading_monitor,
 )
 from omnitrade.config import Settings
-from omnitrade.domain.entities import AccountSnapshot
+from omnitrade.domain.entities import AccountSnapshot, MarketSnapshot
 from tests.application._fakes import (
     FakeExchange,
     build_sqlite_session_factory,
@@ -201,3 +202,121 @@ async def test_build_trading_monitor_runs_one_cycle_and_records_structured_decis
     assert row.plan.get("entry") == 75820
     assert row.structured_confidence == pytest.approx(0.75)
     assert row.output_language == "en"
+
+
+# ---------------------------------------------------------------------------
+# PR-D Phase D1 — market block enrichment.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_build_market_block_emits_indicator_table() -> None:
+    """The rich market block contains the indicator table header + data rows."""
+    factory, open_session = await build_sqlite_session_factory()
+    balance = AccountSnapshot(
+        timestamp=datetime.now(tz=UTC),
+        total_value=Decimal("1000"),
+        available_cash=Decimal("900"),
+        unrealized_pnl=Decimal("0"),
+        realized_pnl=Decimal("0"),
+        return_percent=Decimal("0"),
+    )
+    fake_exchange = FakeExchange(balance=balance, positions=[])
+    settings = Settings(
+        environment="testnet",
+        trading_strategy="arena-autopilot",
+        trading_symbols=["BTC_USDT", "ETH_USDT"],
+    )
+    container = build_api_container(
+        settings=settings,
+        exchange=fake_exchange,  # type: ignore[arg-type]
+        session_factory=factory,
+    )
+    container.open_session = open_session  # type: ignore[assignment]
+
+    market = MarketSnapshot(
+        timestamp=datetime.now(tz=UTC),
+        symbols=["BTC_USDT", "ETH_USDT"],
+        tickers={"BTC_USDT": Decimal("100"), "ETH_USDT": Decimal("100")},
+        account=balance,
+        positions=[],
+    )
+
+    block = await _build_market_block(container, market)
+
+    # Header + at least one data row per symbol.
+    assert "15m EMA20/50/200" in block
+    assert "15m RSI14" in block
+    assert "Volx" in block
+    assert "BTC_USDT" in block
+    assert "ETH_USDT" in block
+    # The recent-closes trailer is appended after the table.
+    assert "Recent 15m closes" in block
+
+
+@pytest.mark.asyncio
+async def test_build_market_block_falls_back_when_no_symbols() -> None:
+    """Empty ticker + symbols set → legacy (no data) string, no crash."""
+    factory, open_session = await build_sqlite_session_factory()
+    fake_exchange = FakeExchange(balance=None, positions=[])
+    settings = Settings(environment="testnet", trading_symbols=[])
+    container = build_api_container(
+        settings=settings,
+        exchange=fake_exchange,  # type: ignore[arg-type]
+        session_factory=factory,
+    )
+    container.open_session = open_session  # type: ignore[assignment]
+
+    market = MarketSnapshot(
+        timestamp=datetime.now(tz=UTC),
+        symbols=[],
+        tickers={},
+        positions=[],
+    )
+
+    block = await _build_market_block(container, market)
+    assert block == "(no data)"
+
+
+@pytest.mark.asyncio
+async def test_build_market_block_degrades_on_fetcher_exception() -> None:
+    """When the multi-TF fetcher raises, fall back to the ticker summary."""
+    factory, open_session = await build_sqlite_session_factory()
+    balance = AccountSnapshot(
+        timestamp=datetime.now(tz=UTC),
+        total_value=Decimal("1000"),
+        available_cash=Decimal("900"),
+        unrealized_pnl=Decimal("0"),
+        realized_pnl=Decimal("0"),
+        return_percent=Decimal("0"),
+    )
+    fake_exchange = FakeExchange(balance=balance, positions=[])
+    settings = Settings(
+        environment="testnet",
+        trading_symbols=["BTC_USDT"],
+    )
+    container = build_api_container(
+        settings=settings,
+        exchange=fake_exchange,  # type: ignore[arg-type]
+        session_factory=factory,
+    )
+    container.open_session = open_session  # type: ignore[assignment]
+
+    async def _boom(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
+        raise RuntimeError("network went poof")
+
+    container.multi_tf_fetcher.fetch_ohlcv_multi_tf = _boom  # type: ignore[method-assign]
+
+    market = MarketSnapshot(
+        timestamp=datetime.now(tz=UTC),
+        symbols=["BTC_USDT"],
+        tickers={"BTC_USDT": Decimal("100")},
+        account=balance,
+        positions=[],
+    )
+
+    block = await _build_market_block(container, market)
+    # Legacy ticker format: "BTC_USDT: 100".
+    assert "BTC_USDT: 100" in block
+    # Not the indicator header.
+    assert "EMA20/50/200" not in block

@@ -17,6 +17,7 @@ tool-call loop. This module is purely DI wiring.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -41,6 +42,11 @@ from omnitrade.domain.entities import (
 from omnitrade.domain.enums import StrategyName
 from omnitrade.domain.protocols import LLMClient
 from omnitrade.domain.value_objects import Symbol
+from omnitrade.infrastructure.market_data.indicators import (
+    Snapshot,
+    compute_ema,
+    snapshot_from_ohlcv,
+)
 from omnitrade.observability.trace_context import with_context
 
 logger = structlog.get_logger(__name__)
@@ -253,12 +259,136 @@ async def _news_gather() -> list[NewsItem]:
 
 _SAFE_BLOCK_EN = "(no data)"
 
+# Per-cycle budget for the enriched market block; when the fetch + indicator
+# compute overruns this we fall through to the legacy ticker-only view so
+# the LLM call still happens within ``TRADING_INTERVAL_MINUTES``.
+_MARKET_BLOCK_TIMEOUT_SECONDS: float = 30.0
+
 
 def _render_market_block(market: MarketSnapshot) -> str:
+    """Legacy ticker-only block — fallback when the indicator path fails."""
     if not market.tickers:
         return _SAFE_BLOCK_EN
     pairs = [f"{sym}: {price}" for sym, price in sorted(market.tickers.items())]
     return " / ".join(pairs)
+
+
+def _fmt_price(value: float) -> str:
+    return f"{value:,.2f}"
+
+
+def _fmt_optional_price(value: float | None) -> str:
+    return _fmt_price(value) if value is not None else "—"
+
+
+def _render_market_block_with_indicators(
+    market: MarketSnapshot,
+    snapshots: list[tuple[Snapshot, float | None, float | None]],
+) -> str:
+    """Render a rich market block that pairs tickers with indicator readings.
+
+    ``snapshots`` is ``[(snap_15m, ema20_1h, ema20_4h), ...]`` — higher-TF
+    EMA20 values are pre-computed by the caller because the 15m snapshot
+    carries only the primary TF fields. Symbols that failed indicator
+    computation fall through to the ticker-only line.
+    """
+    if not snapshots:
+        return _render_market_block(market)
+
+    lines: list[str] = [
+        "| Symbol | Price | 15m EMA20/50/200 | 15m RSI14 | 15m MACD(hist) | "
+        "15m ATR14 | Volx | 1h EMA20 | 4h EMA20 |",
+        "|---|---|---|---|---|---|---|---|---|",
+    ]
+    for snap, ema20_1h, ema20_4h in snapshots:
+        ema_cell = (
+            f"{_fmt_price(snap['ema20'])}/{_fmt_price(snap['ema50'])}/"
+            f"{_fmt_optional_price(snap.get('ema200'))}"
+        )
+        lines.append(
+            f"| {snap['symbol']} | {_fmt_price(snap['price'])} | {ema_cell} | "
+            f"{snap['rsi14']:.1f} | {snap['macd']:+.3f} | "
+            f"{snap['atr14']:.2f} | {snap['volume_ratio']:.2f}x | "
+            f"{_fmt_optional_price(ema20_1h)} | {_fmt_optional_price(ema20_4h)} |"
+        )
+
+    lines.append("")
+    lines.append("Recent 15m closes (newest last):")
+    for snap, _e1h, _e4h in snapshots:
+        closes = snap.get("recent_closes", [])
+        closes_str = ", ".join(f"{c:.1f}" for c in closes[-20:])
+        lines.append(f"- {snap['symbol']}: [{closes_str}]")
+
+    return "\n".join(lines)
+
+
+async def _build_market_block(
+    container: ApiContainer,
+    market: MarketSnapshot,
+) -> str:
+    """Fetch multi-TF OHLCV, compute 15m snapshots, render the rich block.
+
+    Wraps the whole fetch+compute path in ``asyncio.wait_for`` so a slow
+    exchange leg cannot blow through the cycle cadence. On any failure
+    (timeout, partial-fetch shortage, etc.) we degrade gracefully to the
+    legacy ticker-only block — the LLM then sees less context rather
+    than nothing.
+    """
+    symbols = list(market.tickers.keys()) or list(market.symbols)
+    if not symbols:
+        return _render_market_block(market)
+
+    fetcher = container.multi_tf_fetcher
+    try:
+        ohlcv_map = await asyncio.wait_for(
+            fetcher.fetch_ohlcv_multi_tf(symbols, timeframes=["15m", "1h", "4h"]),
+            timeout=_MARKET_BLOCK_TIMEOUT_SECONDS,
+        )
+    except TimeoutError as exc:
+        with_context(logger).warning(
+            "composition.market_block.timeout",
+            symbols=symbols,
+            timeout_s=_MARKET_BLOCK_TIMEOUT_SECONDS,
+            error=str(exc),
+        )
+        return _render_market_block(market)
+    except Exception as exc:  # degrade gracefully, never nuke the cycle
+        with_context(logger).warning(
+            "composition.market_block.fetch_failed",
+            symbols=symbols,
+            error=str(exc),
+        )
+        return _render_market_block(market)
+
+    snapshots: list[tuple[Snapshot, float | None, float | None]] = []
+    for sym in symbols:
+        per_tf = ohlcv_map.get(sym) or {}
+        ohlcv_15m = per_tf.get("15m") or []
+        if len(ohlcv_15m) < 50:
+            with_context(logger).info(
+                "composition.market_block.insufficient_history",
+                symbol=sym,
+                candles=len(ohlcv_15m),
+            )
+            continue
+        try:
+            snap = snapshot_from_ohlcv(sym, ohlcv_15m)
+        except ValueError as exc:
+            with_context(logger).warning(
+                "composition.market_block.snapshot_failed",
+                symbol=sym,
+                error=str(exc),
+            )
+            continue
+        closes_1h = [row[4] for row in (per_tf.get("1h") or [])]
+        closes_4h = [row[4] for row in (per_tf.get("4h") or [])]
+        ema20_1h = compute_ema(closes_1h, 20) if len(closes_1h) >= 20 else None
+        ema20_4h = compute_ema(closes_4h, 20) if len(closes_4h) >= 20 else None
+        snapshots.append((snap, ema20_1h, ema20_4h))
+
+    if not snapshots:
+        return _render_market_block(market)
+    return _render_market_block_with_indicators(market, snapshots)
 
 
 def _render_positions_block(positions: list[Position]) -> str:
@@ -301,8 +431,16 @@ def _render_think_messages(
     settings: Settings,
     iteration: int,
     minutes_elapsed: int,
+    market_data_block: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Build system + user messages for the think LLM call."""
+    """Build system + user messages for the think LLM call.
+
+    Args:
+        market_data_block: Pre-rendered market block. When ``None`` the
+            legacy ticker-only block is rendered inline so unit tests
+            that call this helper directly stay byte-identical to the
+            pre-D1 behaviour.
+    """
     system = format_system_prompt(
         strategy,
         strategy_desc=_strategy_desc(strategy),
@@ -311,10 +449,11 @@ def _render_think_messages(
         max_leverage=settings.max_leverage,
         max_positions=settings.max_positions,
     )
+    block = market_data_block if market_data_block is not None else _render_market_block(market)
     user = THINK_USER_TEMPLATE.format(
         iteration=iteration,
         current_time=market.timestamp.isoformat(),
-        market_data_block=_render_market_block(market),
+        market_data_block=block,
         news_block=_render_news_block(news),
         account_block=_render_account_block(market),
         positions_block=_render_positions_block(positions),
@@ -355,6 +494,7 @@ def _build_base_think_fn(
 
     async def think_fn(market: MarketSnapshot, news: list[NewsItem]) -> Decision:
         positions = list(market.positions)
+        market_block = await _build_market_block(container, market)
         messages = _render_think_messages(
             strategy=strategy,
             market=market,
@@ -363,6 +503,7 @@ def _build_base_think_fn(
             settings=settings,
             iteration=0,
             minutes_elapsed=0,
+            market_data_block=market_block,
         )
         graph = build_think_graph(
             llm,
@@ -442,7 +583,7 @@ def _build_execute_fn(
                 return [trade]
             # hold — no-op.
             return []
-        except Exception as exc:  # noqa: BLE001 — exchange/ccxt errors must not kill cycle
+        except Exception as exc:  # exchange/ccxt errors must not kill cycle
             with_context(logger).warning(
                 "composition.execute.exchange_error",
                 action=action,
