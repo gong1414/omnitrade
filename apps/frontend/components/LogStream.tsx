@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Chip, Panel, StatusDot } from "./obs/Panel";
+import { useTranslations } from "@/lib/i18n/context";
 import { cn, fmtTime } from "@/lib/utils";
 import type { WsLogEntry } from "@/hooks/useWebSocket";
 import type { WsEventType } from "@/lib/api/types";
@@ -13,6 +14,15 @@ const FILTERS: ("all" | WsEventType)[] = [
   "decision_update",
   "orchestrator_error",
 ];
+
+// Map event types to i18n filter labels.
+const FILTER_KEY: Record<(typeof FILTERS)[number], string> = {
+  all: "all",
+  account_update: "account",
+  position_update: "position",
+  decision_update: "decision",
+  orchestrator_error: "orchestrator",
+};
 
 const toneFor: Record<WsEventType, Parameters<typeof Chip>[0]["tone"]> = {
   account_update: "green",
@@ -39,13 +49,14 @@ function shortPayload(payload: unknown): string {
 }
 
 export function LogStream({ log }: { log: WsLogEntry[] }) {
+  const t = useTranslations("log");
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("all");
   const visible = filter === "all" ? log : log.filter((e) => e.type === filter);
 
   return (
     <Panel
-      eyebrow="Reasoning · Wire"
-      title="Live events"
+      eyebrow={t("eyebrow")}
+      title={t("title")}
       data-testid="logstream-card"
       actions={
         <div className="flex gap-1">
@@ -56,11 +67,11 @@ export function LogStream({ log }: { log: WsLogEntry[] }) {
               className={cn(
                 "px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.18em] border transition-colors",
                 filter === f
-                  ? "border-obs-violet/50 bg-obs-violet/10 text-obs-violet"
+                  ? "border-obs-amber/60 bg-obs-amber/10 text-obs-amber"
                   : "border-transparent text-obs-text-ghost hover:text-obs-text",
               )}
             >
-              {f === "all" ? "all" : f.split("_")[0]}
+              {t(`filter.${FILTER_KEY[f]}`)}
             </button>
           ))}
         </div>
@@ -68,9 +79,7 @@ export function LogStream({ log }: { log: WsLogEntry[] }) {
       flush
     >
       {visible.length === 0 ? (
-        <div className="px-5 py-6 text-sm text-obs-text-dim">
-          Silence — no events on the wire.
-        </div>
+        <div className="px-5 py-6 text-sm text-obs-text-dim">{t("empty")}</div>
       ) : (
         <ul className="obs-scroll max-h-[260px] overflow-y-auto">
           {visible.map((entry) => (
@@ -82,7 +91,7 @@ export function LogStream({ log }: { log: WsLogEntry[] }) {
             >
               <div className="flex items-center gap-2">
                 <StatusDot tone={dotFor[entry.type]} />
-                <Chip tone={toneFor[entry.type]}>{entry.type.split("_")[0]}</Chip>
+                <Chip tone={toneFor[entry.type]}>{t(`filter.${FILTER_KEY[entry.type]}`)}</Chip>
                 <span className="text-obs-text-dim tabular-nums">
                   {fmtTime(entry.ts)}
                 </span>

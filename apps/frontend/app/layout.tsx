@@ -1,25 +1,27 @@
 import type { Metadata } from "next";
-import { Fraunces, IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
+import { IBM_Plex_Mono, Lora, Poppins } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 
-const fraunces = Fraunces({
+// Anthropic brand pairing: Poppins (display/headings) + Lora (body/serif).
+// IBM Plex Mono is retained for tabular numerals and code-style metadata.
+const poppins = Poppins({
   subsets: ["latin"],
-  weight: ["400", "700", "900"],
-  style: ["normal", "italic"],
+  weight: ["400", "500", "600", "700", "800"],
   variable: "--font-display",
+});
+
+const lora = Lora({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  style: ["normal", "italic"],
+  variable: "--font-sans",
 });
 
 const plexMono = IBM_Plex_Mono({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
   variable: "--font-mono",
-});
-
-const plexSans = IBM_Plex_Sans({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600"],
-  variable: "--font-sans",
 });
 
 export const metadata: Metadata = {
@@ -33,18 +35,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const bodyClass = [
-    fraunces.variable,
+    poppins.variable,
+    lora.variable,
     plexMono.variable,
-    plexSans.variable,
     "min-h-screen",
     "bg-obs-ink",
     "text-obs-text",
     "antialiased",
     "font-sans",
-    "selection:bg-obs-violet/30",
+    "selection:bg-obs-amber/25",
   ].join(" ");
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html suppressHydrationWarning>
       <body className={bodyClass}>
         <Providers>{children}</Providers>
       </body>

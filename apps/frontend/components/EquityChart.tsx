@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import { Panel } from "./obs/Panel";
 import { useAccount } from "@/hooks/useAccount";
+import { useTranslations } from "@/lib/i18n/context";
 import { fmtNum } from "@/lib/utils";
 
 interface EquityPoint {
@@ -23,6 +24,7 @@ const MAX_POINTS = 300;
 
 export function EquityChart() {
   const { account } = useAccount();
+  const t = useTranslations("equity");
   const [points, setPoints] = useState<EquityPoint[]>([]);
 
   useEffect(() => {
@@ -47,15 +49,13 @@ export function EquityChart() {
 
   return (
     <Panel
-      eyebrow="Floor · Equity"
-      title="Session PnL"
+      eyebrow={t("eyebrow")}
+      title={t("title")}
       actions={
         latest !== undefined ? (
           <span className="font-mono text-[11px] tabular-nums">
             <span className="text-obs-text-dim">Δ</span>{" "}
-            <span
-              className={delta >= 0 ? "text-obs-green" : "text-obs-coral"}
-            >
+            <span className={delta >= 0 ? "text-obs-green" : "text-obs-coral"}>
               {delta >= 0 ? "+" : ""}
               {fmtNum(delta, 2)}%
             </span>
@@ -67,7 +67,7 @@ export function EquityChart() {
       <div className="h-[220px] -mx-3">
         {points.length < 2 ? (
           <div className="flex h-full items-center justify-center text-sm text-obs-text-dim">
-            Accumulating live equity points…
+            {t("accumulating")}
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
@@ -108,7 +108,7 @@ export function EquityChart() {
                   color: "var(--obs-text)",
                 }}
                 labelFormatter={(v) => new Date(Number(v)).toLocaleString()}
-                formatter={(value: number) => [`$${Number(value).toFixed(2)}`, "Balance"]}
+                formatter={(value: number) => [`$${Number(value).toFixed(2)}`, t("balance")]}
               />
               <Area
                 type="monotone"

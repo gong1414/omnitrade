@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useDecisions } from "@/hooks/useDecisions";
 import { usePositions } from "@/hooks/usePositions";
+import { useTranslations } from "@/lib/i18n/context";
 import type { ConnectionState } from "@/lib/ws/client";
 import { Chip, Panel, StatusDot } from "./obs/Panel";
 
@@ -33,8 +34,7 @@ export function SessionMeta({
 }) {
   const { decisions } = useDecisions({ limit: 1 });
   const { count: openPositions } = usePositions();
-  // `mounted` guards every time-dependent string so SSR and first client
-  // render produce identical markup (avoids React hydration errors 425/418).
+  const t = useTranslations("session");
   const [mounted, setMounted] = useState(false);
   const [now, setNow] = useState<number>(0);
   const [bootTs, setBootTs] = useState<number>(0);
@@ -44,8 +44,8 @@ export function SessionMeta({
     setBootTs(start);
     setNow(start);
     setMounted(true);
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
+    const tick = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(tick);
   }, []);
 
   const latest = decisions[0];
@@ -53,12 +53,12 @@ export function SessionMeta({
     state === "open" ? "green" : state === "reconnecting" ? "amber" : "coral";
 
   return (
-    <Panel eyebrow="Station · Session" title="Deck" data-testid="session-meta">
+    <Panel eyebrow={t("eyebrow")} title={t("title")} data-testid="session-meta">
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-obs-text-dim">
             <StatusDot tone={wsTone} breath={state !== "open"} />
-            stream · {state}
+            {t("stream", { state })}
           </span>
           <span
             className="font-mono text-[11px] tabular-nums text-obs-text"
@@ -67,8 +67,8 @@ export function SessionMeta({
             {!mounted
               ? "—"
               : lastDisconnectAt && state !== "open"
-                ? `off ${formatUptime(now - lastDisconnectAt)}`
-                : "live"}
+                ? t("off", { duration: formatUptime(now - lastDisconnectAt) })
+                : t("live")}
           </span>
         </div>
 
@@ -77,7 +77,7 @@ export function SessionMeta({
         <dl className="grid grid-cols-2 gap-x-5 gap-y-2 font-mono text-[11px] tabular-nums">
           <div className="flex flex-col">
             <dt className="text-obs-text-ghost uppercase tracking-[0.18em] text-[9px]">
-              Deck uptime
+              {t("uptime")}
             </dt>
             <dd className="text-obs-text" suppressHydrationWarning>
               {mounted ? formatUptime(now - bootTs) : "—"}
@@ -85,19 +85,19 @@ export function SessionMeta({
           </div>
           <div className="flex flex-col text-right">
             <dt className="text-obs-text-ghost uppercase tracking-[0.18em] text-[9px]">
-              Open pos
+              {t("openPos")}
             </dt>
             <dd className="text-obs-text">{openPositions}</dd>
           </div>
           <div className="flex flex-col">
             <dt className="text-obs-text-ghost uppercase tracking-[0.18em] text-[9px]">
-              Iteration
+              {t("iteration")}
             </dt>
             <dd className="text-obs-text">#{latest?.iteration ?? "—"}</dd>
           </div>
           <div className="flex flex-col text-right">
             <dt className="text-obs-text-ghost uppercase tracking-[0.18em] text-[9px]">
-              Last decision
+              {t("lastDecision")}
             </dt>
             <dd className="text-obs-text" suppressHydrationWarning>
               {mounted ? formatAgo(latest?.timestamp, now) : "—"}
@@ -106,8 +106,8 @@ export function SessionMeta({
         </dl>
 
         <div className="mt-1 flex flex-wrap gap-1.5">
-          <Chip tone="amber">testnet</Chip>
-          <Chip tone="blue">gate · deepseek</Chip>
+          <Chip tone="amber">{t("tagTestnet")}</Chip>
+          <Chip tone="blue">{t("tagGate")}</Chip>
         </div>
       </div>
     </Panel>

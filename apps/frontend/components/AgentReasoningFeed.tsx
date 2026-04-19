@@ -2,22 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { useDecisions } from "@/hooks/useDecisions";
+import { useTranslations } from "@/lib/i18n/context";
 import { cn, fmtNum, fmtTime } from "@/lib/utils";
 import { Chip, Panel, StatusDot } from "./obs/Panel";
-
-/**
- * AgentReasoningFeed — the second signature component.
- *
- * Replaces DecisionsFeed. Parses each AgentDecision's actions_taken JSON
- * to surface the LLM's reasoning text (the *why*), the canonical tool
- * call (the *what*), and the market snapshot that was fed in (the *when*).
- *
- * Visual hierarchy per entry:
- *   Timestamp · iteration · action chip
- *     ↳ Tool call (monospace pill with args)
- *     ↳ Reasoning (Fraunces italic body, full text, unclipped)
- *     ↳ Market snapshot (monospace key:value)
- */
 
 interface ActionStep {
   tool?: string;
@@ -31,10 +18,7 @@ interface ActionStep {
   [k: string]: unknown;
 }
 
-function pickReason(
-  step: ActionStep | null,
-  fallback: string | undefined,
-): string {
+function pickReason(step: ActionStep | null, fallback: string | undefined): string {
   const raw = step?.reason ?? step?.reasoning ?? fallback ?? "";
   return typeof raw === "string" ? raw : String(raw);
 }
@@ -82,10 +66,8 @@ function marketSummary(m: Record<string, unknown>): Array<[string, string]> {
         ? obj.fundingRate
         : null;
     const parts: string[] = [];
-    if (price !== null && price !== undefined)
-      parts.push(`px ${fmtNum(price as string | number, 2)}`);
-    if (fr !== null && fr !== undefined)
-      parts.push(`fr ${Number(fr).toExponential(2)}`);
+    if (price !== null && price !== undefined) parts.push(`px ${fmtNum(price as string | number, 2)}`);
+    if (fr !== null && fr !== undefined) parts.push(`fr ${Number(fr).toExponential(2)}`);
     rows.push([sym, parts.join("  ·  ")]);
   }
   return rows;
@@ -93,6 +75,7 @@ function marketSummary(m: Record<string, unknown>): Array<[string, string]> {
 
 export function AgentReasoningFeed() {
   const { decisions, isLoading, count } = useDecisions({ limit: 25 });
+  const t = useTranslations("reasoning");
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const rows = useMemo(
@@ -100,20 +83,15 @@ export function AgentReasoningFeed() {
       decisions.map((d) => {
         const actions = parseActions(d.actions_taken);
         const market = parseMarket(d.market_analysis);
-        return {
-          raw: d,
-          actions,
-          market,
-          primary: actions[0] ?? null,
-        };
+        return { raw: d, actions, market, primary: actions[0] ?? null };
       }),
     [decisions],
   );
 
   return (
     <Panel
-      eyebrow="Reasoning · Feed"
-      title="Agent thinks aloud"
+      eyebrow={t("eyebrow")}
+      title={t("title")}
       data-testid="reasoning-feed"
       actions={
         <span className="font-mono text-[11px] text-obs-text-dim tabular-nums">
@@ -123,13 +101,9 @@ export function AgentReasoningFeed() {
       flush
     >
       {isLoading && rows.length === 0 ? (
-        <div className="px-5 py-6 text-sm text-obs-text-dim">
-          Awaiting the agent&apos;s first word…
-        </div>
+        <div className="px-5 py-6 text-sm text-obs-text-dim">{t("awaiting")}</div>
       ) : rows.length === 0 ? (
-        <div className="px-5 py-6 text-sm text-obs-text-dim">
-          No decisions yet. The agent is quiet.
-        </div>
+        <div className="px-5 py-6 text-sm text-obs-text-dim">{t("quiet")}</div>
       ) : (
         <ul className="obs-scroll max-h-[720px] overflow-y-auto">
           {rows.map(({ raw, actions, market, primary }, idx) => {
@@ -138,6 +112,7 @@ export function AgentReasoningFeed() {
             const summary = market ? marketSummary(market) : [];
             const isExpanded = expandedId === raw.id;
             const hasLongReason = reason.length > 260;
+            const extra = actions.length - 1;
 
             return (
               <li
@@ -148,7 +123,6 @@ export function AgentReasoningFeed() {
                   idx === 0 ? "obs-slide-in" : "",
                 )}
               >
-                {/* Row 1 — meta */}
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2 min-w-0">
                     <StatusDot
@@ -172,10 +146,9 @@ export function AgentReasoningFeed() {
                   </span>
                 </div>
 
-                {/* Row 2 — tool signature (if non-hold) */}
                 {primary && (primary.symbol || primary.side) ? (
                   <div className="mt-3 flex flex-wrap items-center gap-1.5 font-mono text-[11px]">
-                    <span className="text-obs-text-dim">call</span>
+                    <span className="text-obs-text-dim">{t("call")}</span>
                     <span className="text-obs-violet">{primary.tool}</span>
                     <span className="text-obs-text-ghost">(</span>
                     {primary.symbol ? (
@@ -207,13 +180,12 @@ export function AgentReasoningFeed() {
                   </div>
                 ) : null}
 
-                {/* Row 3 — reasoning */}
                 {reason ? (
                   <blockquote
                     data-testid="reasoning-text"
                     className={cn(
-                      "mt-3 border-l-2 border-obs-violet/40 pl-4",
-                      "font-display text-[15px] leading-[1.55] italic text-obs-text/90",
+                      "mt-3 border-l-2 border-obs-amber/50 pl-4",
+                      "font-sans text-[15px] leading-[1.55] italic text-obs-text/90",
                     )}
                   >
                     {hasLongReason && !isExpanded
@@ -223,19 +195,18 @@ export function AgentReasoningFeed() {
                       <button
                         type="button"
                         onClick={() => setExpandedId(isExpanded ? null : raw.id)}
-                        className="mt-2 block font-mono text-[10px] uppercase tracking-[0.18em] text-obs-violet hover:text-obs-text"
+                        className="mt-2 block font-mono text-[10px] uppercase tracking-[0.18em] text-obs-amber hover:text-obs-text"
                       >
-                        {isExpanded ? "▲ collapse" : "▼ read full"}
+                        {isExpanded ? t("collapse") : t("expand")}
                       </button>
                     ) : null}
                   </blockquote>
                 ) : null}
 
-                {/* Row 4 — market snapshot fed in */}
                 {summary.length ? (
                   <div className="mt-3 border border-dashed border-obs-line px-3 py-2">
                     <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-obs-text-ghost mb-1">
-                      Snapshot fed
+                      {t("snapshot")}
                     </p>
                     <ul className="font-mono text-[11px] space-y-0.5">
                       {summary.map(([sym, desc]) => (
@@ -248,18 +219,16 @@ export function AgentReasoningFeed() {
                   </div>
                 ) : null}
 
-                {/* Row 5 — tail: remaining actions count + correlation id */}
                 <div className="mt-3 flex items-center justify-between font-mono text-[10px] text-obs-text-ghost">
                   <span>
-                    {actions.length > 1
-                      ? `+${actions.length - 1} more step${actions.length > 2 ? "s" : ""}`
+                    {extra > 0
+                      ? extra === 1
+                        ? t("moreSteps", { n: extra })
+                        : t("moreStepsPlural", { n: extra })
                       : ""}
                   </span>
                   {raw.correlation_id ? (
-                    <span
-                      className="truncate max-w-[16ch]"
-                      title={raw.correlation_id}
-                    >
+                    <span className="truncate max-w-[16ch]" title={raw.correlation_id}>
                       {raw.correlation_id}
                     </span>
                   ) : null}

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Badge } from "./ui/badge";
 import type { ConnectionState } from "@/lib/ws/client";
 import type { OrchestratorErrorPayload } from "@/lib/api/types";
+import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 
 const DISCONNECT_THRESHOLD_MS = 30_000;
@@ -17,27 +18,25 @@ export function ConnectionBanner({
   lastDisconnectAt: number | null;
   orchestratorError?: OrchestratorErrorPayload | null;
 }) {
+  const t = useTranslations("banner");
+  const th = useTranslations("header");
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
+    const tick = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(tick);
   }, []);
 
   const disconnected = state !== "open";
   const durationMs =
     disconnected && lastDisconnectAt !== null ? now - lastDisconnectAt : 0;
   const showWarn = disconnected && durationMs > DISCONNECT_THRESHOLD_MS;
-
-  // Phase 8.5a (plan v3 G-5): multi-agent orchestrator degradation takes
-  // priority over a transient disconnect — if both, render the orchestrator
-  // error as a red warning banner below the connection state.
   const showOrchestratorError = orchestratorError !== null;
 
   if (!disconnected && !showOrchestratorError) {
     return (
       <div className="flex items-center gap-2 text-xs" data-testid="connection-banner">
-        <Badge tone="success">WS connected</Badge>
+        <Badge tone="success">{t("wsConnected")}</Badge>
       </div>
     );
   }
@@ -55,12 +54,12 @@ export function ConnectionBanner({
           role="status"
         >
           <Badge tone={showWarn ? "danger" : "warn"}>
-            {state === "reconnecting" ? "reconnecting" : state}
+            {th(`ws.${state === "reconnecting" ? "reconnecting" : "closed"}`)}
           </Badge>
           <span>
             {showWarn
-              ? `Disconnected ${Math.round(durationMs / 1000)}s — data may be stale`
-              : "Live stream temporarily offline"}
+              ? t("wsStale", { sec: Math.round(durationMs / 1000) })
+              : t("wsOffline")}
           </span>
         </div>
       )}
@@ -70,10 +69,12 @@ export function ConnectionBanner({
           data-testid="orchestrator-error-banner"
           role="alert"
         >
-          <Badge tone="danger">orchestrator</Badge>
+          <Badge tone="danger">{t("orchestrator")}</Badge>
           <span>
-            Multi-agent orchestrator error: {orchestratorError!.strategy} —{" "}
-            {orchestratorError!.reason}
+            {t("orchestratorError", {
+              strategy: orchestratorError!.strategy,
+              reason: orchestratorError!.reason,
+            })}
           </span>
         </div>
       )}

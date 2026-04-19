@@ -2,6 +2,7 @@
 
 import useSWR from "swr";
 import { apiClient } from "@/lib/api/client";
+import { useTranslations } from "@/lib/i18n/context";
 import { Chip, Panel } from "./obs/Panel";
 
 interface StrategyInfo {
@@ -14,10 +15,8 @@ interface StrategyInfo {
   initial_balance_usdt?: number;
 }
 
-// Use the same absolute base URL that apiClient.fetchAccount uses, so the
-// browser talks straight to the backend (localhost:8000) instead of going
-// through Next.js server-side rewrites (which point at the wrong host when
-// the frontend container is reached from the user's host browser).
+// Absolute URL — avoid Next.js rewrites that point at the wrong host when
+// the frontend container is reached from the user's host browser.
 const STRATEGY_URL = `${
   (typeof process !== "undefined"
     ? process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL
@@ -28,19 +27,19 @@ const MINIMAL_BRANCH = new Set(["arena-autopilot", "arena-dual-signal"]);
 const JURY_BRANCH = new Set(["arena-tribunal"]);
 const TEAM_BRANCH = new Set(["arena-raider-squad"]);
 
-function promptBranch(name?: string): { label: string; tone: Parameters<typeof Chip>[0]["tone"] } {
-  if (!name) return { label: "—", tone: "neutral" };
-  if (MINIMAL_BRANCH.has(name)) return { label: "Minimal prompt", tone: "violet" };
-  if (JURY_BRANCH.has(name)) return { label: "3-juror consensus", tone: "blue" };
-  if (TEAM_BRANCH.has(name)) return { label: "4-expert squad", tone: "blue" };
-  return { label: "World-class trader", tone: "amber" };
+type Tone = Parameters<typeof Chip>[0]["tone"];
+
+function branchKey(name?: string): { key: "minimal" | "jury" | "team" | "default"; tone: Tone } {
+  if (!name) return { key: "default", tone: "neutral" };
+  if (MINIMAL_BRANCH.has(name)) return { key: "minimal", tone: "violet" };
+  if (JURY_BRANCH.has(name)) return { key: "jury", tone: "blue" };
+  if (TEAM_BRANCH.has(name)) return { key: "team", tone: "blue" };
+  return { key: "default", tone: "amber" };
 }
 
 export function StrategyPanel() {
-  // Silence the unused-import linter for apiClient — we keep it imported so
-  // the dev knows this panel shares its contract; the actual call goes via
-  // STRATEGY_URL because `/api/strategy` has no prefix in the backend router.
   void apiClient;
+  const t = useTranslations("strategy");
   const { data } = useSWR<StrategyInfo>(
     STRATEGY_URL,
     async (url: string) => {
@@ -51,17 +50,17 @@ export function StrategyPanel() {
     { refreshInterval: 15_000, revalidateOnFocus: false },
   );
 
-  const branch = promptBranch(data?.name);
+  const branch = branchKey(data?.name);
 
   return (
-    <Panel eyebrow="Station · Strategy" title="Playbook" data-testid="strategy-panel">
+    <Panel eyebrow={t("eyebrow")} title={t("title")} data-testid="strategy-panel">
       <div className="space-y-4">
         <div>
           <p className="font-mono text-[14px] text-obs-ftpink">
             {data?.name ?? "—"}
           </p>
           <div className="mt-1.5 flex items-center gap-1.5">
-            <Chip tone={branch.tone}>{branch.label}</Chip>
+            <Chip tone={branch.tone}>{t(`branch.${branch.key}`)}</Chip>
           </div>
         </div>
 
@@ -70,35 +69,39 @@ export function StrategyPanel() {
         <dl className="grid grid-cols-2 gap-x-5 gap-y-2 font-mono text-[11px] tabular-nums">
           <div className="flex flex-col">
             <dt className="text-obs-text-ghost uppercase tracking-[0.18em] text-[9px]">
-              Interval
+              {t("interval")}
             </dt>
-            <dd className="text-obs-text">{data?.interval_minutes ?? "—"} min</dd>
+            <dd className="text-obs-text">
+              {data?.interval_minutes ?? "—"} {t("minUnit")}
+            </dd>
           </div>
           <div className="flex flex-col text-right">
             <dt className="text-obs-text-ghost uppercase tracking-[0.18em] text-[9px]">
-              Max lev
+              {t("maxLev")}
             </dt>
             <dd className="text-obs-text">{data?.max_leverage ?? "—"}×</dd>
           </div>
           <div className="flex flex-col">
             <dt className="text-obs-text-ghost uppercase tracking-[0.18em] text-[9px]">
-              Max pos
+              {t("maxPos")}
             </dt>
             <dd className="text-obs-text">{data?.max_positions ?? "—"}</dd>
           </div>
           <div className="flex flex-col text-right">
             <dt className="text-obs-text-ghost uppercase tracking-[0.18em] text-[9px]">
-              Hold cap
+              {t("holdCap")}
             </dt>
-            <dd className="text-obs-text">{data?.max_holding_hours ?? "—"} h</dd>
+            <dd className="text-obs-text">
+              {data?.max_holding_hours ?? "—"} {t("hourUnit")}
+            </dd>
           </div>
           <div className="col-span-2 flex flex-col">
             <dt className="text-obs-text-ghost uppercase tracking-[0.18em] text-[9px]">
-              Hard floor
+              {t("hardFloor")}
             </dt>
             <dd className="text-obs-coral">
               {data?.extreme_stop_loss_percent !== undefined
-                ? `${data.extreme_stop_loss_percent}% force-close`
+                ? t("forceClose", { pct: data.extreme_stop_loss_percent })
                 : "—"}
             </dd>
           </div>

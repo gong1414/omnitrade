@@ -5,6 +5,7 @@ import { AgentReasoningFeed } from "@/components/AgentReasoningFeed";
 import { ConnectionBanner } from "@/components/ConnectionBanner";
 import { EquityChart } from "@/components/EquityChart";
 import { HeaderStrip } from "@/components/HeaderStrip";
+import { LocaleToggle } from "@/components/LocaleToggle";
 import { LogStream } from "@/components/LogStream";
 import { PipelineStatus } from "@/components/PipelineStatus";
 import { PositionsTable } from "@/components/PositionsTable";
@@ -20,7 +21,6 @@ export default function DashboardPage() {
     <main className="min-h-screen">
       <HeaderStrip state={state} />
 
-      {/* Orchestrator / WS disconnect banner (only when applicable) */}
       {(state !== "open" || orchestratorError) && (
         <div className="px-6 pt-4">
           <ConnectionBanner
@@ -38,27 +38,24 @@ export default function DashboardPage() {
       <div
         className="px-6 pb-10 grid gap-5"
         style={{
-          gridTemplateColumns:
-            "minmax(280px, 320px) minmax(0, 1fr) minmax(380px, 460px)",
+          gridTemplateColumns: "minmax(280px, 320px) minmax(0, 1fr) minmax(380px, 460px)",
         }}
       >
-        {/* LEFT — Station */}
         <aside className="flex flex-col gap-5">
           <AccountCard />
           <StrategyPanel />
           <SessionMeta state={state} lastDisconnectAt={lastDisconnectAt} />
-          <div className="flex justify-end">
+          <div className="flex items-center justify-end gap-2">
+            <LocaleToggle />
             <ThemeToggle />
           </div>
         </aside>
 
-        {/* CENTER — Floor */}
         <section className="flex flex-col gap-5 min-w-0">
           <EquityChart />
           <PositionsTable />
         </section>
 
-        {/* RIGHT — Reasoning */}
         <section className="flex flex-col gap-5 min-w-0">
           <AgentReasoningFeed />
           <LogStream log={log} />

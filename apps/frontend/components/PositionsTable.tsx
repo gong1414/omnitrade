@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { usePositions } from "@/hooks/usePositions";
 import { apiClient } from "@/lib/api/client";
+import { useTranslations } from "@/lib/i18n/context";
 import { cn, fmtNum, fmtPercent } from "@/lib/utils";
 import { Panel } from "./obs/Panel";
 import { Button } from "./ui/button";
@@ -13,6 +14,8 @@ import { ApiError } from "@/lib/api/client";
 
 export function PositionsTable() {
   const { positions, isLoading, mutate } = usePositions();
+  const t = useTranslations("positions");
+  const tc = useTranslations("common");
   const [target, setTarget] = useState<Position | null>(null);
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -37,8 +40,8 @@ export function PositionsTable() {
 
   return (
     <Panel
-      eyebrow="Floor · Positions"
-      title="Open book"
+      eyebrow={t("eyebrow")}
+      title={t("title")}
       actions={
         <span className="font-mono text-[11px] tabular-nums text-obs-text-dim">
           {positions.length}
@@ -48,25 +51,25 @@ export function PositionsTable() {
       flush
     >
       {isLoading && positions.length === 0 ? (
-        <div className="px-5 py-6 text-sm text-obs-text-dim">Loading…</div>
+        <div className="px-5 py-6 text-sm text-obs-text-dim">{tc("loading")}</div>
       ) : positions.length === 0 ? (
         <div className="px-5 py-6 font-mono text-[12px] text-obs-text-dim">
-          No open positions · flat book
+          {t("empty")}
         </div>
       ) : (
         <div className="overflow-x-auto font-mono text-[12px]">
           <table className="w-full">
             <thead>
               <tr className="border-b border-obs-line-soft text-left uppercase tracking-[0.18em] text-[9px] text-obs-text-ghost">
-                <th className="px-5 py-2">Symbol</th>
-                <th className="px-3 py-2">Side</th>
-                <th className="px-3 py-2 text-right">Qty</th>
-                <th className="px-3 py-2 text-right">Entry</th>
-                <th className="px-3 py-2 text-right">Mark</th>
-                <th className="px-3 py-2 text-right">PnL</th>
-                <th className="px-3 py-2 text-right">Lev</th>
-                <th className="px-3 py-2 text-right">Closed</th>
-                <th className="px-3 py-2 text-right">Peak</th>
+                <th className="px-5 py-2">{t("symbol")}</th>
+                <th className="px-3 py-2">{t("side")}</th>
+                <th className="px-3 py-2 text-right">{t("qty")}</th>
+                <th className="px-3 py-2 text-right">{t("entry")}</th>
+                <th className="px-3 py-2 text-right">{t("mark")}</th>
+                <th className="px-3 py-2 text-right">{t("pnl")}</th>
+                <th className="px-3 py-2 text-right">{t("lev")}</th>
+                <th className="px-3 py-2 text-right">{t("closed")}</th>
+                <th className="px-3 py-2 text-right">{t("peak")}</th>
                 <th className="px-5 py-2 text-right" />
               </tr>
             </thead>
@@ -77,7 +80,7 @@ export function PositionsTable() {
                   <tr
                     key={p.id}
                     data-testid="position-row"
-                    className="border-b border-obs-line-soft last:border-b-0 hover:bg-obs-panel-2/30"
+                    className="border-b border-obs-line-soft last:border-b-0 hover:bg-obs-panel-2/40"
                   >
                     <td className="px-5 py-2.5 text-obs-ftpink">{p.symbol}</td>
                     <td className="px-3 py-2.5">
@@ -85,33 +88,20 @@ export function PositionsTable() {
                         className={cn(
                           "px-1.5 py-[1px] text-[10px] uppercase tracking-[0.18em] border",
                           p.side === "long"
-                            ? "text-obs-green border-obs-green/40 bg-obs-green/[0.06]"
-                            : "text-obs-coral border-obs-coral/40 bg-obs-coral/[0.06]",
+                            ? "text-obs-green border-obs-green/40 bg-obs-green/[0.08]"
+                            : "text-obs-coral border-obs-coral/40 bg-obs-coral/[0.08]",
                         )}
                       >
                         {p.side}
                       </span>
                     </td>
-                    <td className="px-3 py-2.5 text-right text-obs-text">
-                      {fmtNum(p.quantity, 4)}
-                    </td>
-                    <td className="px-3 py-2.5 text-right text-obs-text">
-                      {fmtNum(p.entry_price, 4)}
-                    </td>
-                    <td className="px-3 py-2.5 text-right text-obs-text">
-                      {fmtNum(p.current_price, 4)}
-                    </td>
-                    <td
-                      className={cn(
-                        "px-3 py-2.5 text-right",
-                        pnl >= 0 ? "text-obs-green" : "text-obs-coral",
-                      )}
-                    >
+                    <td className="px-3 py-2.5 text-right text-obs-text">{fmtNum(p.quantity, 4)}</td>
+                    <td className="px-3 py-2.5 text-right text-obs-text">{fmtNum(p.entry_price, 4)}</td>
+                    <td className="px-3 py-2.5 text-right text-obs-text">{fmtNum(p.current_price, 4)}</td>
+                    <td className={cn("px-3 py-2.5 text-right", pnl >= 0 ? "text-obs-green" : "text-obs-coral")}>
                       {fmtNum(p.unrealized_pnl, 2)}
                     </td>
-                    <td className="px-3 py-2.5 text-right text-obs-text-dim">
-                      {p.leverage}×
-                    </td>
+                    <td className="px-3 py-2.5 text-right text-obs-text-dim">{p.leverage}×</td>
                     <td className="px-3 py-2.5 text-right text-obs-text-dim">
                       {fmtNum(p.cumulative_close_pct, 0)}%
                     </td>
@@ -126,7 +116,7 @@ export function PositionsTable() {
                         data-testid="close-button"
                         className="font-mono text-[10px] uppercase tracking-[0.18em]"
                       >
-                        close
+                        {tc("close")}
                       </Button>
                     </td>
                   </tr>
@@ -146,15 +136,13 @@ export function PositionsTable() {
             setErr(null);
           }
         }}
-        title={target ? `Close ${target.symbol}?` : undefined}
+        title={target ? t("confirmTitle", { symbol: target.symbol }) : undefined}
       >
-        <p className="text-sm text-obs-text-dim">
-          Market-close the full remaining quantity. Password required.
-        </p>
+        <p className="text-sm text-obs-text-dim">{t("confirmBody")}</p>
         <div className="mt-4 space-y-2">
           <Input
             type="password"
-            placeholder="manual-close password"
+            placeholder={t("passwordPlaceholder")}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoFocus
@@ -164,7 +152,7 @@ export function PositionsTable() {
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => setTarget(null)} disabled={submitting}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button
             variant="destructive"
@@ -172,7 +160,7 @@ export function PositionsTable() {
             disabled={submitting || password.length === 0}
             data-testid="close-submit"
           >
-            {submitting ? "Closing…" : "Close position"}
+            {submitting ? tc("closing") : t("confirmSubmit")}
           </Button>
         </DialogFooter>
       </Dialog>
