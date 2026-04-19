@@ -110,19 +110,53 @@ class PositionManager:
         """
         # Alpha Arena no-pyramid rule: refuse to open a second position in
         # a symbol that already has a row in the ``positions`` table with
-        # non-zero quantity. Closed positions leave quantity=0 or are
-        # removed entirely so this check is safe.
+        # non-zero quantity. Cross-check with the exchange to avoid stale
+        # DB rows blocking new positions (the earlier close may have
+        # succeeded on the exchange but failed to update the DB).
         session = await self._session_factory()
         try:
             existing = await self._position_repo.get_by_symbol(session, symbol)
         finally:
             await session.close()
         if existing is not None and existing.quantity > Decimal(0):
-            raise PyramidViolationError(
-                f"Already holding {symbol} (side={existing.side}, "
-                f"qty={existing.quantity}). No pyramid: cannot open new "
-                f"position in same symbol."
-            )
+            # Verify the position actually exists on the exchange.
+            try:
+                exchange_positions = await self._exchange.fetch_positions()
+                on_exchange = any(
+                    p.symbol == symbol and p.quantity > Decimal(0)
+                    for p in exchange_positions
+                )
+                if not on_exchange:
+                    with_context(logger).warning(
+                        "position_manager.stale_db_position",
+                        symbol=symbol,
+                        db_qty=str(existing.quantity),
+                    )
+                    session = await self._session_factory()
+                    try:
+                        await self._position_repo.delete(session, existing.id)
+                        await session.commit()
+                    finally:
+                        await session.close()
+                else:
+                    raise PyramidViolationError(
+                        f"Already holding {symbol} (side={existing.side}, "
+                        f"qty={existing.quantity}). No pyramid: cannot open new "
+                        f"position in same symbol."
+                    )
+            except PyramidViolationError:
+                raise
+            except Exception as exc:
+                with_context(logger).warning(
+                    "position_manager.pyramid_check_exchange_failed",
+                    symbol=symbol,
+                    error=str(exc),
+                )
+                raise PyramidViolationError(
+                    f"Already holding {symbol} (side={existing.side}, "
+                    f"qty={existing.quantity}). No pyramid: cannot open new "
+                    f"position in same symbol."
+                ) from exc
 
         with_context(logger).info(
             "position_manager.open_position",

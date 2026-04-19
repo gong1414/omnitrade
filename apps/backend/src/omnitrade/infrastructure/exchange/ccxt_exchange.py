@@ -124,9 +124,13 @@ class CCXTExchange:
                     unrealized_pnl = Decimal(str(val))
                     break
 
+        # Gate.io `total` does NOT include unrealized PnL — must add it
+        # to get the true account value (same pattern as nof1.ai).
+        total_with_upnl = total + unrealized_pnl
+
         return AccountSnapshot(
             timestamp=datetime.now(tz=UTC),
-            total_value=total,
+            total_value=total_with_upnl,
             available_cash=free,
             unrealized_pnl=unrealized_pnl,
             realized_pnl=Decimal("0"),
@@ -207,11 +211,47 @@ class CCXTExchange:
         # plain market order and let the code-level monitors (stop_loss,
         # trailing_stop, partial_profit) enforce exit conditions.
 
+        amount = float(size)
+        # Round amount to exchange precision and enforce minimums.
+        try:
+            amount = self._exchange.amount_to_precision(ccxt_symbol, amount)
+            amount = float(amount)
+        except Exception as exc:
+            with_context(logger).warning(
+                "ccxt_exchange.amount_precision_fallback",
+                symbol=str(symbol),
+                amount=str(amount),
+                error=str(exc),
+            )
+        # Gate.io perpetuals require integer contract counts; amount_to_precision
+        # may still return <1. Clamp to the market's minimum amount.
+        try:
+            market = self._exchange.market(ccxt_symbol)
+            min_amount = (market.get("limits", {}).get("amount", {}).get("min")) or 0
+            if min_amount and amount < float(min_amount):
+                with_context(logger).info(
+                    "ccxt_exchange.amount_clamped_to_min",
+                    symbol=str(symbol),
+                    original=str(amount),
+                    minimum=str(min_amount),
+                )
+                amount = float(min_amount)
+            # Re-apply precision after clamping (e.g. round to integer).
+            amount = float(self._exchange.amount_to_precision(ccxt_symbol, amount))
+        except Exception:
+            pass
+
+        if amount <= 0:
+            raise ValueError(
+                f"Order amount rounded to zero for {symbol} "
+                f"(requested {size}). Account too small for minimum contract size."
+            )
+
         raw_order = await self._exchange.create_order(
             symbol=ccxt_symbol,
             type="market",
             side=ccxt_side,
-            amount=float(size),
+            amount=amount,
             params=params,
         )
 
@@ -262,11 +302,18 @@ class CCXTExchange:
         # To close: if long -> sell; if short -> buy
         close_side = "sell" if side_raw in ("long", "buy") else "buy"
 
+        close_amount = float(close_size)
+        try:
+            close_amount = self._exchange.amount_to_precision(ccxt_symbol, close_amount)
+            close_amount = float(close_amount)
+        except Exception:
+            pass
+
         raw_order = await self._exchange.create_order(
             symbol=ccxt_symbol,
             type="market",
             side=close_side,
-            amount=float(close_size),
+            amount=close_amount,
             params={"reduceOnly": True},
         )
 

@@ -64,7 +64,10 @@ async def test_open_same_symbol_raises_pyramid() -> None:
     finally:
         await session.close()
 
-    exchange = FakeExchange(place_order_trade=make_trade(ttype="open"))
+    exchange = FakeExchange(
+        place_order_trade=make_trade(ttype="open"),
+        positions=[_seed_position("BTC_USDT", quantity=Decimal("1"))],
+    )
     mgr = _make_manager(open_session, exchange)
 
     with pytest.raises(PyramidViolationError, match="Already holding BTC_USDT"):
@@ -74,7 +77,6 @@ async def test_open_same_symbol_raises_pyramid() -> None:
             size=Decimal("1"),
             leverage=5,
         )
-    # Must not hit the exchange when the pre-check refuses.
     assert exchange.place_order_calls == []
 
 

@@ -164,6 +164,8 @@ class AgentDecision(BaseModel):
     actions_taken: str  # JSON array
     account_value: Decimal
     positions_count: int
+    symbol: str | None = None  # e.g. "BTC_USDT" — None for hold
+    side: str | None = None  # "long" | "short" — None for hold
     correlation_id: str = ""  # TraceContext linkage
     # StructuredReason fields — None for legacy rows
     market_context: str | None = None

@@ -29,6 +29,8 @@ def _orm_to_domain(row: AgentDecisionORM) -> AgentDecision:
         actions_taken=row.actions_taken,
         account_value=Decimal(str(row.account_value)),
         positions_count=row.positions_count,
+        symbol=row.symbol,
+        side=row.side,
         # StructuredReason fields — DB column ``confidence`` → domain ``structured_confidence``
         market_context=row.market_context,
         gates_passed=gates_passed,
@@ -52,6 +54,8 @@ def _domain_to_orm(dec: AgentDecision) -> AgentDecisionORM:
         actions_taken=dec.actions_taken,
         account_value=float(dec.account_value),
         positions_count=dec.positions_count,
+        symbol=dec.symbol,
+        side=dec.side,
         # StructuredReason fields — domain ``structured_confidence`` → DB column ``confidence``
         market_context=dec.market_context,
         gates_passed=gates_passed_json,

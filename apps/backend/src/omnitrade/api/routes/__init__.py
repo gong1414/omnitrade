@@ -37,6 +37,7 @@ api_router.include_router(config.router)
 api_router.include_router(actions.router)
 api_router.include_router(rebate.router)
 api_router.include_router(cycle.router)
+api_router.include_router(trades.router)
 
 
 # Phase 8.3: upstream-parity REST routes live at ``/api/...`` (no v1 prefix).

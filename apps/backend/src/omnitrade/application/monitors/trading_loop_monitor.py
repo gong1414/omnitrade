@@ -142,6 +142,8 @@ class TradingLoopMonitor:
             account_value=account_value,
             positions_count=len(outcome.market.positions),
             timestamp=self._clock.now(),
+            symbol=decision.symbol,
+            side=decision.side,
             # PR-B1/B2 — propagate StructuredReason fields so
             # /api/v1/decisions can surface them to the UI. None-safe:
             # the legacy (flat-string) path leaves every field at None.

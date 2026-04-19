@@ -180,7 +180,7 @@ def test_migration_0003_round_trip(tmp_path: Path) -> None:
 
 
 def test_migration_0003_upgrade_head_round_trip(tmp_path: Path) -> None:
-    """Verify upgrade head reaches 0003 and columns are present."""
+    """Verify upgrade head reaches 0003+ and columns are present."""
     db_path = tmp_path / "head_roundtrip.db"
 
     _alembic(db_path, "upgrade", "head")
@@ -189,7 +189,15 @@ def test_migration_0003_upgrade_head_round_trip(tmp_path: Path) -> None:
         f"After upgrade head: expected {_NEW_COLUMNS} ⊆ columns, got {cols}"
     )
 
+    # downgrade -1 now goes to 0003 (not 0002), so 0003 columns remain
     _alembic(db_path, "downgrade", "-1")
+    cols = _decision_columns(db_path)
+    assert _NEW_COLUMNS.issubset(cols), (
+        f"After downgrade -1 (to 0003): expected {_NEW_COLUMNS} ⊆ columns, got {cols}"
+    )
+
+    # downgrade to 0002 should remove all 0003 columns
+    _alembic(db_path, "downgrade", "0002")
     cols = _decision_columns(db_path)
     assert not (_NEW_COLUMNS & cols)
 

@@ -19,6 +19,8 @@ def _decision_to_dict(d: AgentDecision) -> dict[str, Any]:
         "timestamp": d.timestamp.isoformat(),
         "iteration": d.iteration,
         "decision": d.decision,
+        "symbol": d.symbol,
+        "side": d.side,
         "market_analysis": d.market_analysis,
         "actions_taken": d.actions_taken,
         "account_value": str(d.account_value),

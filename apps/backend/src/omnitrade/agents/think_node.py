@@ -357,16 +357,17 @@ def build_think_graph(
 
     def _route_after_think(state: ThinkState) -> str:
         iteration = state.get("iteration", 0)
-        if iteration >= _max_iters:
-            return "decide"
         response = state.get("raw_response") or {}
         choices = response.get("choices") or [{}]
         msg = choices[0].get("message") or {}
         tool_calls = msg.get("tool_calls") or []
-        if not tool_calls:
+        if tool_calls:
+            name = (tool_calls[0].get("function") or {}).get("name", "")
+            if _is_decision_tool(name):
+                return "decide"
+        if iteration >= _max_iters:
             return "decide"
-        name = (tool_calls[0].get("function") or {}).get("name", "")
-        if _is_decision_tool(name):
+        if not tool_calls:
             return "decide"
         if registry.has(name):
             return "execute_tool"

@@ -578,6 +578,7 @@ def _build_base_think_fn(
             model=settings.llm_model_name,
             tools=tool_schemas,
             tool_choice=tc_policy,
+            max_tool_iterations=5,
         )
         decision = await invoke_think(graph, messages)
         return decision
@@ -592,6 +593,7 @@ def _build_base_think_fn(
 
 def _build_execute_fn(
     container: ApiContainer,
+    settings: Settings,
 ) -> Callable[[Decision], Any]:
     """Return an ``ExecuteFn`` that dispatches to ``PositionManager``.
 
@@ -610,25 +612,27 @@ def _build_execute_fn(
         # `record()` still run. The decision carries its reasoning to the UI.
         try:
             if action == "open":
-                if (
-                    decision.symbol is None
-                    or decision.side is None
-                    or decision.size is None
-                    or decision.leverage is None
-                ):
+                if decision.symbol is None or decision.side is None:
                     with_context(logger).warning(
                         "composition.execute.open_missing_fields",
                         symbol=decision.symbol,
                         side=decision.side,
-                        size=str(decision.size) if decision.size is not None else None,
-                        leverage=decision.leverage,
                     )
                     return []
+                size = decision.size or settings.default_position_size
+                leverage = decision.leverage or settings.default_leverage
+                with_context(logger).info(
+                    "composition.execute.open",
+                    symbol=decision.symbol,
+                    side=decision.side,
+                    size=str(size),
+                    leverage=leverage,
+                )
                 trade = await pm.open_position(
                     symbol=decision.symbol,
                     side=decision.side,
-                    size=decision.size,
-                    leverage=decision.leverage,
+                    size=size,
+                    leverage=leverage,
                     stop_loss=decision.stop_loss,
                     take_profit=decision.take_profit,
                     confidence=decision.confidence,
@@ -818,7 +822,7 @@ def build_trading_monitor(
         return await _exchange_observe(container, symbols)
 
     base_think = _build_base_think_fn(container, settings, llm)
-    execute = _build_execute_fn(container)
+    execute = _build_execute_fn(container, settings)
     risk_check = _build_risk_check_fn(container, settings)
 
     return TradingLoopMonitor(

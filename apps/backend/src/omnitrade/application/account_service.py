@@ -31,6 +31,7 @@ from omnitrade.infrastructure.persistence.repositories.account_history_repositor
 from omnitrade.infrastructure.persistence.repositories.position_repository import (
     PositionRepository,
 )
+from omnitrade.infrastructure.persistence.repositories.trade_repository import TradeRepository
 from omnitrade.observability.trace_context import with_context
 
 logger = structlog.get_logger(__name__)
@@ -111,7 +112,9 @@ class AccountService:
             if new_peak > Decimal(0):
                 drawdown = ((new_peak - balance.total_value) / new_peak) * Decimal(100)
 
-            realized = balance.realized_pnl
+            # realized_pnl from balance delta (not exchange API which is unreliable).
+            # Same pattern as nof1.ai: realizedPnl = totalBalance - initialBalance.
+            realized = balance.total_value - self._initial_balance
             return_percent = Decimal(0)
             if self._initial_balance > Decimal(0):
                 return_percent = (
@@ -153,6 +156,7 @@ class AccountService:
 
         Used by ``GET /api/v1/account``.
         """
+        live = await self._exchange.fetch_balance()
         session = await self._session_factory()
         try:
             recent = await self._history_repo.list_recent(session, limit=self._peak_lookback)
@@ -161,7 +165,6 @@ class AccountService:
 
         if not recent:
             # No history yet — derive from the live exchange balance.
-            live = await self._exchange.fetch_balance()
             return _snapshot_to_dict(live, peak=live.total_value, drawdown=Decimal(0))
 
         latest = recent[0]

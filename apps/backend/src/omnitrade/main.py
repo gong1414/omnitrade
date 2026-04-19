@@ -108,6 +108,7 @@ def _start_trading_scheduler(
     from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
     from omnitrade.application.composition import build_trading_monitor
+    from omnitrade.application.monitors.account_recorder_monitor import AccountRecorderMonitor
     from omnitrade.application.monitors.invalidation_monitor import InvalidationMonitor
     from omnitrade.application.monitors.partial_profit_monitor import PartialProfitMonitor
     from omnitrade.application.monitors.stop_loss_monitor import StopLossMonitor
@@ -210,6 +211,23 @@ def _start_trading_scheduler(
         max_instances=1,
         coalesce=True,
     )
+
+    # Account history recorder — persists snapshots every N minutes.
+    # Runs immediately on startup (like nof1.ai) then on interval.
+    account_recorder = AccountRecorderMonitor(
+        interval_minutes=settings.account_record_interval_minutes,
+        account_service=container.account_service,
+    )
+    scheduler.add_job(
+        account_recorder.tick,
+        "interval",
+        minutes=settings.account_record_interval_minutes,
+        next_run_time=_dt.datetime.now(_dt.UTC) + timedelta(seconds=3),
+        id="account_recorder",
+        max_instances=1,
+        coalesce=True,
+    )
+
     scheduler.start()
     app.state.scheduler = scheduler
     # Structlog sync emit — lifespan callers use ``ainfo``; this helper is

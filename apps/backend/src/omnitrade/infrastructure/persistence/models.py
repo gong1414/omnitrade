@@ -123,6 +123,8 @@ class AgentDecisionORM(Base):
     plan: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON string
     confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     output_language: Mapped[str | None] = mapped_column(Text, nullable=True)
+    symbol: Mapped[str | None] = mapped_column(Text, nullable=True)
+    side: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class TradingLessonORM(Base):

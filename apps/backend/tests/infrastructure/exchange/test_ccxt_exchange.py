@@ -180,7 +180,9 @@ async def test_fetch_balance_returns_account_snapshot(
     mock_exchange.fetch_balance = AsyncMock(return_value=balance_fixture)
     result = await adapter.fetch_balance()
     assert isinstance(result, AccountSnapshot)
-    assert result.total_value == Decimal("10000")
+    # total_value = total + unrealized_pnl (Gate.io `total` excludes upnl)
+    assert result.total_value == Decimal("10125.50")
+    assert result.unrealized_pnl == Decimal("125.50")
     assert result.available_cash == Decimal("8500")
 
 

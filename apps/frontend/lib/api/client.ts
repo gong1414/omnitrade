@@ -16,6 +16,7 @@ import type {
   Position,
   PositionsResponse,
   RebateSummary,
+  TradesResponse,
 } from "./types";
 
 export class ApiError extends Error {
@@ -106,6 +107,13 @@ export function createApiClient(options: ApiClientOptions = {}) {
     fetchConfig: () => request<ConfigResponse>(`/api/v1/config`, { method: "GET" }, opts),
 
     fetchRebate: () => request<RebateSummary>(`/api/v1/rebate`, { method: "GET" }, opts),
+
+    fetchTrades: ({ limit = 50, offset = 0 }: { limit?: number; offset?: number } = {}) =>
+      request<TradesResponse>(
+        `/api/v1/trades?limit=${limit}&offset=${offset}`,
+        { method: "GET" },
+        opts,
+      ),
 
     closePosition: (body: ClosePositionRequest) =>
       request<ClosePositionResponse>(

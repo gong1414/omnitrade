@@ -63,6 +63,31 @@ export interface PositionsResponse {
   count: number;
 }
 
+// ── /api/v1/trades ──────────────────────────────────────────────────────
+
+export interface Trade {
+  id: number;
+  order_id: string;
+  symbol: string;
+  side: string;
+  type: string;
+  price: string;
+  quantity: string;
+  leverage: number;
+  pnl: string | null;
+  fee: string | null;
+  timestamp: string;
+  status: string;
+}
+
+export interface TradesResponse {
+  trades: Trade[];
+  total: number;
+  limit: number;
+  offset: number;
+  symbol: string | null;
+}
+
 // ── /api/v1/decisions ─────────────────────────────────────────────────────
 
 export interface AgentDecisionPlan {

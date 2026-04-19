@@ -72,8 +72,20 @@ class StopLossMonitor:
                 to_close.append((pos.symbol, "extreme_stop_loss"))
                 continue
             override = pos.stop_loss
-            if override is not None and pnl <= override:
-                to_close.append((pos.symbol, "stop_loss"))
+            if override is not None:
+                if override < Decimal(0):
+                    # Negative value = percentage threshold (legacy path).
+                    if pnl <= override:
+                        to_close.append((pos.symbol, "stop_loss"))
+                else:
+                    # Positive value = price level.
+                    price_hit = (
+                        pos.current_price <= override
+                        if pos.side == "long"
+                        else pos.current_price >= override
+                    )
+                    if price_hit:
+                        to_close.append((pos.symbol, "stop_loss"))
 
         for symbol, reason in to_close:
             with_context(logger).info(

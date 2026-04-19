@@ -19,6 +19,7 @@ Phase-0 finding resolutions (approved by user):
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Literal
 
 from pydantic import AnyHttpUrl, SecretStr
@@ -48,6 +49,12 @@ class Settings(BaseSettings):
 
     max_leverage: int = 25
     """Maximum leverage multiplier allowed."""
+
+    default_leverage: int = 5
+    """Fallback leverage when the LLM omits it from an open-position tool call."""
+
+    default_position_size: Decimal = Decimal("0.1")
+    """Fallback position size (in contracts) when the LLM omits it."""
 
     max_positions: int = 5
     """Maximum number of concurrent open positions."""

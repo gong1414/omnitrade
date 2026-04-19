@@ -12,6 +12,7 @@ import { PositionsTable } from "@/components/PositionsTable";
 import { SessionMeta } from "@/components/SessionMeta";
 import { StrategyPanel } from "@/components/StrategyPanel";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { TradesTable } from "@/components/TradesTable";
 import { useWebSocket } from "@/hooks/useWebSocket";
 
 export default function DashboardPage() {
@@ -54,6 +55,7 @@ export default function DashboardPage() {
         <section className="flex flex-col gap-5 min-w-0">
           <EquityChart />
           <PositionsTable />
+          <TradesTable />
         </section>
 
         <section className="flex flex-col gap-5 min-w-0">
