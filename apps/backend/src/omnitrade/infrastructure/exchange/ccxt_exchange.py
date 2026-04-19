@@ -202,10 +202,10 @@ class CCXTExchange:
             )
 
         params: dict[str, Any] = {}
-        if stop_loss is not None:
-            params["stopLossPrice"] = float(stop_loss)
-        if take_profit is not None:
-            params["takeProfitPrice"] = float(take_profit)
+        # Gate.io does not support stopLossPrice + takeProfitPrice on the
+        # same order.  Following nof1.ai's approach: open the position with a
+        # plain market order and let the code-level monitors (stop_loss,
+        # trailing_stop, partial_profit) enforce exit conditions.
 
         raw_order = await self._exchange.create_order(
             symbol=ccxt_symbol,

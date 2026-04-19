@@ -246,6 +246,10 @@ def _decision_from_llm_response(response: dict[str, Any]) -> Decision:
         first = tool_calls[0]
         fn = first.get("function") or {}
         name = fn.get("name", "")
+        # If the LLM returned an info tool (not a decision tool) — e.g.
+        # after exhausting max_tool_iterations — default to hold.
+        if not _is_decision_tool(name):
+            return Decision(action="hold", reasoning="no decision tool in final response")
         raw_args = fn.get("arguments") or {}
         args = json.loads(raw_args) if isinstance(raw_args, str) else dict(raw_args)
         return _parse_decision_from_tool_call(name, args)
