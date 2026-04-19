@@ -116,7 +116,7 @@ class HistoricalOHLCV:
         else:
             import ccxt.async_support as ccxt_async
 
-            self._exchange = ccxt_async.binance({"enableRateLimit": True})
+            self._exchange = ccxt_async.gate({"enableRateLimit": True})
         return self._exchange
 
     async def close(self) -> None:
