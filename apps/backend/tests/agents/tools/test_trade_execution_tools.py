@@ -16,6 +16,7 @@ import pytest
 
 from omnitrade.agents.tools.trade_execution import (
     build_close_position_tool,
+    build_hold_tool,
     build_open_position_tool,
     build_partial_close_tool,
 )
@@ -118,6 +119,19 @@ class _StubRepository:
         )
 
 
+def _make_reason_dict() -> dict:
+    """Minimal valid StructuredReason payload for test invocations (PR-B2 Phase C)."""
+    return {
+        "market_context": "a" * 100,
+        "gates_passed": ["EMA alignment gate: EMA20 > EMA50 confirms uptrend"],
+        "invalidation_condition": "Daily close below 40000 USDT invalidates bias.",
+        "plan": None,
+        "confidence": 0.7,
+        "justification": "b" * 200,
+        "output_language": "en",
+    }
+
+
 def _make_position() -> Position:
     return Position(
         id=99,
@@ -148,6 +162,7 @@ async def test_open_position_tool_places_order_and_returns_trade() -> None:
             leverage=5,
             stop_loss=Decimal("29000"),
             take_profit=Decimal("32000"),
+            reason=_make_reason_dict(),
         )
     )
 
@@ -171,8 +186,9 @@ async def test_close_position_tool_calls_apply_three_way_state() -> None:
     async def session_factory() -> Any:
         return session
 
+    reason = _make_reason_dict()
     tool = build_close_position_tool(exchange, repo, session_factory)  # type: ignore[arg-type]
-    result = await tool.ainvoke(dict(symbol="BTC_USDT", reason="stop_loss"))
+    result = await tool.ainvoke(dict(symbol="BTC_USDT", reason=reason))
 
     # exchange was told to close 100%
     assert exchange.close_position_calls == [dict(position_id="BTC_USDT", percentage=100.0)]
@@ -186,8 +202,9 @@ async def test_close_position_tool_calls_apply_three_way_state() -> None:
     # session must be committed + closed
     assert session.committed
     assert session.closed
-    # close_reason propagated
-    assert result["close_reason"] == "stop_loss"
+    # close_reason propagated as dict (PR-B2 Phase C: StructuredReason.model_dump())
+    assert isinstance(result["close_reason"], dict)
+    assert result["close_reason"]["confidence"] == reason["confidence"]
 
 
 @pytest.mark.asyncio
@@ -206,6 +223,7 @@ async def test_partial_close_tool_calls_apply_three_way_state() -> None:
             symbol="BTC_USDT",
             percentage=Decimal("25"),
             new_stop_loss=Decimal("2.0"),
+            reason=_make_reason_dict(),
         )
     )
 
@@ -232,7 +250,7 @@ async def test_partial_close_cumulative_capped_at_100() -> None:
         return session
 
     tool = build_partial_close_tool(exchange, repo, session_factory)  # type: ignore[arg-type]
-    await tool.ainvoke(dict(symbol="BTC_USDT", percentage=Decimal("50")))
+    await tool.ainvoke(dict(symbol="BTC_USDT", percentage=Decimal("50"), reason=_make_reason_dict()))
 
     assert repo.apply_calls[0]["partial_close_pct"] == Decimal(100)
 
@@ -248,10 +266,28 @@ async def test_close_tool_noop_when_position_missing() -> None:
         return session
 
     tool = build_close_position_tool(exchange, repo, session_factory)  # type: ignore[arg-type]
-    result = await tool.ainvoke(dict(symbol="BTC_USDT"))
+    result = await tool.ainvoke(dict(symbol="BTC_USDT", reason=_make_reason_dict()))
 
     assert result["type"] == "close"
     # apply_three_way_state must NOT be called when no row exists
     assert repo.apply_calls == []
     # but session still gets closed
     assert session.closed
+
+
+def test_hold_tool_returns_hold_action_with_structured_reason() -> None:
+    """PR-B2 Phase C: build_hold_tool emits action=hold + reason dict."""
+    tool = build_hold_tool()
+    reason = _make_reason_dict()
+    result = tool.invoke(dict(reason=reason))
+
+    assert result["action"] == "hold"
+    assert isinstance(result["reason"], dict)
+    assert result["reason"]["confidence"] == reason["confidence"]
+    assert result["reason"]["market_context"] == reason["market_context"]
+
+
+def test_hold_tool_name_is_hold_tool() -> None:
+    """PR-B2 Phase C: tool name must be 'hold_tool' for parser routing."""
+    tool = build_hold_tool()
+    assert tool.name == "hold_tool"

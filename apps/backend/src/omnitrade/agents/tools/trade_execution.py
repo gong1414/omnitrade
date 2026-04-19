@@ -1,4 +1,4 @@
-"""Trade-execution tools — open / close / partial-close a position.
+"""Trade-execution tools — open / close / partial-close / hold a position.
 
 ``close_position_tool`` and ``partial_close_tool`` MUST delegate to
 ``PositionRepository.apply_three_way_state`` so the atomic three-way
@@ -9,6 +9,11 @@ Each builder returns a ``StructuredTool`` wired with:
   * an ``ExchangeClient`` for the actual market-side call,
   * a ``PositionRepository`` so the atomic state UPDATE lands in one SQL,
   * an async session factory so each tool call gets its own transaction.
+
+PR-B2 Phase C: all 4 tools (open/close/partial_close/hold) now use
+``reason: StructuredReason`` so every LLM call emits structured reasoning.
+``hold_tool`` is registered LAST in tool lists to counter ordering/recency
+bias (see Phase A Pre-Mortem #4 M1).
 """
 
 from __future__ import annotations
@@ -22,6 +27,7 @@ from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from omnitrade.agents.tools.structured_reason import StructuredReason
 from omnitrade.domain.entities import Trade
 from omnitrade.domain.protocols import ExchangeClient
 from omnitrade.domain.services.three_way_state import apply_three_way_state
@@ -52,15 +58,17 @@ class OpenPositionArgs(BaseModel):
     leverage: int = Field(ge=1, le=125, description="Leverage multiplier [1,125].")
     stop_loss: Decimal | None = Field(default=None, description="Stop-loss price.")
     take_profit: Decimal | None = Field(default=None, description="Take-profit price.")
+    reason: StructuredReason = Field(
+        description="Structured reasoning for this open decision (PR-B2 Phase C)."
+    )
 
 
 class ClosePositionArgs(BaseModel):
     """Arguments for fully closing an open position."""
 
     symbol: str = Field(description="Trading pair, e.g. 'BTC_USDT'.")
-    reason: str = Field(
-        default="ai_decision",
-        description="One of: stop_loss | trailing_stop | ai_decision.",
+    reason: StructuredReason = Field(
+        description="Structured reasoning for this close decision (PR-B2 Phase C)."
     )
 
 
@@ -76,6 +84,21 @@ class PartialCloseArgs(BaseModel):
     new_stop_loss: Decimal | None = Field(
         default=None,
         description="New stop-loss (profit-protection floor). None clears it.",
+    )
+    reason: StructuredReason = Field(
+        description="Structured reasoning for this partial-close decision (PR-B2 Phase C)."
+    )
+
+
+class HoldArgs(BaseModel):
+    """Arguments for a hold (no-action) decision."""
+
+    reason: StructuredReason = Field(
+        description=(
+            "Structured reasoning for the hold decision.  "
+            "justification MUST enumerate the 3+ absent factors with numeric values "
+            "per the system prompt HOLD GATE clause."
+        )
     )
 
 
@@ -120,6 +143,7 @@ def build_open_position_tool(
         side: str,
         size: Decimal,
         leverage: int,
+        reason: StructuredReason,
         stop_loss: Decimal | None = None,
         take_profit: Decimal | None = None,
     ) -> dict[str, Any]:
@@ -129,6 +153,7 @@ def build_open_position_tool(
             side=side,
             size=str(size),
             leverage=leverage,
+            confidence=reason.confidence,
         )
         trade = await exchange.place_order(
             symbol=Symbol(value=symbol),
@@ -170,8 +195,12 @@ def build_close_position_tool(
     atomic SQL UPDATE (no SELECT-then-UPDATE race).
     """
 
-    async def _close_position(symbol: str, reason: str = "ai_decision") -> dict[str, Any]:
-        with_context(logger).info("tool.close_position", symbol=symbol, reason=reason)
+    async def _close_position(symbol: str, reason: StructuredReason) -> dict[str, Any]:
+        with_context(logger).info(
+            "tool.close_position",
+            symbol=symbol,
+            confidence=reason.confidence,
+        )
         trade = await exchange.close_position(
             position_id=symbol,
             percentage=Percentage(value=100.0),
@@ -203,7 +232,7 @@ def build_close_position_tool(
                 await session.commit()
         finally:
             await session.close()
-        return {**_trade_to_dict(trade), "close_reason": reason}
+        return {**_trade_to_dict(trade), "close_reason": reason.model_dump()}
 
     return StructuredTool.from_function(
         coroutine=_close_position,
@@ -237,12 +266,14 @@ def build_partial_close_tool(
     async def _partial_close(
         symbol: str,
         percentage: Decimal,
+        reason: StructuredReason,
         new_stop_loss: Decimal | None = None,
     ) -> dict[str, Any]:
         with_context(logger).info(
             "tool.partial_close",
             symbol=symbol,
             percentage=str(percentage),
+            confidence=reason.confidence,
         )
         trade = await exchange.close_position(
             position_id=symbol,
@@ -285,6 +316,37 @@ def build_partial_close_tool(
 
 
 # ---------------------------------------------------------------------------
+# hold_tool (PR-B2 Phase C) — no-action decision with structured reason.
+# Registered LAST in tool list to minimize recency bias toward hold.
+# ---------------------------------------------------------------------------
+
+
+def build_hold_tool() -> StructuredTool:
+    """Emit a hold (no-action) decision with structured reason.
+
+    Registered LAST in tool list to minimize recency bias toward hold.
+    The 3-absent-factor gate in system prompt further constrains hold usage.
+    """
+
+    def _hold(reason: StructuredReason) -> dict[str, Any]:
+        with_context(logger).info(
+            "tool.hold",
+            confidence=reason.confidence,
+        )
+        return {"action": "hold", "reason": reason.model_dump()}
+
+    return StructuredTool.from_function(
+        func=_hold,
+        name="hold_tool",
+        description=(
+            "No-action decision. Use ONLY when 3+ absent factors enumerated "
+            "per system prompt HOLD GATE clause."
+        ),
+        args_schema=HoldArgs,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Phase 8.4 — cancel_order
 # ---------------------------------------------------------------------------
 
@@ -314,11 +376,13 @@ def build_cancel_order_tool(exchange: ExchangeClient) -> StructuredTool:
 __all__ = [
     "CancelOrderArgs",
     "ClosePositionArgs",
+    "HoldArgs",
     "OpenPositionArgs",
     "PartialCloseArgs",
     "SessionFactory",
     "build_cancel_order_tool",
     "build_close_position_tool",
+    "build_hold_tool",
     "build_open_position_tool",
     "build_partial_close_tool",
 ]

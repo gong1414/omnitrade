@@ -30,6 +30,7 @@ from omnitrade.agents.tools.risk import build_calculate_risk_tool
 from omnitrade.agents.tools.trade_execution import (
     build_cancel_order_tool,
     build_close_position_tool,
+    build_hold_tool,
     build_open_position_tool,
     build_partial_close_tool,
 )
@@ -44,6 +45,7 @@ __all__ = [
     "build_fetch_ohlcv_tool",
     "build_fetch_ticker_tool",
     "build_funding_rate_tool",
+    "build_hold_tool",
     "build_list_positions_tool",
     "build_news_data_tool",
     "build_open_interest_tool",

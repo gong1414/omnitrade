@@ -140,7 +140,18 @@ def _parse_decision_from_tool_call(tool_name: str, args: dict[str, Any]) -> Deci
     parser. No changes required there.
     """
     name = tool_name.strip()
-    if name in {"hold", "no_action"}:
+    if name in {"hold_tool", "hold", "no_action"}:
+        # PR-B2 Phase C: hold_tool is a real LLM tool — reason MUST be a dict
+        # (StructuredReason). Legacy string fallback kept for cassette compat.
+        raw_reason = args.get("reason", "")
+        if not isinstance(raw_reason, dict) and not isinstance(raw_reason, str):
+            raise StructuredOutputContractError(
+                tool_name=name,
+                validation_error=(
+                    f"hold_tool 'reason' must be a StructuredReason dict, "
+                    f"got {type(raw_reason).__name__}"
+                ),
+            )
         reasoning_str, structured = _parse_reason(name, args)
         return Decision(
             action="hold",

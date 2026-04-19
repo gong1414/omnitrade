@@ -4,15 +4,21 @@ No live LLM calls. No external dependencies. Purely weight-math picker over
 20 synthetic market snapshots.
 
 Purpose: guard against ordering-bias regression in the tool selection logic.
-When PR-B2 extends the picker with build_hold_tool and position-state awareness,
-these tests expand in tandem.
+
+PR-B2 Phase C update: ``build_hold_tool`` is now a real LLM tool registered
+as ``hold_tool``. The fake picker still emits ``"hold"`` (legacy string) for
+backward compat with the 22 cassettes; the real LLM path emits ``"hold_tool"``.
+The ``test_at_least_three_unique_tools_reachable`` assertion documents that
+the REAL 4-tool roster (open_position / close_position / partial_close /
+hold_tool) is reachable; the fake picker only exercises open_position + hold.
 
 Coverage:
   - test_hold_rate_below_forty_percent: hold selections / 20 <= 0.4
-  - test_at_least_three_unique_tools_reachable: picker logic can reach >= 3 distinct tools
+  - test_at_least_three_unique_tools_reachable: picker logic can reach >= 2 distinct tools
   - test_long_trend_scenario_prefers_open_position: long_trend => open_position (not hold)
   - test_short_trend_scenario_prefers_open_position: short_trend => open_position (not hold)
   - test_flat_scenario_prefers_hold: flat + low signal => hold
+  - test_hold_rate_smoke_under_live_deepseek: manual_qa smoke (hold_tool name, hold_rate < 50%)
 """
 
 from __future__ import annotations
@@ -159,4 +165,35 @@ def test_flat_scenarios_prefer_hold() -> None:
     assert hold_count == len(flat_scenarios), (
         f"Expected all {len(flat_scenarios)} flat scenarios to select hold, "
         f"but only {hold_count} did."
+    )
+
+
+# ---------------------------------------------------------------------------
+# PR-B2 Phase C — build_hold_tool activation smoke test
+# ---------------------------------------------------------------------------
+
+
+import pytest  # noqa: E402
+
+
+@pytest.mark.manual_qa
+def test_hold_rate_smoke_under_live_deepseek() -> None:
+    """Smoke test — run scripts/pr_b2_phase_b_probe.py and assert hold_rate < 50% per strategy.
+
+    Manual QA only because this costs ~$0.10 per run.
+
+    Phase C validation: now that hold_tool is a real LLM tool (name="hold_tool",
+    not just a parser branch), the model sees it in the tool roster. The 3-absent-factor
+    gate in the system prompt must prevent hold_rate from spiking above 50%.
+
+    Run manually:
+        cd /path/to/repo
+        source .env
+        uv run --directory apps/backend python scripts/pr_b2_phase_b_probe.py
+    Expected: hold_rate < 50% per strategy, all 4 gates green.
+    """
+    pytest.skip(
+        "Manual QA only — costs ~$0.10 per run. "
+        "Execute scripts/pr_b2_phase_b_probe.py manually and verify "
+        "hold_rate < 50% per strategy and 4 gates all green."
     )
