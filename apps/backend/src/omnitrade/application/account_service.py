@@ -83,20 +83,37 @@ class AccountService:
         return max((r.total_value for r in rows), default=Decimal(0))
 
     @staticmethod
-    def _compute_sharpe(returns: list[Decimal]) -> Decimal | None:
-        """Naive Sharpe: mean / stdev over available return_percent samples.
+    def _compute_sharpe(total_values: list[Decimal]) -> Decimal | None:
+        """Annualised Sharpe from a ``total_value`` time series.
 
-        Returns ``None`` when fewer than two samples exist or stdev is 0.
+        The earlier implementation averaged *cumulative* return_percent
+        rows (which all share the same denominator) so the numerator
+        stdev was near-zero and the ratio exploded into absurd values
+        (e.g. ``-29405`` with only 2 samples). Use period log-returns
+        instead — the same formula the ``/api/stats`` endpoint uses so
+        the dashboard shows a single consistent number.
+
+        Returns ``None`` when fewer than two valid samples exist or the
+        period-return stdev is zero.
         """
-        if len(returns) < 2:
+        if len(total_values) < 2:
             return None
-        floats = [float(r) for r in returns]
-        mean = sum(floats) / len(floats)
-        var = sum((r - mean) ** 2 for r in floats) / (len(floats) - 1)
+        prev: float | None = None
+        log_returns: list[float] = []
+        for v in total_values:
+            cur = float(v)
+            if prev is not None and prev > 0 and cur > 0:
+                log_returns.append(math.log(cur / prev))
+            prev = cur
+        if len(log_returns) < 2:
+            return None
+        mean = sum(log_returns) / len(log_returns)
+        var = sum((r - mean) ** 2 for r in log_returns) / (len(log_returns) - 1)
         std = math.sqrt(var)
         if std == 0:
             return None
-        return Decimal(str(mean / std))
+        annualised = (mean / std) * math.sqrt(252)
+        return Decimal(str(annualised))
 
     async def record_snapshot(self) -> AccountSnapshot:
         """Pull balance + positions, compute peak + drawdown, persist, emit."""
@@ -121,9 +138,14 @@ class AccountService:
                     (balance.total_value - self._initial_balance) / self._initial_balance
                 ) * Decimal(100)
 
-            # Sharpe from the last `peak_lookback` return_percent rows + this new one.
+            # Sharpe from the ``total_value`` series (period log-returns,
+            # annualised) so the AccountCard reads consistent with
+            # ``/api/stats.sharpe``.
             recent = await self._history_repo.list_recent(session, limit=self._peak_lookback)
-            sharpe = self._compute_sharpe([r.return_percent for r in recent] + [return_percent])
+            total_value_series = list(reversed([r.total_value for r in recent])) + [
+                balance.total_value
+            ]
+            sharpe = self._compute_sharpe(total_value_series)
 
             snap = AccountSnapshot(
                 timestamp=datetime.now(tz=UTC),

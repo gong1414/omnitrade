@@ -74,7 +74,7 @@ export function AccountCard() {
                 ${fmtNum(account.unrealized_pnl, 2)}
               </dd>
             </div>
-            <div className="flex flex-col text-right">
+            <div className="flex flex-col text-right" title={t("realizedHint")}>
               <dt className="text-obs-text-ghost uppercase tracking-[0.18em] text-[9px]">
                 {t("realized")}
               </dt>

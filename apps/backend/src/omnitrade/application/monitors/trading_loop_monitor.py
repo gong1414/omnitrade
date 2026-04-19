@@ -15,6 +15,7 @@ documented in detail in ``application/trading_loop.observe_market``.
 from __future__ import annotations
 
 import json
+import uuid
 from decimal import Decimal
 
 import structlog
@@ -31,7 +32,7 @@ from omnitrade.application.trading_loop import (
     run_cycle,
 )
 from omnitrade.infrastructure.market_data.ws_client import WSClient
-from omnitrade.observability.trace_context import with_context
+from omnitrade.observability.trace_context import correlation_id, with_context
 
 logger = structlog.get_logger(__name__)
 
@@ -96,6 +97,20 @@ class TradingLoopMonitor:
 
     async def tick(self) -> None:
         """Drive a single ``run_cycle`` + persist the decision."""
+        # Scheduler-triggered ticks bypass ``TraceContextMiddleware`` (no
+        # incoming request → no ContextVar set → DecisionService.record
+        # ended up storing empty correlation_ids). Seed a fresh UUID here
+        # so every cycle has a traceable id across logs + DB + WS payload.
+        cid = str(uuid.uuid4())
+        token = correlation_id.set(cid)
+        structlog.contextvars.bind_contextvars(correlation_id=cid)
+        try:
+            await self._tick_inner()
+        finally:
+            correlation_id.reset(token)
+            structlog.contextvars.unbind_contextvars("correlation_id")
+
+    async def _tick_inner(self) -> None:
         self._iteration += 1
         with_context(logger).info(
             "trading_loop_monitor.tick",
