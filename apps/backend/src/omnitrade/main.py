@@ -8,6 +8,7 @@ manage the APScheduler lifecycle via the lifespan context.
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
+from decimal import Decimal
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -108,6 +109,9 @@ def _start_trading_scheduler(
 
     from omnitrade.application.composition import build_trading_monitor
     from omnitrade.application.monitors.invalidation_monitor import InvalidationMonitor
+    from omnitrade.application.monitors.partial_profit_monitor import PartialProfitMonitor
+    from omnitrade.application.monitors.stop_loss_monitor import StopLossMonitor
+    from omnitrade.application.monitors.trailing_stop_monitor import TrailingStopMonitor
     from omnitrade.infrastructure.llm.litellm_client import LiteLLMClient
 
     assert settings.llm_api_key is not None  # narrowed by caller
@@ -135,6 +139,28 @@ def _start_trading_scheduler(
     )
     app.state.invalidation_monitor = invalidation_monitor
 
+    # Position-protection monitors (stop-loss, trailing-stop, partial-profit).
+    pos_mon_interval = settings.position_monitor_interval_seconds
+    stop_loss_monitor = StopLossMonitor(
+        interval_seconds=pos_mon_interval,
+        extreme_stop_loss_percent=Decimal(str(settings.extreme_stop_loss_percent)),
+        position_repo=container.position_repo,
+        session_factory=container.open_session,
+        position_manager=container.position_manager,
+    )
+    trailing_stop_monitor = TrailingStopMonitor(
+        interval_seconds=pos_mon_interval,
+        position_repo=container.position_repo,
+        session_factory=container.open_session,
+        position_manager=container.position_manager,
+    )
+    partial_profit_monitor = PartialProfitMonitor(
+        interval_seconds=pos_mon_interval,
+        position_repo=container.position_repo,
+        session_factory=container.open_session,
+        position_manager=container.position_manager,
+    )
+
     scheduler = AsyncIOScheduler()
     import datetime as _dt
 
@@ -154,6 +180,33 @@ def _start_trading_scheduler(
         next_run_time=_dt.datetime.now(_dt.UTC)
         + timedelta(seconds=settings.invalidation_check_interval_seconds),
         id="invalidation_check",
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        stop_loss_monitor.tick,
+        "interval",
+        seconds=pos_mon_interval,
+        next_run_time=_dt.datetime.now(_dt.UTC) + timedelta(seconds=5),
+        id="stop_loss_monitor",
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        trailing_stop_monitor.tick,
+        "interval",
+        seconds=pos_mon_interval,
+        next_run_time=_dt.datetime.now(_dt.UTC) + timedelta(seconds=7),
+        id="trailing_stop_monitor",
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        partial_profit_monitor.tick,
+        "interval",
+        seconds=pos_mon_interval,
+        next_run_time=_dt.datetime.now(_dt.UTC) + timedelta(seconds=8),
+        id="partial_profit_monitor",
         max_instances=1,
         coalesce=True,
     )

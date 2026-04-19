@@ -85,6 +85,7 @@ class ThinkState(TypedDict, total=False):
     decision: Decision | None
     tool_schemas: list[dict[str, Any]]
     raw_response: dict[str, Any]
+    iteration: int
 
 
 def _parse_reason(
@@ -253,6 +254,17 @@ def _decision_from_llm_response(response: dict[str, Any]) -> Decision:
     raise ToolCallRequiredError(model=model_name)
 
 
+_DECISION_TOOL_NAMES: frozenset[str] = frozenset({
+    "open_position", "close_position", "partial_close", "hold_tool",
+    "openPosition", "closePosition", "partialClose",
+    "partial_close_position", "hold", "no_action",
+})
+
+
+def _is_decision_tool(tool_name: str) -> bool:
+    return tool_name.strip() in _DECISION_TOOL_NAMES
+
+
 def build_think_graph(
     llm: LLMClient,
     registry: ToolRegistry,
@@ -263,27 +275,19 @@ def build_think_graph(
     tools: list[dict[str, Any]] | None = None,
     tool_choice: str | None = None,
 ) -> Any:
-    """Build the 1-node LangGraph for the ``think`` phase.
+    """Build the think LangGraph with optional multi-turn tool execution.
 
-    Args:
-        llm: Protocol-typed LLM client (LiteLLM adapter in prod, stub in tests).
-        registry: Tool registry that maps tool names to async handlers.
-        model: Model id to pass to ``llm.complete``.
-        temperature: Sampling temperature. Low default for parity determinism.
-        max_tool_iterations: Hard cap on think→tool→think loops.
-        tools: Optional OpenAI-style tool JSON schemas. When None (default),
-            the legacy stub-empty path is used and ``llm.complete`` sees
-            ``tools=None`` — backward compatible with pre-wiring tests.
-        tool_choice: Optional tool-call policy ("auto" | "required" | "none").
-            Forwarded verbatim to ``llm.complete``. Minimal strategies flip
-            this to ``"required"`` via the composition layer.
+    When the ToolRegistry contains info-tool handlers, the graph supports
+    a think→execute→think loop: the LLM can call info tools (market data,
+    account snapshot, etc.) to gather additional context before making a
+    final decision call. The loop is capped at ``max_tool_iterations``.
 
-    Returns:
-        A compiled LangGraph that, when invoked with ``{"messages": [...]}``,
-        populates ``state['decision']`` with a ``Decision`` entity.
+    If the registry is empty (no info tools registered), the graph
+    degrades to the original single-turn: think→decide→END.
     """
     tool_schemas: list[dict[str, Any]] = list(tools) if tools else []
     effective_tool_choice = tool_choice
+    _max_iters = max_tool_iterations
 
     async def _think(state: ThinkState) -> ThinkState:
         messages = state.get("messages") or []
@@ -297,7 +301,8 @@ def build_think_graph(
         if effective_tool_choice is not None:
             kwargs["tool_choice"] = effective_tool_choice
         response = await llm.complete(**kwargs)
-        return {"messages": messages, "raw_response": response}
+        iteration = state.get("iteration", 0)
+        return {"messages": messages, "raw_response": response, "iteration": iteration}
 
     async def _decide(state: ThinkState) -> ThinkState:
         response = state.get("raw_response") or {}
@@ -309,15 +314,70 @@ def build_think_graph(
         )
         return {**state, "decision": decision}
 
+    async def _execute_tool(state: ThinkState) -> ThinkState:
+        response = state.get("raw_response") or {}
+        choices = response.get("choices") or [{}]
+        msg = choices[0].get("message") or {}
+        tool_calls = msg.get("tool_calls") or []
+        if not tool_calls:
+            return {**state, "iteration": state.get("iteration", 0) + 1}
+
+        tc = tool_calls[0]
+        fn = tc.get("function") or {}
+        name = fn.get("name", "")
+        raw_args = fn.get("arguments") or {}
+        args = json.loads(raw_args) if isinstance(raw_args, str) else dict(raw_args)
+        tc_id = tc.get("id", name)
+
+        with_context(logger).info("think_node.execute_tool", tool=name, iteration=state.get("iteration", 0))
+
+        try:
+            result = await registry.call(name, args)
+        except Exception as exc:
+            result = {"error": str(exc)}
+
+        messages = list(state.get("messages") or [])
+        # Append assistant message with tool call + tool result
+        messages.append(dict(msg))
+        messages.append({
+            "role": "tool",
+            "tool_call_id": tc_id,
+            "content": json.dumps(result, default=str),
+        })
+
+        return {
+            "messages": messages,
+            "iteration": state.get("iteration", 0) + 1,
+            "raw_response": {},
+        }
+
+    def _route_after_think(state: ThinkState) -> str:
+        iteration = state.get("iteration", 0)
+        if iteration >= _max_iters:
+            return "decide"
+        response = state.get("raw_response") or {}
+        choices = response.get("choices") or [{}]
+        msg = choices[0].get("message") or {}
+        tool_calls = msg.get("tool_calls") or []
+        if not tool_calls:
+            return "decide"
+        name = (tool_calls[0].get("function") or {}).get("name", "")
+        if _is_decision_tool(name):
+            return "decide"
+        if registry.has(name):
+            return "execute_tool"
+        return "decide"
+
     graph: StateGraph[ThinkState] = StateGraph(ThinkState)
     graph.add_node("think", _think)
     graph.add_node("decide", _decide)
+    graph.add_node("execute_tool", _execute_tool)
     graph.set_entry_point("think")
-    graph.add_edge("think", "decide")
+    graph.add_conditional_edges("think", _route_after_think)
+    graph.add_edge("execute_tool", "think")
     graph.add_edge("decide", END)
     compiled = graph.compile()
-    # Keep the iteration cap accessible for tests / introspection.
-    compiled._think_max_iters = max_tool_iterations  # type: ignore[attr-defined]
+    compiled._think_max_iters = _max_iters  # type: ignore[attr-defined]
     compiled._registry = registry  # type: ignore[attr-defined]
     return compiled
 

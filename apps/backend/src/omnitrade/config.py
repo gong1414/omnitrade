@@ -316,8 +316,13 @@ class Settings(BaseSettings):
 
     Independent from ``trading_interval_minutes`` so invalidation firings
     are enforced on their own cadence. Ignored when ``scheduler_enabled``
-    is False.
-    """
+    is False."""
+
+    # Position monitors (stop-loss, trailing-stop, partial-profit)
+    position_monitor_interval_seconds: int = 10
+    """How often the stop-loss, trailing-stop, and partial-profit monitors
+    scan OPEN positions. Default 10s for responsive protection.
+    Ignored when ``scheduler_enabled`` is False."""
 
     # ------------------------------------------------------------------ #
     # PR-D PHASE D3 — Adaptive learning + daily loss cap                  #

@@ -33,9 +33,22 @@ from omnitrade.infrastructure.market_data.ws_client import WSClient
 from omnitrade.infrastructure.persistence.repositories.account_history_repository import (
     AccountHistoryRepository,
 )
+from omnitrade.infrastructure.persistence.repositories.config_repository import (
+    ConfigRepository,
+)
 from omnitrade.infrastructure.persistence.repositories.decision_repository import (
     DecisionRepository,
 )
+from omnitrade.infrastructure.persistence.repositories.lesson_repository import (
+    LessonRepository,
+)
+from omnitrade.infrastructure.persistence.repositories.outcome_repository import (
+    OutcomeRepository,
+)
+from omnitrade.infrastructure.mcp.client import MCPClient
+from omnitrade.infrastructure.mcp.quality_tracker import ToolQualityTracker
+from omnitrade.infrastructure.mcp.registry import MCPRegistry
+from omnitrade.infrastructure.vector_store.sqlite_vec_store import SQLiteVecStore
 from omnitrade.infrastructure.persistence.repositories.position_repository import (
     PositionRepository,
 )
@@ -62,6 +75,11 @@ class ApiContainer:
     account_history_repo: AccountHistoryRepository
     decision_repo: DecisionRepository
     trade_repo: TradeRepository
+    config_repo: ConfigRepository
+    lesson_repo: LessonRepository
+    outcome_repo: OutcomeRepository
+    mcp_registry: MCPRegistry
+    tool_quality: ToolQualityTracker
     # Phase 8.3 additions (additive only — no existing service changes).
     exchange: ExchangeClient
     log_buffer: LogBuffer
@@ -79,6 +97,7 @@ class ApiContainer:
     # Phase 8.6 additions (WebSocket ticker stream; ``None`` when
     # ``settings.use_ws_market_data`` is False — rollback-safe default).
     ws_client: WSClient | None = None
+    vec_store: SQLiteVecStore | None = None
 
 
 def build_api_container(
@@ -98,6 +117,14 @@ def build_api_container(
     trade_repo = TradeRepository()
     account_history_repo = AccountHistoryRepository()
     decision_repo = DecisionRepository()
+    config_repo = ConfigRepository()
+    lesson_repo = LessonRepository()
+    outcome_repo = OutcomeRepository()
+
+    mcp_registry = MCPRegistry()
+    tool_quality = ToolQualityTracker()
+
+    vec_store = SQLiteVecStore(settings.vector_db_path)
 
     position_manager = PositionManager(
         exchange=exchange,
@@ -212,12 +239,18 @@ def build_api_container(
         account_history_repo=account_history_repo,
         decision_repo=decision_repo,
         trade_repo=trade_repo,
+        config_repo=config_repo,
+        lesson_repo=lesson_repo,
+        outcome_repo=outcome_repo,
+        mcp_registry=mcp_registry,
+        tool_quality=tool_quality,
         exchange=exchange,
         log_buffer=log_buffer,
         multi_tf_fetcher=multi_tf_fetcher,
         signal_service=signal_service,
         tool_registry=tool_registry,
         ws_client=ws_client,
+        vec_store=vec_store,
     )
 
 

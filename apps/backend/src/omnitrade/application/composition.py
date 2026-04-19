@@ -499,6 +499,64 @@ def _build_base_think_fn(
         strategy = StrategyName.AI_AUTONOMOUS
     tc_policy = _tool_choice_for_strategy(strategy)
 
+    # Register info tools (market data, account, risk) in the ToolRegistry
+    # so the LLM can call them for additional context before deciding.
+    from langchain_core.tools import StructuredTool
+
+    from omnitrade.agents.tools.account_management import (
+        build_account_snapshot_tool,
+        build_list_positions_tool,
+        build_open_orders_tool,
+    )
+    from omnitrade.agents.tools.market_data import (
+        build_fetch_ohlcv_tool,
+        build_fetch_ticker_tool,
+        build_funding_rate_tool,
+        build_open_interest_tool,
+        build_order_book_tool,
+    )
+    from omnitrade.agents.tools.risk import build_calculate_risk_tool
+
+    exchange = container.exchange
+
+    def _register(tool: StructuredTool) -> None:
+        container.tool_registry.register(tool.name, _tool_handler(tool))
+        tool_schemas.append({
+            "type": "function",
+            "function": {
+                "name": tool.name,
+                "description": tool.description or "",
+                "parameters": tool.args_schema.model_json_schema(),
+            },
+        })
+
+    def _tool_handler(
+        bound_tool: Any,
+    ) -> Callable[[dict[str, Any]], Any]:
+        async def _handler(args: dict[str, Any]) -> Any:
+            result = await bound_tool.ainvoke(args)
+            if isinstance(result, dict):
+                return result
+            return {"result": result}
+
+        return _handler
+
+    for builder in [
+        lambda: build_fetch_ticker_tool(exchange),
+        lambda: build_fetch_ohlcv_tool(exchange),
+        lambda: build_funding_rate_tool(exchange),
+        lambda: build_order_book_tool(exchange),
+        lambda: build_open_interest_tool(exchange),
+        lambda: build_account_snapshot_tool(exchange),
+        lambda: build_list_positions_tool(exchange),
+        lambda: build_open_orders_tool(exchange),
+        lambda: build_calculate_risk_tool(),
+    ]:
+        try:
+            _register(builder())
+        except Exception:
+            pass
+
     async def think_fn(market: MarketSnapshot, news: list[NewsItem]) -> Decision:
         positions = list(market.positions)
         market_block = await _build_market_block(container, market)
