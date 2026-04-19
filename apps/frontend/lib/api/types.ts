@@ -27,10 +27,9 @@
 // ── /health ───────────────────────────────────────────────────────────────
 
 export interface HealthResponse {
-  ok: boolean;
-  time: string;
-  environment: string;
+  status: "ok" | string;
   version: string;
+  uptime_seconds: number;
 }
 
 // ── /api/v1/account ───────────────────────────────────────────────────────

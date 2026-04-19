@@ -88,8 +88,23 @@ class TradingLoopMonitor:
         self._decision_service = decision_service
         self._clock = clock or SystemClock()
         self._iteration = 0
+        self._hydrated_iteration = False
         self._ws_client: WSClient | None = ws_client if use_ws_market_data else None
         self._cassette_mode = cassette_mode
+
+    async def _hydrate_iteration(self) -> None:
+        """Pull the last-seen iteration from DB so restarts keep numbering
+        monotonic. Without this, every backend restart resets the counter
+        to 0 and the dashboard's "#N" jumps around."""
+        try:
+            recent = await self._decision_service.list_recent(limit=1)
+        except Exception as exc:
+            with_context(logger).warning(
+                "trading_loop_monitor.iteration_hydrate_failed", error=str(exc)
+            )
+            return
+        if recent:
+            self._iteration = int(recent[0].iteration)
 
     @property
     def interval_seconds(self) -> float:
@@ -111,6 +126,9 @@ class TradingLoopMonitor:
             structlog.contextvars.unbind_contextvars("correlation_id")
 
     async def _tick_inner(self) -> None:
+        if not self._hydrated_iteration:
+            await self._hydrate_iteration()
+            self._hydrated_iteration = True
         self._iteration += 1
         with_context(logger).info(
             "trading_loop_monitor.tick",

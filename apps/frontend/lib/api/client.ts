@@ -87,7 +87,7 @@ async function request<T>(
 export function createApiClient(options: ApiClientOptions = {}) {
   const opts = options;
   return {
-    getHealth: () => request<HealthResponse>(`/health`, { method: "GET" }, opts),
+    getHealth: () => request<HealthResponse>(`/api/health`, { method: "GET" }, opts),
 
     fetchAccount: () =>
       request<AccountSnapshot>(`/api/v1/account`, { method: "GET" }, opts),

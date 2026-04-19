@@ -60,6 +60,16 @@ class CCXTExchange:
         )
 
     @staticmethod
+    def _normalize_order_status(raw: str | None) -> str:
+        """Translate ccxt's "closed" marker (=order completed) to the more
+        conventional "filled" so an ``open``-type trade row doesn't read
+        ``status: closed`` and confuse a human reader."""
+        status = (raw or "pending").lower()
+        if status == "closed":
+            return "filled"
+        return status
+
+    @staticmethod
     def _build_exchange(
         exchange_id: Literal["gate", "okx"],
         api_key: str,
@@ -269,7 +279,7 @@ class CCXTExchange:
             leverage=leverage.value,
             fee=fee,
             timestamp=datetime.now(tz=UTC),
-            status=raw_order.get("status", "pending"),
+            status=self._normalize_order_status(raw_order.get("status")),
         )
 
     async def close_position(
@@ -383,7 +393,7 @@ class CCXTExchange:
             pnl=pnl,
             fee=fee,
             timestamp=datetime.now(tz=UTC),
-            status=raw_order.get("status", "pending"),
+            status=self._normalize_order_status(raw_order.get("status")),
         )
 
     async def fetch_ticker(self, symbol: Symbol) -> dict[str, Any]:

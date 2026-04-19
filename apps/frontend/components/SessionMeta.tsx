@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useDecisions } from "@/hooks/useDecisions";
+import { useHealth } from "@/hooks/useHealth";
 import { usePositions } from "@/hooks/usePositions";
 import { useTranslations } from "@/lib/i18n/context";
 import type { ConnectionState } from "@/lib/ws/client";
@@ -34,19 +35,36 @@ export function SessionMeta({
 }) {
   const { decisions } = useDecisions({ limit: 1 });
   const { count: openPositions } = usePositions();
+  const { health } = useHealth();
   const t = useTranslations("session");
   const [mounted, setMounted] = useState(false);
   const [now, setNow] = useState<number>(0);
-  const [bootTs, setBootTs] = useState<number>(0);
+  // When the health poll arrives we snapshot (fetched-at, uptime-at-fetch)
+  // so the tile can keep ticking locally between 30s polls without
+  // drifting off the true backend uptime.
+  const [healthAnchor, setHealthAnchor] = useState<
+    { fetchedAt: number; uptimeMs: number } | null
+  >(null);
 
   useEffect(() => {
     const start = Date.now();
-    setBootTs(start);
     setNow(start);
     setMounted(true);
     const tick = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(tick);
   }, []);
+
+  useEffect(() => {
+    if (!health) return;
+    setHealthAnchor({
+      fetchedAt: Date.now(),
+      uptimeMs: Math.round(health.uptime_seconds * 1000),
+    });
+  }, [health]);
+
+  const uptimeMs = healthAnchor
+    ? healthAnchor.uptimeMs + (now - healthAnchor.fetchedAt)
+    : null;
 
   const latest = decisions[0];
   const wsTone: Parameters<typeof StatusDot>[0]["tone"] =
@@ -80,7 +98,7 @@ export function SessionMeta({
               {t("uptime")}
             </dt>
             <dd className="text-obs-text" suppressHydrationWarning>
-              {mounted ? formatUptime(now - bootTs) : "—"}
+              {mounted && uptimeMs !== null ? formatUptime(uptimeMs) : "—"}
             </dd>
           </div>
           <div className="flex flex-col text-right">

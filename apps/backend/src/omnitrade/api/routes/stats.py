@@ -21,6 +21,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from omnitrade.api.deps import get_db_session
+from omnitrade.config import Settings, get_settings
 from omnitrade.infrastructure.persistence.models import AccountHistoryORM, TradeORM
 
 router = APIRouter(tags=["stats"])
@@ -70,16 +71,25 @@ def _max_drawdown(values: list[float]) -> float:
     return worst
 
 
-def _total_return_percent(values: list[float]) -> float:
-    """Simple first-to-last percent return."""
-    if len(values) < 2 or values[0] == 0:
+def _strategy_return_percent(
+    latest_total: float | None,
+    initial_balance: float,
+) -> float:
+    """Return % relative to the configured ``initial_balance_usdt``.
+
+    This mirrors the formula AccountService writes into
+    ``AccountSnapshot.return_percent`` so the dashboard's two Return
+    readouts (AccountCard + HeaderStrip KPI) can't diverge.
+    """
+    if latest_total is None or initial_balance <= 0:
         return 0.0
-    return (values[-1] - values[0]) / values[0] * 100.0
+    return (latest_total - initial_balance) / initial_balance * 100.0
 
 
 @router.get("/stats")
 async def get_stats(
     session: AsyncSession = Depends(get_db_session),
+    settings: Settings = Depends(get_settings),
 ) -> dict[str, Any]:
     """Portfolio summary statistics for the dashboard header row."""
     history_stmt = (
@@ -91,7 +101,8 @@ async def get_stats(
 
     sharpe = _sharpe_from_log_returns(values)
     mdd = _max_drawdown(values)
-    ret = _total_return_percent(values)
+    latest_total = values[-1] if values else None
+    ret = _strategy_return_percent(latest_total, float(settings.initial_balance_usdt))
 
     trades_stmt = select(TradeORM.pnl).where(TradeORM.pnl.is_not(None))
     pnl_rows = (await session.execute(trades_stmt)).scalars().all()
