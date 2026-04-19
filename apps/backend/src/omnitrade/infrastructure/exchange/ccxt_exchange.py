@@ -139,7 +139,12 @@ class CCXTExchange:
         raw_positions = await self._exchange.fetch_positions()
         positions: list[Position] = []
         for p in raw_positions:
-            contracts = p.get("contracts") or p.get("contractSize") or 0
+            # `contracts` = open-position size (0 means no position).
+            # `contractSize` = per-contract underlying (a constant like 1.0
+            # or 0.01) and MUST NOT be used as a fallback — that turned every
+            # empty ccxt position slot into a phantom position the LLM saw
+            # as real holdings with entry_price=0.
+            contracts = p.get("contracts") or 0
             if not contracts:
                 continue
             side_raw = (p.get("side") or "long").lower()
