@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from omnitrade.domain.entities import Trade
@@ -75,3 +76,27 @@ class TradeRepository:
         await session.flush()
         await session.refresh(row)
         return _orm_to_domain(row)
+
+    async def realized_pnl_since(
+        self, session: AsyncSession, since_utc: datetime
+    ) -> Decimal:
+        """Sum realized ``pnl`` of closed trades with ``timestamp >= since_utc``.
+
+        Realized PnL lives on the ``trades`` table's ``pnl`` column and is
+        only populated for closing trades (``type='close'``). Opens carry
+        ``pnl=NULL`` so a naive SUM would be fine — we filter on ``close``
+        explicitly for clarity and to stay correct if future migrations
+        start populating ``pnl`` on opens.
+
+        Returns ``Decimal(0)`` when no matching rows exist.
+        """
+        with_context(logger).debug(
+            "trade_repository.realized_pnl_since", since_utc=since_utc.isoformat()
+        )
+        stmt = select(func.coalesce(func.sum(TradeORM.pnl), 0.0)).where(
+            TradeORM.timestamp >= since_utc,
+            TradeORM.type == "close",
+        )
+        result = await session.execute(stmt)
+        total = result.scalar_one()
+        return Decimal(str(total))

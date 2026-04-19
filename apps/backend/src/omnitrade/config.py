@@ -319,6 +319,19 @@ class Settings(BaseSettings):
     is False.
     """
 
+    # ------------------------------------------------------------------ #
+    # PR-D PHASE D3 — Adaptive learning + daily loss cap                  #
+    # ------------------------------------------------------------------ #
+    daily_loss_cap_usdt: float = 100.0
+    """Absolute USDT loss cap per UTC day. Exceeding triggers force-hold
+    on the next cycle.
+
+    The risk-check layer queries ``trades.pnl`` summed since today UTC
+    00:00 and, when the total falls below ``-daily_loss_cap_usdt``, the
+    LLM's open / close / partial_close action is overridden to ``hold``.
+    ``hold`` decisions are always passed through (no-op).
+    """
+
 
 _settings: Settings | None = None
 

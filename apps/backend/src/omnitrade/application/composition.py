@@ -433,6 +433,7 @@ def _render_think_messages(
     iteration: int,
     minutes_elapsed: int,
     market_data_block: str | None = None,
+    recent_trades_block: str | None = None,
 ) -> list[dict[str, Any]]:
     """Build system + user messages for the think LLM call.
 
@@ -441,6 +442,9 @@ def _render_think_messages(
             legacy ticker-only block is rendered inline so unit tests
             that call this helper directly stay byte-identical to the
             pre-D1 behaviour.
+        recent_trades_block: Pre-rendered recent-cycles feedback block
+            (PR-D Phase D3). ``None`` falls back to the legacy placeholder
+            so older callers keep working.
     """
     system = format_system_prompt(
         strategy,
@@ -464,7 +468,9 @@ def _render_think_messages(
         decision_flow="",
         external_block=_SAFE_BLOCK_EN,
         sharpe_block="",
-        recent_trades_block=_SAFE_BLOCK_EN,
+        recent_trades_block=(
+            recent_trades_block if recent_trades_block is not None else _SAFE_BLOCK_EN
+        ),
         interval_minutes=settings.trading_interval_minutes,
         minutes_elapsed=minutes_elapsed,
         output_language="zh",
@@ -496,6 +502,7 @@ def _build_base_think_fn(
     async def think_fn(market: MarketSnapshot, news: list[NewsItem]) -> Decision:
         positions = list(market.positions)
         market_block = await _build_market_block(container, market)
+        recent_trades_block = await _render_recent_trades_block(container)
         messages = _render_think_messages(
             strategy=strategy,
             market=market,
@@ -505,6 +512,7 @@ def _build_base_think_fn(
             iteration=0,
             minutes_elapsed=0,
             market_data_block=market_block,
+            recent_trades_block=recent_trades_block,
         )
         graph = build_think_graph(
             llm,
@@ -614,7 +622,105 @@ def _build_execute_fn(
 # ---------------------------------------------------------------------------
 
 
+async def _render_recent_trades_block(container: ApiContainer) -> str:
+    """Render the last 5 decisions as a feedback block for LLM self-reflection.
+
+    Format (newest first):
+      Recent cycles (most-recent first):
+      - Cycle #23 (2 min ago): open confidence=0.75 — <short market_context>
+      - Cycle #22 (4 min ago): hold confidence=0.35 — <short market_context>
+      ...
+
+    Falls back to an explicit "no prior decisions yet" line on empty DB so
+    the prompt never has a dangling header. LLM can now reference its own
+    behaviour across cycles (PR-D Phase D3 closes the feedback-loop gap).
+    """
+    try:
+        session = await container.open_session()
+        try:
+            recent = await container.decision_repo.list_recent_for_feedback(
+                session, limit=5
+            )
+        finally:
+            await session.close()
+    except Exception as exc:
+        with_context(logger).warning(
+            "composition.recent_trades_block_failed", error=str(exc)
+        )
+        return "Recent cycles: (feedback unavailable this cycle)"
+
+    if not recent:
+        return "Recent cycles: no prior decisions yet."
+
+    now = datetime.now(UTC)
+    lines: list[str] = ["Recent cycles (most-recent first):"]
+    for d in recent:
+        ts = d.timestamp
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=UTC)
+        age_min = max(0, int((now - ts).total_seconds() / 60))
+        conf = (
+            f"{d.structured_confidence:.2f}"
+            if d.structured_confidence is not None
+            else "—"
+        )
+        brief = (d.market_context or "").strip().replace("\n", " ")
+        if len(brief) > 160:
+            brief = brief[:157] + "..."
+        brief_tail = f" — {brief}" if brief else ""
+        lines.append(
+            f"- Cycle #{d.iteration} ({age_min} min ago): "
+            f"{d.decision} confidence={conf}{brief_tail}"
+        )
+    return "\n".join(lines)
+
+
+def _build_risk_check_fn(
+    container: ApiContainer,
+    settings: Settings,
+) -> Callable[[Decision, list[Position]], Any]:
+    """Return a RiskCheckFn that force-holds when daily loss cap breached.
+
+    Wraps :class:`DailyLossLimiter`: once today's realized PnL drops below
+    ``-settings.daily_loss_cap_usdt`` any open/close/partial_close request
+    is rewritten to ``hold`` with a log warning. ``hold`` decisions pass
+    through untouched (the cap never *forces* action, only vetoes it).
+    PR-D Phase D3 account-level kill-switch.
+    """
+    from omnitrade.application.risk_service import DailyLossCap, DailyLossLimiter
+
+    cap = DailyLossCap(cap_usdt=Decimal(str(settings.daily_loss_cap_usdt)))
+    limiter = DailyLossLimiter(
+        trade_repo=container.trade_repo,
+        session_factory=container.open_session,
+        cap=cap,
+    )
+
+    async def risk_check(decision: Decision, _positions: list[Position]) -> Decision:
+        if decision.action == "hold":
+            return decision
+        try:
+            breached = await limiter.check()
+        except Exception as exc:
+            with_context(logger).warning(
+                "composition.risk.daily_loss_check_failed", error=str(exc)
+            )
+            return decision
+        if breached:
+            with_context(logger).warning(
+                "composition.risk.daily_loss_cap_triggered",
+                cap_usdt=str(cap.cap_usdt),
+                requested_action=decision.action,
+                symbol=decision.symbol,
+            )
+            return decision.model_copy(update={"action": "hold"})
+        return decision
+
+    return risk_check
+
+
 async def _risk_check(decision: Decision, _positions: list[Position]) -> Decision:
+    """Legacy pass-through used by unit tests that don't need the limiter."""
     return decision
 
 
@@ -655,13 +761,14 @@ def build_trading_monitor(
 
     base_think = _build_base_think_fn(container, settings, llm)
     execute = _build_execute_fn(container)
+    risk_check = _build_risk_check_fn(container, settings)
 
     return TradingLoopMonitor(
         interval_minutes=settings.trading_interval_minutes,
         exchange_observe=observe,
         news_gather=_news_gather,
         think_fn=base_think,
-        risk_check=_risk_check,
+        risk_check=risk_check,
         execute_fn=execute,
         reflect_fn=_reflect_fn,
         decision_service=container.decision_service,

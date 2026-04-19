@@ -8,16 +8,26 @@ Per consensus plan §5 AC:
 Invariant: ``warn < block_open < force_close`` (all strictly ordered).
 Returned ``RiskDecision`` tells the caller which bucket the current drawdown
 falls into.
+
+PR-D Phase D3 adds :class:`DailyLossCap` + :class:`DailyLossLimiter` — an
+account-level kill-switch that force-holds the next cycle once today's
+realized loss crosses an absolute USDT threshold.
 """
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from decimal import Decimal
 from enum import StrEnum
 
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from omnitrade.infrastructure.persistence.repositories.trade_repository import (
+    TradeRepository,
+)
 from omnitrade.observability.trace_context import with_context
 
 logger = structlog.get_logger(__name__)
@@ -107,7 +117,72 @@ class RiskService:
         return decision
 
 
+@dataclass(frozen=True)
+class DailyLossCap:
+    """Absolute USDT realized-loss limit per UTC day.
+
+    ``cap_usdt`` is stored as a positive magnitude (e.g. ``Decimal("100")``
+    means "freeze trading once today's realized PnL drops below -100 USDT").
+    """
+
+    cap_usdt: Decimal
+
+    def __post_init__(self) -> None:
+        if self.cap_usdt <= Decimal(0):
+            raise ValueError(
+                f"DailyLossCap.cap_usdt must be positive, got {self.cap_usdt}"
+            )
+
+
+class DailyLossLimiter:
+    """Account-level daily realized-loss kill-switch.
+
+    On each :meth:`check` call, queries the sum of ``trades.pnl`` for closed
+    trades since today UTC 00:00 and returns True when that sum is below
+    ``-cap_usdt`` (i.e. realized loss exceeds the cap).
+
+    The limiter is intentionally stateless across cycles — it re-reads the
+    DB every call. The trading cycle runs once per ``trading_interval_minutes``
+    so the extra SELECT is cheap.
+    """
+
+    def __init__(
+        self,
+        trade_repo: TradeRepository,
+        session_factory: Callable[[], Awaitable[AsyncSession]],
+        cap: DailyLossCap,
+    ) -> None:
+        self._trade_repo = trade_repo
+        self._session_factory = session_factory
+        self._cap = cap
+
+    @property
+    def cap(self) -> DailyLossCap:
+        return self._cap
+
+    async def check(self) -> bool:
+        """Return True when today's realized loss exceeds the cap."""
+        today_start = datetime.now(tz=UTC).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        session = await self._session_factory()
+        try:
+            pnl = await self._trade_repo.realized_pnl_since(session, today_start)
+        finally:
+            await session.close()
+        breached = pnl < -self._cap.cap_usdt
+        with_context(logger).debug(
+            "daily_loss_limiter.check",
+            realized_pnl=str(pnl),
+            cap_usdt=str(self._cap.cap_usdt),
+            breached=breached,
+        )
+        return breached
+
+
 __all__ = [
+    "DailyLossCap",
+    "DailyLossLimiter",
     "DrawdownThresholds",
     "RiskDecision",
     "RiskService",
