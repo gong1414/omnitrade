@@ -11,11 +11,16 @@ import type {
   ClosePositionRequest,
   ClosePositionResponse,
   ConfigResponse,
+  CycleTriggerResponse,
   DecisionsResponse,
   HealthResponse,
+  HistoryResponse,
+  HistoryWindow,
   Position,
   PositionsResponse,
   RebateSummary,
+  StatsResponse,
+  StrategyResponse,
   TradesResponse,
 } from "./types";
 
@@ -108,6 +113,18 @@ export function createApiClient(options: ApiClientOptions = {}) {
 
     fetchRebate: () => request<RebateSummary>(`/api/v1/rebate`, { method: "GET" }, opts),
 
+    fetchHistory: (window: HistoryWindow = "24h") =>
+      request<HistoryResponse>(
+        `/api/history?window=${window}`,
+        { method: "GET" },
+        opts,
+      ),
+
+    fetchStats: () => request<StatsResponse>(`/api/stats`, { method: "GET" }, opts),
+
+    fetchStrategy: () =>
+      request<StrategyResponse>(`/api/strategy`, { method: "GET" }, opts),
+
     fetchTrades: ({ limit = 50, offset = 0 }: { limit?: number; offset?: number } = {}) =>
       request<TradesResponse>(
         `/api/v1/trades?limit=${limit}&offset=${offset}`,
@@ -119,6 +136,13 @@ export function createApiClient(options: ApiClientOptions = {}) {
       request<ClosePositionResponse>(
         `/api/v1/actions/close-position`,
         { method: "POST", body: JSON.stringify(body) },
+        opts,
+      ),
+
+    triggerCycle: () =>
+      request<CycleTriggerResponse>(
+        `/api/v1/cycle/trigger`,
+        { method: "POST" },
         opts,
       ),
   };

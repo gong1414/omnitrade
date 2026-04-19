@@ -1,22 +1,65 @@
 "use client";
 
+import { useState } from "react";
 import { useTrades } from "@/hooks/useTrades";
 import { cn, fmtNum } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 import { Panel } from "./obs/Panel";
 
+const PAGE = 50;
+
 export function TradesTable() {
-  const { trades, total, isLoading } = useTrades(50);
+  const [offset, setOffset] = useState(0);
+  const { trades, total, isLoading } = useTrades(PAGE, offset);
   const t = useTranslations("trades");
+  const tc = useTranslations("common");
+  const hasPrev = offset > 0;
+  const hasNext = offset + PAGE < total;
 
   return (
     <Panel
       eyebrow={t("eyebrow")}
       title={t("title")}
       actions={
-        <span className="font-mono text-[11px] tabular-nums text-obs-text-dim">
-          {total}
-        </span>
+        <div className="flex items-center gap-2 font-mono text-[11px] tabular-nums">
+          <span className="text-obs-text-dim">
+            {total > 0
+              ? t("rangeCount", {
+                  from: offset + 1,
+                  to: Math.min(offset + PAGE, total),
+                  total,
+                })
+              : total}
+          </span>
+          <button
+            type="button"
+            onClick={() => setOffset(Math.max(0, offset - PAGE))}
+            disabled={!hasPrev}
+            data-testid="trades-prev"
+            className={cn(
+              "px-1.5 py-0.5 text-[10px] uppercase tracking-[0.18em] border",
+              hasPrev
+                ? "border-obs-text-dim/40 text-obs-text hover:bg-obs-panel-2/40"
+                : "border-transparent text-obs-text-ghost cursor-not-allowed",
+            )}
+          >
+            {tc("prev")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setOffset(offset + PAGE)}
+            disabled={!hasNext}
+            data-testid="trades-next"
+            className={cn(
+              "px-1.5 py-0.5 text-[10px] uppercase tracking-[0.18em] border",
+              hasNext
+                ? "border-obs-text-dim/40 text-obs-text hover:bg-obs-panel-2/40"
+                : "border-transparent text-obs-text-ghost cursor-not-allowed",
+            )}
+          >
+            {tc("next")}
+          </button>
+        </div>
       }
       data-testid="trades-card"
       flush

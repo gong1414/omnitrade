@@ -15,6 +15,13 @@
  *   - `/api/v1/actions/close-position`   → api/routes/actions.py
  *   - `/api/v1/rebate`                   → api/routes/rebate.py
  *   - `/ws/stream`                       → api/ws/stream.py + application/events/bus.py
+ *
+ * Phase 8.3 upstream-parity routes live at `/api/...` (NO `/v1` prefix):
+ *   - `/api/history`                     → api/routes/history.py
+ *   - `/api/stats`                       → api/routes/stats.py
+ *   - `/api/strategy`                    → api/routes/strategy.py
+ *   - `/api/prices`                      → api/routes/prices.py
+ *   - `/api/logs`                        → api/routes/logs.py
  */
 
 // ── /health ───────────────────────────────────────────────────────────────
@@ -179,6 +186,47 @@ export interface ClosePositionResponse {
   status: string;
 }
 
+// ── /api/strategy ─────────────────────────────────────────────────────────
+
+export interface StrategyResponse {
+  name: string | null;
+  interval_minutes: number | null;
+  max_leverage: number | null;
+  max_positions: number | null;
+  max_holding_hours: number | null;
+  extreme_stop_loss_percent: number | null;
+  initial_balance_usdt: number | null;
+  multi_agent_enabled: boolean;
+}
+
+// ── /api/history ──────────────────────────────────────────────────────────
+
+export type HistoryWindow = "24h" | "7d" | "30d";
+
+/**
+ * Account equity time-series response. Parallel arrays map 1:1 by index:
+ * `total_value[i]` was recorded at `timestamps[i]`.
+ */
+export interface HistoryResponse {
+  window: HistoryWindow;
+  count: number;
+  timestamps: string[];
+  total_value: number[];
+  unrealized_pnl: number[];
+  realized_pnl: number[];
+  return_percent: number[];
+}
+
+// ── /api/stats ────────────────────────────────────────────────────────────
+
+export interface StatsResponse {
+  sharpe: number;
+  max_drawdown: number;
+  total_return_percent: number;
+  win_rate: number;
+  n_trades: number;
+}
+
 // ── /api/v1/rebate ────────────────────────────────────────────────────────
 
 export interface RebateSummary {
@@ -188,6 +236,13 @@ export interface RebateSummary {
   close_trades_count: number;
   total_fees_usdt: string;
   rebate_amount_usdt: string;
+}
+
+// ── /api/v1/cycle/trigger ─────────────────────────────────────────────────
+
+export interface CycleTriggerResponse {
+  status: "ok";
+  elapsed_seconds: number;
 }
 
 // ── /ws/stream ────────────────────────────────────────────────────────────

@@ -12,6 +12,17 @@ import { Input } from "./ui/input";
 import type { Position } from "@/lib/api/types";
 import { ApiError } from "@/lib/api/client";
 
+function formatAge(iso: string): string {
+  const opened = new Date(iso).getTime();
+  if (!Number.isFinite(opened)) return "—";
+  const mins = Math.max(0, Math.floor((Date.now() - opened) / 60_000));
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ${mins % 60}m`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ${hrs % 24}h`;
+}
+
 export function PositionsTable() {
   const { positions, isLoading, mutate } = usePositions();
   const t = useTranslations("positions");
@@ -68,8 +79,10 @@ export function PositionsTable() {
                 <th className="px-3 py-2 text-right">{t("mark")}</th>
                 <th className="px-3 py-2 text-right">{t("pnl")}</th>
                 <th className="px-3 py-2 text-right">{t("lev")}</th>
+                <th className="px-3 py-2 text-right">{t("stopLoss")}</th>
                 <th className="px-3 py-2 text-right">{t("closed")}</th>
                 <th className="px-3 py-2 text-right">{t("peak")}</th>
+                <th className="px-3 py-2 text-right">{t("age")}</th>
                 <th className="px-5 py-2 text-right" />
               </tr>
             </thead>
@@ -103,10 +116,16 @@ export function PositionsTable() {
                     </td>
                     <td className="px-3 py-2.5 text-right text-obs-text-dim">{p.leverage}×</td>
                     <td className="px-3 py-2.5 text-right text-obs-text-dim">
+                      {p.stop_loss ? fmtNum(p.stop_loss, 2) : "—"}
+                    </td>
+                    <td className="px-3 py-2.5 text-right text-obs-text-dim">
                       {fmtNum(p.cumulative_close_pct, 0)}%
                     </td>
                     <td className="px-3 py-2.5 text-right text-obs-text-dim">
                       {fmtPercent(p.trailing_peak_pnl_pct, 2)}
+                    </td>
+                    <td className="px-3 py-2.5 text-right text-obs-text-dim">
+                      {formatAge(p.opened_at)}
                     </td>
                     <td className="px-5 py-2.5 text-right">
                       <Button
