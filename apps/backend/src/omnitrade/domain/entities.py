@@ -10,6 +10,9 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any, Literal
 
+# NOTE: ``list[str]`` for gates_passed is the domain representation; the
+# repository layer is responsible for json.dumps/json.loads at the DB boundary.
+
 from pydantic import BaseModel, field_validator
 
 from omnitrade.domain.value_objects import Symbol
@@ -219,6 +222,15 @@ class Decision(BaseModel):
     reasoning: str = ""
     close_percentage: Decimal | None = None  # for partial_close (0..100)
     lessons_applied: list[str] = []
+    # StructuredReason fields (Step 4, PR-B1): populated only when the LLM
+    # emits ``args["reason"]`` as a dict conforming to StructuredReason schema.
+    # Legacy flat-string path leaves all six fields None (backward-compat).
+    market_context: str | None = None
+    gates_passed: list[str] | None = None  # domain list; repo layer json.dumps to DB
+    invalidation_condition: str | None = None
+    plan: dict[str, Any] | None = None  # PlanBlock.model_dump() result, or None for hold
+    structured_confidence: float | None = None  # StructuredReason.confidence (float, [0,1])
+    output_language: Literal["zh", "en"] | None = None
 
     model_config = {"frozen": True}
 

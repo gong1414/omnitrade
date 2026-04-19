@@ -18,7 +18,10 @@ from typing import Any, TypedDict
 
 import structlog
 from langgraph.graph import END, StateGraph
+from pydantic import ValidationError
 
+from omnitrade.agents.errors import StructuredOutputContractError
+from omnitrade.agents.tools.structured_reason import StructuredReason
 from omnitrade.domain.entities import Decision
 from omnitrade.domain.protocols import LLMClient
 from omnitrade.observability.trace_context import with_context
@@ -84,6 +87,37 @@ class ThinkState(TypedDict, total=False):
     raw_response: dict[str, Any]
 
 
+def _parse_reason(
+    name: str, args: dict[str, Any]
+) -> tuple[str, StructuredReason | None]:
+    """Dual-path reason parser (PR-B1 Step 4).
+
+    Returns ``(reasoning_str, structured_or_none)``:
+
+    * If ``args["reason"]`` is a **dict** → validate as :class:`StructuredReason`.
+      On failure raise :class:`StructuredOutputContractError` (Principle 4 —
+      loud failures, no opt-out flag).
+    * If ``args["reason"]`` is a **str** → legacy flat path, no validation.
+    * Anything else → defensive coerce to str, treat as legacy.
+
+    The ``name`` parameter is forwarded to the error for observability.
+    """
+    raw_reason = args.get("reason", "")
+    if isinstance(raw_reason, dict):
+        try:
+            structured = StructuredReason.model_validate(raw_reason)
+        except ValidationError as exc:
+            raise StructuredOutputContractError(
+                tool_name=name,
+                validation_error=str(exc),
+            ) from exc
+        return structured.justification, structured
+    if isinstance(raw_reason, str):
+        return raw_reason, None
+    # Defensive: neither str nor dict — coerce and treat as legacy.
+    return str(raw_reason), None
+
+
 def _parse_decision_from_tool_call(tool_name: str, args: dict[str, Any]) -> Decision:
     """Translate an OpenAI-style tool call into a Decision entity.
 
@@ -93,11 +127,33 @@ def _parse_decision_from_tool_call(tool_name: str, args: dict[str, Any]) -> Deci
       * ``hold()``
     This function is the single place that translates that shape to the
     ``Decision`` domain entity. The characterization gate depends on it.
+
+    **Dual-path reasoning (PR-B1 Step 4)**:
+    All four tool branches run ``_parse_reason`` so that when PR-B2 updates the
+    tool schemas to emit ``reason: StructuredReason``, every branch is already
+    capable of parsing the dict form. The legacy flat-string path remains
+    supported for full backward compatibility (22-cassette gate).
+
+    Multi-agent experts (``MultiAgentDegradedError`` / ``consensus_jurors`` /
+    ``team_experts``) do NOT call ``_parse_decision_from_tool_call`` — they
+    operate at the application/multi_agent layer and are ADR-exempt from this
+    parser. No changes required there.
     """
     name = tool_name.strip()
     if name in {"hold", "no_action"}:
-        return Decision(action="hold", reasoning=str(args.get("reason", "")))
+        reasoning_str, structured = _parse_reason(name, args)
+        return Decision(
+            action="hold",
+            reasoning=reasoning_str,
+            market_context=structured.market_context if structured else None,
+            gates_passed=structured.gates_passed if structured else None,
+            invalidation_condition=structured.invalidation_condition if structured else None,
+            plan=structured.plan.model_dump() if structured and structured.plan else None,
+            structured_confidence=structured.confidence if structured else None,
+            output_language=structured.output_language if structured else None,
+        )
     if name in {"openPosition", "open_position"}:
+        reasoning_str, structured = _parse_reason(name, args)
         size = args.get("size") or args.get("positionSizePercent") or args.get("quantity")
         return Decision(
             action="open",
@@ -114,9 +170,16 @@ def _parse_decision_from_tool_call(tool_name: str, args: dict[str, Any]) -> Deci
             confidence=(
                 Decimal(str(args["confidence"])) if args.get("confidence") is not None else None
             ),
-            reasoning=str(args.get("reasoning", "")),
+            reasoning=reasoning_str,
+            market_context=structured.market_context if structured else None,
+            gates_passed=structured.gates_passed if structured else None,
+            invalidation_condition=structured.invalidation_condition if structured else None,
+            plan=structured.plan.model_dump() if structured and structured.plan else None,
+            structured_confidence=structured.confidence if structured else None,
+            output_language=structured.output_language if structured else None,
         )
     if name in {"closePosition", "close_position"}:
+        reasoning_str, structured = _parse_reason(name, args)
         pct_raw = args.get("percentage")
         pct = Decimal(str(pct_raw)) if pct_raw is not None else Decimal(100)
         action = "partial_close" if pct < Decimal(100) else "close"
@@ -124,16 +187,29 @@ def _parse_decision_from_tool_call(tool_name: str, args: dict[str, Any]) -> Deci
             action=action,
             symbol=str(args["symbol"]),
             close_percentage=pct,
-            reasoning=str(args.get("reasoning", "")),
+            reasoning=reasoning_str,
+            market_context=structured.market_context if structured else None,
+            gates_passed=structured.gates_passed if structured else None,
+            invalidation_condition=structured.invalidation_condition if structured else None,
+            plan=structured.plan.model_dump() if structured and structured.plan else None,
+            structured_confidence=structured.confidence if structured else None,
+            output_language=structured.output_language if structured else None,
         )
     if name in {"partialClose", "partial_close_position"}:
+        reasoning_str, structured = _parse_reason(name, args)
         pct_raw = args.get("percentage") or args.get("close_percentage")
         pct = Decimal(str(pct_raw)) if pct_raw is not None else Decimal(50)
         return Decision(
             action="partial_close",
             symbol=str(args["symbol"]),
             close_percentage=pct,
-            reasoning=str(args.get("reasoning", "")),
+            reasoning=reasoning_str,
+            market_context=structured.market_context if structured else None,
+            gates_passed=structured.gates_passed if structured else None,
+            invalidation_condition=structured.invalidation_condition if structured else None,
+            plan=structured.plan.model_dump() if structured and structured.plan else None,
+            structured_confidence=structured.confidence if structured else None,
+            output_language=structured.output_language if structured else None,
         )
     raise ValueError(f"Unknown tool name for decision mapping: {name!r}")
 
@@ -242,6 +318,7 @@ async def invoke_think(
 
 
 __all__ = [
+    "StructuredOutputContractError",
     "ToolCallRequiredError",
     "ToolHandler",
     "ToolRegistry",
