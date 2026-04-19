@@ -10,6 +10,7 @@ import { GatesPanel } from "./reasoning/GatesPanel";
 import { InvalidationCard } from "./reasoning/InvalidationCard";
 import { PlanCard } from "./reasoning/PlanCard";
 import { ConfidenceGauge } from "./reasoning/ConfidenceGauge";
+import { JustificationPanel } from "./reasoning/JustificationPanel";
 import type { AgentDecision } from "@/lib/api/types";
 
 interface ActionStep {
@@ -197,6 +198,7 @@ export function AgentReasoningFeed() {
                     <InvalidationCard decision={raw} />
                     {raw.plan && <PlanCard plan={raw.plan} />}
                     <ConfidenceGauge value={raw.structured_confidence} />
+                    <JustificationPanel text={raw.justification ?? reason} />
                   </>
                 ) : reason ? (
                   <blockquote

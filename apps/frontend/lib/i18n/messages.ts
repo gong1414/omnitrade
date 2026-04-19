@@ -157,6 +157,7 @@ const en = {
   "reasoning.invalidation.empty": "No invalidation condition",
   "reasoning.panel.legacy": "Legacy reasoning (pre-structured)",
   "reasoning.panel.legacyHint": "This decision predates the structured schema upgrade.",
+  "reasoning.panel.justification": "Justification",
 
   "log.eyebrow": "Reasoning · Wire",
   "log.title": "Live events",
@@ -310,6 +311,7 @@ const zh: Record<keyof typeof en, string> = {
   "reasoning.invalidation.empty": "未设失效条件",
   "reasoning.panel.legacy": "旧版推理（结构化前）",
   "reasoning.panel.legacyHint": "此决策早于结构化 schema 升级。",
+  "reasoning.panel.justification": "完整推理",
 
   "log.eyebrow": "推理 · 事件线",
   "log.title": "实时事件",

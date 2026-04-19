@@ -106,7 +106,10 @@ class TradingSignalORM(Base):
 
 class AgentDecisionORM(Base):
     __tablename__ = "agent_decisions"
-    __table_args__ = (Index("idx_decisions_timestamp", "timestamp"),)
+    __table_args__ = (
+        Index("idx_decisions_timestamp", "timestamp"),
+        Index("idx_decisions_correlation_id", "correlation_id"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -125,6 +128,11 @@ class AgentDecisionORM(Base):
     output_language: Mapped[str | None] = mapped_column(Text, nullable=True)
     symbol: Mapped[str | None] = mapped_column(Text, nullable=True)
     side: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Alembic 0005 — close FE/BE contract audit gaps.
+    justification: Mapped[str | None] = mapped_column(Text, nullable=True)
+    correlation_id: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=""
+    )
 
 
 class TradingLessonORM(Base):

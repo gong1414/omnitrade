@@ -163,6 +163,7 @@ def _parse_decision_from_tool_call(tool_name: str, args: dict[str, Any]) -> Deci
             plan=structured.plan.model_dump() if structured and structured.plan else None,
             structured_confidence=structured.confidence if structured else None,
             output_language=structured.output_language if structured else None,
+            justification=structured.justification if structured else None,
         )
     if name in {"openPosition", "open_position"}:
         reasoning_str, structured = _parse_reason(name, args)
@@ -189,6 +190,7 @@ def _parse_decision_from_tool_call(tool_name: str, args: dict[str, Any]) -> Deci
             plan=structured.plan.model_dump() if structured and structured.plan else None,
             structured_confidence=structured.confidence if structured else None,
             output_language=structured.output_language if structured else None,
+            justification=structured.justification if structured else None,
         )
     if name in {"closePosition", "close_position"}:
         reasoning_str, structured = _parse_reason(name, args)
@@ -206,8 +208,9 @@ def _parse_decision_from_tool_call(tool_name: str, args: dict[str, Any]) -> Deci
             plan=structured.plan.model_dump() if structured and structured.plan else None,
             structured_confidence=structured.confidence if structured else None,
             output_language=structured.output_language if structured else None,
+            justification=structured.justification if structured else None,
         )
-    if name in {"partialClose", "partial_close_position"}:
+    if name in {"partialClose", "partial_close", "partial_close_position"}:
         reasoning_str, structured = _parse_reason(name, args)
         pct_raw = args.get("percentage") or args.get("close_percentage")
         pct = Decimal(str(pct_raw)) if pct_raw is not None else Decimal(50)
@@ -222,6 +225,7 @@ def _parse_decision_from_tool_call(tool_name: str, args: dict[str, Any]) -> Deci
             plan=structured.plan.model_dump() if structured and structured.plan else None,
             structured_confidence=structured.confidence if structured else None,
             output_language=structured.output_language if structured else None,
+            justification=structured.justification if structured else None,
         )
     raise ValueError(f"Unknown tool name for decision mapping: {name!r}")
 

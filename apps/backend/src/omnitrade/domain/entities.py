@@ -166,7 +166,7 @@ class AgentDecision(BaseModel):
     positions_count: int
     symbol: str | None = None  # e.g. "BTC_USDT" — None for hold
     side: str | None = None  # "long" | "short" — None for hold
-    correlation_id: str = ""  # TraceContext linkage
+    correlation_id: str = ""  # TraceContext linkage (persisted in alembic 0005)
     # StructuredReason fields — None for legacy rows
     market_context: str | None = None
     gates_passed: list[str] | None = None  # domain list; repo json.dumps/loads at DB boundary
@@ -174,6 +174,9 @@ class AgentDecision(BaseModel):
     plan: dict[str, Any] | None = None  # PlanBlock.model_dump() or None
     structured_confidence: float | None = None  # DB column name: ``confidence``
     output_language: str | None = None  # "zh" | "en" | None
+    # Alembic 0005: full StructuredReason.justification (≈1385 chars mean);
+    # None for legacy rows predating the audit fix.
+    justification: str | None = None
 
     model_config = {"frozen": True}
 
@@ -245,6 +248,11 @@ class Decision(BaseModel):
     plan: dict[str, Any] | None = None  # PlanBlock.model_dump() result, or None for hold
     structured_confidence: float | None = None  # StructuredReason.confidence (float, [0,1])
     output_language: Literal["zh", "en"] | None = None
+    # Full chain-of-thought justification (StructuredReason.justification).
+    # ``reasoning`` stays as the caller-facing short text for backward compat
+    # (existing prompts / feedback loops read it); ``justification`` carries
+    # the raw long-form CoT for audit + UI consumption.
+    justification: str | None = None
 
     model_config = {"frozen": True}
 

@@ -255,3 +255,62 @@ async def test_list_recent_returns_structured_fields(session: AsyncSession) -> N
     assert legacy_row.gates_passed is None
     assert legacy_row.plan is None
     assert legacy_row.structured_confidence is None
+
+
+# ── Alembic 0005 round-trip: justification + correlation_id ───────────────────
+
+
+async def test_justification_roundtrip(session: AsyncSession) -> None:
+    """justification text persists verbatim through create/read."""
+    repo = DecisionRepository()
+    long_cot = (
+        "Full chain-of-thought for this trade. " * 40
+    )  # ~1400 chars, StructuredReason-typical length
+    dec = _make_structured_decision(justification=long_cot)
+
+    created = await repo.create(session, dec)
+    await session.commit()
+
+    fetched = await repo.get(session, created.id)
+    assert fetched is not None
+    assert fetched.justification == long_cot
+
+
+async def test_justification_none_on_legacy_row(session: AsyncSession) -> None:
+    """Legacy rows without justification round-trip as None, not empty string."""
+    repo = DecisionRepository()
+    dec = _make_legacy_decision()
+
+    created = await repo.create(session, dec)
+    await session.commit()
+
+    fetched = await repo.get(session, created.id)
+    assert fetched is not None
+    assert fetched.justification is None
+
+
+async def test_correlation_id_persists(session: AsyncSession) -> None:
+    """correlation_id written at record time is read back from DB (not lost)."""
+    repo = DecisionRepository()
+    cid = "abc-123-trace-id"
+    dec = _make_structured_decision(correlation_id=cid)
+
+    created = await repo.create(session, dec)
+    await session.commit()
+
+    fetched = await repo.get(session, created.id)
+    assert fetched is not None
+    assert fetched.correlation_id == cid
+
+
+async def test_correlation_id_default_empty_string(session: AsyncSession) -> None:
+    """Unset correlation_id persists as '' (NOT NULL column with empty default)."""
+    repo = DecisionRepository()
+    dec = _make_legacy_decision()  # no correlation_id supplied → ""
+
+    created = await repo.create(session, dec)
+    await session.commit()
+
+    fetched = await repo.get(session, created.id)
+    assert fetched is not None
+    assert fetched.correlation_id == ""

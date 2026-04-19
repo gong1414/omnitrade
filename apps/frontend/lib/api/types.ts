@@ -116,6 +116,9 @@ export interface AgentDecision {
   plan?: AgentDecisionPlan | null;
   structured_confidence?: number | null;
   output_language?: "zh" | "en" | null;
+  // Alembic 0005: full StructuredReason.justification chain-of-thought;
+  // null for legacy rows predating the audit fix.
+  justification?: string | null;
 }
 
 export interface DecisionsResponse {

@@ -28,10 +28,10 @@ export function TradesTable() {
           {t("empty")}
         </div>
       ) : (
-        <div className="overflow-x-auto font-mono text-[12px]">
+        <div className="overflow-x-auto font-mono text-[12px] max-h-[360px] overflow-y-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-obs-line-soft text-left uppercase tracking-[0.18em] text-[9px] text-obs-text-ghost">
+              <tr className="sticky top-0 bg-obs-panel border-b border-obs-line-soft text-left uppercase tracking-[0.18em] text-[9px] text-obs-text-ghost z-[1]">
                 <th className="px-5 py-2">{t("time")}</th>
                 <th className="px-3 py-2">{t("symbol")}</th>
                 <th className="px-3 py-2">{t("side")}</th>

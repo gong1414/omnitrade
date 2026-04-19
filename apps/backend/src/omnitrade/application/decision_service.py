@@ -40,6 +40,7 @@ def _decision_to_dict(dec: AgentDecision) -> dict[str, Any]:
         "account_value": str(dec.account_value),
         "positions_count": dec.positions_count,
         "correlation_id": dec.correlation_id,
+        "justification": dec.justification,
     }
 
 
@@ -76,6 +77,7 @@ class DecisionService:
         plan: dict[str, Any] | None = None,
         structured_confidence: float | None = None,
         output_language: str | None = None,
+        justification: str | None = None,
     ) -> AgentDecision:
         """Persist an ``AgentDecision`` row and publish a ``decision_update``."""
         ts = timestamp if timestamp is not None else datetime.now(tz=UTC)
@@ -96,6 +98,7 @@ class DecisionService:
             plan=plan,
             structured_confidence=structured_confidence,
             output_language=output_language,
+            justification=justification,
         )
         with_context(logger).info("decision_service.record", iteration=iteration)
 
@@ -106,9 +109,6 @@ class DecisionService:
         finally:
             await session.close()
 
-        # Preserve correlation id that was captured at record time even if the
-        # ORM ignores the column (the ORM row does not persist correlation_id).
-        persisted = persisted.model_copy(update={"correlation_id": dec.correlation_id})
         await self._event_bus.publish(
             EVENT_DECISION_UPDATE,
             _decision_to_dict(persisted),

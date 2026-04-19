@@ -33,6 +33,8 @@ def _decision_to_dict(d: AgentDecision) -> dict[str, Any]:
         "plan": d.plan,
         "structured_confidence": d.structured_confidence,
         "output_language": d.output_language,
+        # Alembic 0005: full chain-of-thought justification; None on legacy rows.
+        "justification": d.justification,
     }
 
 

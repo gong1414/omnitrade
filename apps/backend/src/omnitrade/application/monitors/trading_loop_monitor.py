@@ -157,6 +157,7 @@ class TradingLoopMonitor:
                 else None
             ),
             output_language=decision.output_language,
+            justification=decision.justification,
         )
 
 

@@ -42,3 +42,30 @@ async def test_decisions_query_bounds(api_client) -> None:  # type: ignore[no-un
     assert resp.status_code == 422
     resp = await api_client.get("/api/v1/decisions?limit=1000")
     assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_decisions_serialize_justification_and_correlation_id(
+    api_app, api_client
+) -> None:  # type: ignore[no-untyped-def]
+    """Regression for alembic 0005 — justification + correlation_id reach the UI."""
+    svc = api_app.state.api_container.decision_service
+    long_cot = "Full chain-of-thought. " * 60
+    await svc.record(
+        iteration=99,
+        decision_text="open",
+        market_analysis="{}",
+        actions_taken="[]",
+        account_value=Decimal("1000"),
+        positions_count=0,
+        justification=long_cot,
+    )
+
+    resp = await api_client.get("/api/v1/decisions?limit=1&offset=0")
+    assert resp.status_code == 200
+    row = resp.json()["decisions"][0]
+    assert row["justification"] == long_cot
+    # correlation_id is now a real DB column — empty string here because the
+    # test harness issues no X-Correlation-ID header, but the key must exist.
+    assert "correlation_id" in row
+    assert isinstance(row["correlation_id"], str)
