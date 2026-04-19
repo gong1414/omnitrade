@@ -5,6 +5,12 @@ import { useDecisions } from "@/hooks/useDecisions";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn, fmtNum, fmtTime } from "@/lib/utils";
 import { Chip, Panel, StatusDot } from "./obs/Panel";
+import { MarketContextPanel } from "./reasoning/MarketContextPanel";
+import { GatesPanel } from "./reasoning/GatesPanel";
+import { InvalidationCard } from "./reasoning/InvalidationCard";
+import { PlanCard } from "./reasoning/PlanCard";
+import { ConfidenceGauge } from "./reasoning/ConfidenceGauge";
+import type { AgentDecision } from "@/lib/api/types";
 
 interface ActionStep {
   tool?: string;
@@ -41,6 +47,10 @@ function parseMarket(raw: string | undefined): Record<string, unknown> | null {
   } catch {
     return null;
   }
+}
+
+function hasStructured(d: AgentDecision): boolean {
+  return d.structured_confidence != null;
 }
 
 function toneForAction(action: string): Parameters<typeof Chip>[0]["tone"] {
@@ -180,7 +190,15 @@ export function AgentReasoningFeed() {
                   </div>
                 ) : null}
 
-                {reason ? (
+                {hasStructured(raw) ? (
+                  <>
+                    <MarketContextPanel decision={raw} />
+                    <GatesPanel decision={raw} />
+                    <InvalidationCard decision={raw} />
+                    {raw.plan && <PlanCard plan={raw.plan} />}
+                    <ConfidenceGauge value={raw.structured_confidence} />
+                  </>
+                ) : reason ? (
                   <blockquote
                     data-testid="reasoning-text"
                     className={cn(

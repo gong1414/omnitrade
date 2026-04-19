@@ -65,6 +65,15 @@ export interface PositionsResponse {
 
 // ── /api/v1/decisions ─────────────────────────────────────────────────────
 
+export interface AgentDecisionPlan {
+  entry?: number | null;
+  stop_loss?: number | null;
+  take_profit_1?: number | null;
+  take_profit_2?: number | null;
+  risk_usd?: number | null;
+  r_multiple_target?: number | null;
+}
+
 export interface AgentDecision {
   id: number;
   timestamp: string;
@@ -75,6 +84,13 @@ export interface AgentDecision {
   account_value: string;
   positions_count: number;
   correlation_id: string | null;
+  // Structured reasoning fields (PR-B2 — null until backend writes them)
+  market_context?: string | null;
+  gates_passed?: string[] | null;
+  invalidation_condition?: string | null;
+  plan?: AgentDecisionPlan | null;
+  structured_confidence?: number | null;
+  output_language?: "zh" | "en" | null;
 }
 
 export interface DecisionsResponse {
