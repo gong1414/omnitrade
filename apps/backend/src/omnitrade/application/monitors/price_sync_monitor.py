@@ -66,19 +66,39 @@ class PriceSyncMonitor:
             )
             return
 
-        if not fresh_positions:
-            return
+        # Empty list is a legitimate state (all positions closed out) and
+        # we still want to run the reconcile pass — otherwise orphan DB
+        # rows left by a manual close-out stay visible forever.
         by_symbol = {p.symbol: p for p in fresh_positions}
 
         session = await self._session_factory()
         updated = 0
+        reconciled = 0
         try:
             stored = await self._position_repo.list_all(session)
             for pos in stored:
                 if pos.id is None:
                     continue
+                # Skip rows already soft-closed — ``/api/v1/positions``
+                # filters these out and touching them again is pointless.
+                if pos.cumulative_close_pct >= Decimal(100):
+                    continue
                 fresh = by_symbol.get(pos.symbol)
                 if fresh is None:
+                    # Exchange has no such position. This happens after a
+                    # full-close (including the partial→full escalation
+                    # path) where the DB still thinks we hold a fraction.
+                    # Reconcile by marking cumulative_close_pct=100 so the
+                    # UI and StopLossMonitor stop tracking it. The row is
+                    # retained for audit trail.
+                    await self._position_repo.apply_three_way_state(
+                        session,
+                        pos.id,
+                        partial_close_pct=Decimal(100),
+                        stop_loss=pos.stop_loss,
+                        peak_pnl=pos.trailing_peak_pnl_pct,
+                    )
+                    reconciled += 1
                     continue
                 new_price = fresh.current_price
                 new_upnl = self._compute_upnl(pos.side, pos.entry_price, new_price, pos.quantity) \
@@ -93,15 +113,16 @@ class PriceSyncMonitor:
                     unrealized_pnl=new_upnl,
                 )
                 updated += 1
-            if updated:
+            if updated or reconciled:
                 await session.commit()
         finally:
             await session.close()
 
-        if updated:
+        if updated or reconciled:
             with_context(logger).info(
                 "price_sync_monitor.synced",
                 updated=updated,
+                reconciled=reconciled,
             )
 
     @staticmethod

@@ -309,6 +309,33 @@ class CCXTExchange:
         except Exception:
             pass
 
+        # Gate.io perpetuals require integer-contract amounts. A partial
+        # close of a position already at the exchange minimum rounds to 0
+        # after ``amount_to_precision`` and the exchange rejects with
+        # ``InvalidOrder: must be greater than minimum amount precision of
+        # 1``. When that happens, escalate to a full close using the raw
+        # ``contracts`` value so the LLM's risk-reduction intent actually
+        # lands — the alternative (silent InvalidOrder on every cycle)
+        # left positions stuck for hours with no visible trades.
+        if close_amount < 1.0 and contracts > Decimal(0):
+            escalated = float(contracts)
+            try:
+                escalated = float(
+                    self._exchange.amount_to_precision(ccxt_symbol, escalated)
+                )
+            except Exception:
+                pass
+            with_context(logger).warning(
+                "ccxt_exchange.partial_close_escalated_to_full",
+                position_id=position_id,
+                contracts=str(contracts),
+                requested_pct=percentage.value,
+                original_close_amount=close_amount,
+                escalated_close_amount=escalated,
+            )
+            close_amount = escalated
+            close_size = contracts
+
         raw_order = await self._exchange.create_order(
             symbol=ccxt_symbol,
             type="market",

@@ -95,8 +95,8 @@ async def test_sync_updates_current_price_and_upnl(session: AsyncSession) -> Non
     assert refreshed.unrealized_pnl == Decimal("1.0")
 
 
-async def test_sync_skips_symbols_not_returned_by_exchange(session: AsyncSession) -> None:
-    """Positions absent from the exchange response are left untouched."""
+async def test_sync_reconciles_positions_not_on_exchange(session: AsyncSession) -> None:
+    """Positions absent from the exchange response are soft-closed (cum=100)."""
     repo = PositionRepository()
     eth = _make_position(symbol="ETH_USDT", entry_price=Decimal("3000"),
                          current_price=Decimal("3000"))
@@ -111,9 +111,10 @@ async def test_sync_skips_symbols_not_returned_by_exchange(session: AsyncSession
     )
     await monitor.tick()
 
-    still_stored = await repo.get_by_symbol(session, "ETH_USDT")
-    assert still_stored is not None
-    assert still_stored.current_price == Decimal("3000")
+    reconciled = await repo.get_by_symbol(session, "ETH_USDT")
+    assert reconciled is not None
+    # Soft-closed: cumulative_close_pct == 100, entry price untouched.
+    assert reconciled.cumulative_close_pct == Decimal(100)
 
 
 async def test_fallback_upnl_when_exchange_returns_zero(session: AsyncSession) -> None:
