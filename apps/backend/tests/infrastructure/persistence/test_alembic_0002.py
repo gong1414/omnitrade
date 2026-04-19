@@ -57,13 +57,13 @@ def test_alembic_0002_upgrade_downgrade_roundtrip(tmp_path: Path) -> None:
         f"after upgrade head: legacy columns must be gone, still present: {_OLD_COLUMNS & cols}"
     )
 
-    _alembic(db_path, "downgrade", "-1")
+    _alembic(db_path, "downgrade", "0001")
     cols = _position_columns(db_path)
     assert _OLD_COLUMNS.issubset(cols), (
-        f"after downgrade -1: expected {_OLD_COLUMNS} ⊆ columns, got {cols}"
+        f"after downgrade to 0001: expected {_OLD_COLUMNS} ⊆ columns, got {cols}"
     )
     assert not (_NEW_COLUMNS & cols), (
-        f"after downgrade -1: renamed columns must be absent, still present: {_NEW_COLUMNS & cols}"
+        f"after downgrade to 0001: renamed columns must be absent, still present: {_NEW_COLUMNS & cols}"
     )
 
     _alembic(db_path, "upgrade", "head")
