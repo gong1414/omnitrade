@@ -346,12 +346,29 @@ class CCXTExchange:
 
         price = Decimal(str(raw_order.get("price") or raw_order.get("average") or 0))
         fee_rate = self._effective_fee_rate()
-        fee = price * close_size * fee_rate
+
+        # Unit reconciliation: ``close_size`` is counted in exchange
+        # contracts (e.g. 1 contract on Gate BTC_USDT perp = 0.001 BTC)
+        # while ``place_order`` stores ``quantity`` in base-asset units.
+        # Multiplying raw contract count into fee/pnl inflated those
+        # columns by 1/contractSize (roughly 1000×) which made the
+        # dashboard show plausible-but-nonsense numbers. Resolve
+        # contractSize from the market metadata so we can record both the
+        # executed contract count (for audit) and the base-asset amount
+        # (for fee/pnl) consistently.
+        try:
+            market = self._exchange.market(ccxt_symbol)
+            contract_size = Decimal(str(market.get("contractSize") or 1))
+        except Exception:
+            contract_size = Decimal(1)
+        base_qty = close_size * contract_size
+
+        fee = price * base_qty * fee_rate
         pnl = Decimal(str(raw_order.get("realizedPnl") or raw_order.get("pnl") or 0))
         entry_price = Decimal(str(pos.get("entryPrice") or 0))
         if pnl == Decimal("0") and price > Decimal("0") and entry_price > Decimal("0"):
             multiplier = Decimal("1") if side_raw in ("long", "buy") else Decimal("-1")
-            pnl = (price - entry_price) * close_size * multiplier
+            pnl = (price - entry_price) * base_qty * multiplier
 
         return Trade(
             order_id=str(raw_order.get("id", "")),
@@ -359,7 +376,9 @@ class CCXTExchange:
             side=side_raw if side_raw in ("long", "short") else "long",
             type="close",
             price=price,
-            quantity=close_size,
+            # Store base-asset quantity (BTC) so the trades table reads
+            # consistently alongside the open rows.
+            quantity=base_qty,
             leverage=int(pos.get("leverage") or 1),
             pnl=pnl,
             fee=fee,
