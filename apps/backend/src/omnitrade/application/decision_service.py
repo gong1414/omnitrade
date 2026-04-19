@@ -65,6 +65,13 @@ class DecisionService:
         account_value: Decimal,
         positions_count: int,
         timestamp: datetime | None = None,
+        # StructuredReason fields — all optional; None means legacy row (DB NULLs)
+        market_context: str | None = None,
+        gates_passed: list[str] | None = None,
+        invalidation_condition: str | None = None,
+        plan: dict[str, Any] | None = None,
+        structured_confidence: float | None = None,
+        output_language: str | None = None,
     ) -> AgentDecision:
         """Persist an ``AgentDecision`` row and publish a ``decision_update``."""
         ts = timestamp if timestamp is not None else datetime.now(tz=UTC)
@@ -77,6 +84,12 @@ class DecisionService:
             account_value=account_value,
             positions_count=positions_count,
             correlation_id=get_correlation_id(),
+            market_context=market_context,
+            gates_passed=gates_passed,
+            invalidation_condition=invalidation_condition,
+            plan=plan,
+            structured_confidence=structured_confidence,
+            output_language=output_language,
         )
         with_context(logger).info("decision_service.record", iteration=iteration)
 

@@ -116,6 +116,13 @@ class AgentDecisionORM(Base):
     actions_taken: Mapped[str] = mapped_column(Text, nullable=False)
     account_value: Mapped[float] = mapped_column(Float, nullable=False)
     positions_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    # StructuredReason fields (PR-B1 Step 2 alembic 0003) — all nullable for legacy compat
+    market_context: Mapped[str | None] = mapped_column(Text, nullable=True)
+    gates_passed: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON string
+    invalidation_condition: Mapped[str | None] = mapped_column(Text, nullable=True)
+    plan: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON string
+    confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    output_language: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class TradingLessonORM(Base):

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from decimal import Decimal
 
 import structlog
@@ -16,6 +17,9 @@ logger = structlog.get_logger(__name__)
 
 
 def _orm_to_domain(row: AgentDecisionORM) -> AgentDecision:
+    # gates_passed and plan are stored as JSON strings; None for legacy rows.
+    gates_passed = json.loads(row.gates_passed) if row.gates_passed is not None else None
+    plan = json.loads(row.plan) if row.plan is not None else None
     return AgentDecision(
         id=row.id,
         timestamp=row.timestamp,
@@ -25,10 +29,20 @@ def _orm_to_domain(row: AgentDecisionORM) -> AgentDecision:
         actions_taken=row.actions_taken,
         account_value=Decimal(str(row.account_value)),
         positions_count=row.positions_count,
+        # StructuredReason fields — DB column ``confidence`` → domain ``structured_confidence``
+        market_context=row.market_context,
+        gates_passed=gates_passed,
+        invalidation_condition=row.invalidation_condition,
+        plan=plan,
+        structured_confidence=row.confidence,
+        output_language=row.output_language,
     )
 
 
 def _domain_to_orm(dec: AgentDecision) -> AgentDecisionORM:
+    # gates_passed and plan are serialised to JSON strings for TEXT columns.
+    gates_passed_json = json.dumps(dec.gates_passed) if dec.gates_passed is not None else None
+    plan_json = json.dumps(dec.plan) if dec.plan is not None else None
     return AgentDecisionORM(
         id=dec.id,
         timestamp=dec.timestamp,
@@ -38,6 +52,13 @@ def _domain_to_orm(dec: AgentDecision) -> AgentDecisionORM:
         actions_taken=dec.actions_taken,
         account_value=float(dec.account_value),
         positions_count=dec.positions_count,
+        # StructuredReason fields — domain ``structured_confidence`` → DB column ``confidence``
+        market_context=dec.market_context,
+        gates_passed=gates_passed_json,
+        invalidation_condition=dec.invalidation_condition,
+        plan=plan_json,
+        confidence=dec.structured_confidence,
+        output_language=dec.output_language,
     )
 
 

@@ -12,7 +12,6 @@ from typing import Any, Literal
 
 # NOTE: ``list[str]`` for gates_passed is the domain representation; the
 # repository layer is responsible for json.dumps/json.loads at the DB boundary.
-
 from pydantic import BaseModel, field_validator
 
 from omnitrade.domain.value_objects import Symbol
@@ -149,6 +148,12 @@ class AgentDecision(BaseModel):
     """AI agent decision record — mirrors the `agent_decisions` table.
 
     correlation_id links to TraceContext for distributed tracing.
+
+    Structured reasoning fields (PR-B1 Step 5): populated when the LLM emits
+    a StructuredReason-shaped ``reason`` object.  All six are nullable so that
+    legacy rows (pre-Step-5) degrade transparently — DB NULLs map to None.
+    DB column ``confidence`` maps to domain field ``structured_confidence``
+    (Option A naming: DB retains ``confidence``, repository translates).
     """
 
     id: int | None = None
@@ -160,6 +165,13 @@ class AgentDecision(BaseModel):
     account_value: Decimal
     positions_count: int
     correlation_id: str = ""  # TraceContext linkage
+    # StructuredReason fields — None for legacy rows
+    market_context: str | None = None
+    gates_passed: list[str] | None = None  # domain list; repo json.dumps/loads at DB boundary
+    invalidation_condition: str | None = None
+    plan: dict[str, Any] | None = None  # PlanBlock.model_dump() or None
+    structured_confidence: float | None = None  # DB column name: ``confidence``
+    output_language: str | None = None  # "zh" | "en" | None
 
     model_config = {"frozen": True}
 
