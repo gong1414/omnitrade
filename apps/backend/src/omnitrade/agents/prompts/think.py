@@ -1,18 +1,22 @@
 """User-message template for the think step.
 
 The think template is the structured view the LangGraph think node feeds
-to the LLM: MarketSnapshot + News + Positions → a Decision JSON.
+to the LLM: MarketSnapshot + News + Positions -> a Decision JSON.
 
-Phase 8.1 — ``{market_data_block}`` has two assembly versions:
+Phase 8.1 -- ``{market_data_block}`` has two assembly versions:
 
 * ``v1`` (default) renders the pre-8.1 ticker summary and is byte-exact
   with Phase 4.5 cassette replay.
 * ``v2`` additionally embeds the ``MarketSnapshot.multi_tf_ohlcv`` block
   under per-TF headings (``### {tf} ({n} candles)``).
 
-The *template itself* is unchanged — only the caller-supplied
+The *template itself* is unchanged -- only the caller-supplied
 ``market_data_block`` content differs. ``format_market_data_block``
 below is the single seam that chooses the version.
+
+PR-B2 Phase B rewrote the prose frame into English and appended an
+explicit tool-call + output_language trailer so the model always produces a
+StructuredReason in the orchestrator's configured language.
 """
 
 from __future__ import annotations
@@ -26,9 +30,10 @@ from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplat
 #   {iteration}, {current_time}, {minutes_elapsed}, {interval_minutes},
 #   {strategy_banner}, {hard_risk_floor}, {tactical_box}, {decision_flow},
 #   {market_data_block}, {news_block}, {external_block}, {account_block},
-#   {positions_block}, {sharpe_block}, {recent_trades_block}
+#   {positions_block}, {sharpe_block}, {recent_trades_block},
+#   {output_language}
 THINK_USER_TEMPLATE = """\
-【交易周期 #{iteration}】{current_time} 已运行 {minutes_elapsed} 分钟，执行周期 {interval_minutes} 分钟
+[CYCLE #{iteration}] {current_time} -- elapsed {minutes_elapsed} min, cadence {interval_minutes} min.
 
 {strategy_banner}
 
@@ -38,27 +43,29 @@ THINK_USER_TEMPLATE = """\
 
 {decision_flow}
 
-【市场数据】
+[MARKET DATA]
 {market_data_block}
 
-【消息面】
+[NEWS FEED]
 {news_block}
 
-【外部数据】
+[EXTERNAL SIGNALS]
 {external_block}
 
-【账户信息】
+[ACCOUNT SNAPSHOT]
 {account_block}
 
-【当前持仓】
+[OPEN POSITIONS]
 {positions_block}
 
 {sharpe_block}
 
-【近期交易】
+[RECENT TRADES]
 {recent_trades_block}
 
-请根据上述信息，按 JSON 格式输出决策：{{"action": "open|close|partial_close|hold", ...}}
+Based on the above, call ONE of: open_position / close_position / partial_close / hold_tool.
+The `reason` field MUST be a complete StructuredReason JSON object with all 7 keys.
+Reply reasoning (market_context / gates_passed / invalidation_condition / justification fields) in {output_language}. Use the section headers "Market Context" / "Gates Passed" / "Invalidation" / "Plan" / "Confidence" in that language where applicable.
 """
 
 think_user_template: HumanMessagePromptTemplate = HumanMessagePromptTemplate.from_template(
@@ -78,11 +85,11 @@ def build_think_prompt() -> ChatPromptTemplate:
 def _format_v1_market_block(tickers: Iterable[tuple[str, str]]) -> str:
     """Pre-8.1 market block: ``"SYMBOL: price / ..."`` summary.
 
-    Extracted so both v1 and v2 share the ticker preamble — v2 appends
+    Extracted so both v1 and v2 share the ticker preamble -- v2 appends
     multi-TF OHLCV blocks after it.
     """
     pairs = [f"{sym}: {price}" for sym, price in tickers]
-    return " / ".join(pairs) if pairs else "无"
+    return " / ".join(pairs) if pairs else "none"
 
 
 def _format_multi_tf_block(

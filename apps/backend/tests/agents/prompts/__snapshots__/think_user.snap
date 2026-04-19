@@ -1,31 +1,33 @@
-【交易周期 #42】2026-04-17 10:00 已运行 20 分钟，执行周期 20 分钟
+[CYCLE #42] 2026-04-17 10:00 -- elapsed 20 min, cadence 20 min.
 
-策略横幅 (stable)
+Strategy banner (stable)
 
-硬风控底线 (stable)
+Hard risk floor (stable)
 
-战术盒 (stable)
+Tactical box (stable)
 
-决策流程 (stable)
+Decision flow (stable)
 
-【市场数据】
+[MARKET DATA]
 BTC: 68500 / ETH: 3582
 
-【消息面】
-无
+[NEWS FEED]
+none
 
-【外部数据】
-无
+[EXTERNAL SIGNALS]
+none
 
-【账户信息】
-总额 1000 USDT
+[ACCOUNT SNAPSHOT]
+Equity 1000 USDT
 
-【当前持仓】
-无
+[OPEN POSITIONS]
+none
 
 Sharpe: 1.42
 
-【近期交易】
-无
+[RECENT TRADES]
+none
 
-请根据上述信息，按 JSON 格式输出决策：{"action": "open|close|partial_close|hold", ...}
+Based on the above, call ONE of: open_position / close_position / partial_close / hold_tool.
+The `reason` field MUST be a complete StructuredReason JSON object with all 7 keys.
+Reply reasoning (market_context / gates_passed / invalidation_condition / justification fields) in zh. Use the section headers "Market Context" / "Gates Passed" / "Invalidation" / "Plan" / "Confidence" in that language where applicable.

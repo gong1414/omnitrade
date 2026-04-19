@@ -1,10 +1,11 @@
-【本周期交易复盘】
+[CYCLE POST-MORTEM]
 
-策略：arena-steward
-动作：close
-结果：盈利 +2.3%
+Strategy: arena-steward
+Action taken: close
+Outcome: realized PnL +2.3%
 
-请回答：
-1. 本周期决策是否合理？为什么？
-2. 可以提炼成什么可复用的经验（lesson）？
-3. 请以 JSON 返回 {"lesson": "...", "confidence": 0-1, "tags": ["..."]}
+Answer tersely, grounded on numeric evidence from the cycle:
+1. Was the decision correct given the evidence available at entry? Why or why not?
+2. Extract ONE reusable lesson (``lessons_learned``) and ONE concrete adjustment for the next identical setup (``adjustment_plan``). Keep each under 240 characters.
+3. Return a single JSON object with NO markdown fencing:
+{"lessons_learned": "...", "adjustment_plan": "...", "confidence": 0.0-1.0, "tags": ["..."]}

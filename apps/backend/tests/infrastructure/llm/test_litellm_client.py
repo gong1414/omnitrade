@@ -22,8 +22,9 @@ from omnitrade.infrastructure.llm.litellm_client import LiteLLMClient
 
 # Canonical sentinel strings that distinguish each branch.
 # These are substrings present in each template that do NOT appear in the other.
-_MINIMAL_SENTINEL = "自我复盘"  # unique to MINIMAL_SYSTEM_PROMPT_TEMPLATE
-_FULL_SENTINEL = "世界顶级"  # unique to FULL_SYSTEM_PROMPT_TEMPLATE
+# PR-B2 Phase B rewrote prompts into English — sentinels updated accordingly.
+_MINIMAL_SENTINEL = "SYSTEM HARD RISK FLOOR"  # unique to MINIMAL_SYSTEM_PROMPT_TEMPLATE
+_FULL_SENTINEL = "world-class systematic quantitative trader"  # unique to FULL_SYSTEM_PROMPT_TEMPLATE
 
 
 def _build_messages(strategy: StrategyName, user_content: str) -> list[dict[str, str]]:
