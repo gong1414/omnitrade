@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from omnitrade.application.events import EVENT_POSITION_UPDATE, EventBus
 from omnitrade.domain.entities import Position, Trade
+from omnitrade.domain.errors import PyramidViolationError
 from omnitrade.domain.protocols import ExchangeClient
 from omnitrade.domain.value_objects import Leverage, Percentage, Symbol
 from omnitrade.infrastructure.persistence.repositories.position_repository import (
@@ -99,7 +100,30 @@ class PositionManager:
         """Open a new position via the exchange and persist it.
 
         Returns the settlement ``Trade`` (order-id, fill price, fee).
+
+        Raises:
+            PyramidViolationError: when an OPEN position already exists for
+                ``symbol``. Alpha Arena's no-pyramid rule forbids adding to
+                existing positions or re-entering a held coin; the caller
+                (``composition._build_execute_fn``) catches this gracefully
+                so the cycle's StructuredReason still records.
         """
+        # Alpha Arena no-pyramid rule: refuse to open a second position in
+        # a symbol that already has a row in the ``positions`` table with
+        # non-zero quantity. Closed positions leave quantity=0 or are
+        # removed entirely so this check is safe.
+        session = await self._session_factory()
+        try:
+            existing = await self._position_repo.get_by_symbol(session, symbol)
+        finally:
+            await session.close()
+        if existing is not None and existing.quantity > Decimal(0):
+            raise PyramidViolationError(
+                f"Already holding {symbol} (side={existing.side}, "
+                f"qty={existing.quantity}). No pyramid: cannot open new "
+                f"position in same symbol."
+            )
+
         with_context(logger).info(
             "position_manager.open_position",
             symbol=symbol,

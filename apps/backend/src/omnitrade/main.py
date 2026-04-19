@@ -67,6 +67,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # ``SCHEDULER_ENABLED=true``; skipped entirely when no LLM key is
     # configured so the API server stays usable in read-only / test modes.
     app.state.trading_monitor = None
+    app.state.invalidation_monitor = None
     app.state.scheduler = None
     if (
         post_container is not None
@@ -106,6 +107,7 @@ def _start_trading_scheduler(
     from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
     from omnitrade.application.composition import build_trading_monitor
+    from omnitrade.application.monitors.invalidation_monitor import InvalidationMonitor
     from omnitrade.infrastructure.llm.litellm_client import LiteLLMClient
 
     assert settings.llm_api_key is not None  # narrowed by caller
@@ -116,6 +118,22 @@ def _start_trading_scheduler(
     )
     monitor = build_trading_monitor(container, settings, llm)
     app.state.trading_monitor = monitor
+
+    # PR-D Phase D2: invalidation monitor runs independently of the trading
+    # cycle so positions auto-close the moment the LLM-authored
+    # invalidation_condition trips, not at the next TRADING_INTERVAL tick.
+    invalidation_monitor = InvalidationMonitor(
+        interval_seconds=settings.invalidation_check_interval_seconds,
+        llm=llm,
+        model=settings.llm_model_name,
+        exchange=container.exchange,
+        multi_tf_fetcher=container.multi_tf_fetcher,
+        position_repo=container.position_repo,
+        decision_repo=container.decision_repo,
+        position_manager=container.position_manager,
+        session_factory=container.open_session,
+    )
+    app.state.invalidation_monitor = invalidation_monitor
 
     scheduler = AsyncIOScheduler()
     import datetime as _dt
@@ -128,6 +146,16 @@ def _start_trading_scheduler(
         id="trading_cycle",
         max_instances=1,  # refuse overlapping runs
         coalesce=True,  # collapse missed ticks into one
+    )
+    scheduler.add_job(
+        invalidation_monitor.tick,
+        "interval",
+        seconds=settings.invalidation_check_interval_seconds,
+        next_run_time=_dt.datetime.now(_dt.UTC)
+        + timedelta(seconds=settings.invalidation_check_interval_seconds),
+        id="invalidation_check",
+        max_instances=1,
+        coalesce=True,
     )
     scheduler.start()
     app.state.scheduler = scheduler

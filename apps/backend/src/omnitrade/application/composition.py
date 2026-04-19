@@ -40,6 +40,7 @@ from omnitrade.domain.entities import (
     Trade,
 )
 from omnitrade.domain.enums import StrategyName
+from omnitrade.domain.errors import PyramidViolationError
 from omnitrade.domain.protocols import LLMClient
 from omnitrade.domain.value_objects import Symbol
 from omnitrade.infrastructure.market_data.indicators import (
@@ -582,6 +583,18 @@ def _build_execute_fn(
                 )
                 return [trade]
             # hold — no-op.
+            return []
+        except PyramidViolationError as exc:
+            # Alpha Arena no-pyramid rule tripped. Log + swallow so the
+            # cycle's StructuredReason still records — the LLM sees the
+            # existing position in the next cycle's positions_block and
+            # can decide to close first.
+            with_context(logger).warning(
+                "composition.execute.pyramid_violation",
+                action=action,
+                symbol=decision.symbol,
+                error=str(exc),
+            )
             return []
         except Exception as exc:  # exchange/ccxt errors must not kill cycle
             with_context(logger).warning(

@@ -83,3 +83,39 @@ class DecisionRepository:
         await session.flush()
         await session.refresh(row)
         return _orm_to_domain(row)
+
+    async def get_latest_invalidation_for_symbol(
+        self,
+        session: AsyncSession,
+        symbol: str,
+    ) -> str | None:
+        """Return the most recent non-empty ``invalidation_condition`` that
+        mentioned ``symbol`` in its ``actions_taken`` JSON.
+
+        Used by ``InvalidationMonitor`` to pull the LLM's self-authored
+        invalidation text for an OPEN position (``invalidation_condition``
+        lives on ``agent_decisions``, not ``positions``). Scans the latest
+        decisions in reverse-timestamp order so a position re-opened after
+        a close picks up the *new* invalidation, not a stale one from the
+        previous lifecycle.
+        """
+        with_context(logger).debug(
+            "decision_repository.get_latest_invalidation_for_symbol",
+            symbol=symbol,
+        )
+        stmt = (
+            select(AgentDecisionORM)
+            .where(AgentDecisionORM.invalidation_condition.is_not(None))
+            .order_by(AgentDecisionORM.timestamp.desc())
+            .limit(50)
+        )
+        result = await session.execute(stmt)
+        for row in result.scalars().all():
+            if row.invalidation_condition is None:
+                continue
+            # ``actions_taken`` is a JSON array of trade dicts (see
+            # TradingLoopMonitor.tick). Cheap substring match is enough —
+            # symbol strings like ``BTC_USDT`` are unambiguous.
+            if symbol in (row.actions_taken or ""):
+                return row.invalidation_condition
+        return None

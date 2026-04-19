@@ -307,6 +307,18 @@ class Settings(BaseSettings):
     ``scheduler_enabled`` is False.
     """
 
+    # ------------------------------------------------------------------ #
+    # PR-D PHASE D2 — Invalidation monitor                                 #
+    # ------------------------------------------------------------------ #
+    invalidation_check_interval_seconds: int = 60
+    """How often ``InvalidationMonitor`` scans OPEN positions and asks the
+    LLM whether each position's ``invalidation_condition`` has triggered.
+
+    Independent from ``trading_interval_minutes`` so invalidation firings
+    are enforced on their own cadence. Ignored when ``scheduler_enabled``
+    is False.
+    """
+
 
 _settings: Settings | None = None
 
