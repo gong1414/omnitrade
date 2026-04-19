@@ -5,7 +5,7 @@
 # OmniTrade — Strategies (11 total)
 
 > Canonical parameter reference for every strategy shipped with OmniTrade.
-> Locked by the 22-fixture characterization gate (≥ 0.95 Decision-equivalent pass rate).
+> Regression-gated by the structured output contract test suite in `tests/agents/` (PR-B2 Phase 9).
 > Source enum: `apps/backend/src/omnitrade/domain/enums.py::StrategyName`.
 
 ---
@@ -100,7 +100,7 @@ Multi-agent arena-raider mode. Uses 4 sub-agents registered as
 | Peak drawdown protection | 25 |
 | Code-level protection | off (team risk-control agent enforces) |
 
-- **Status:** **implemented (opt-in via `MULTI_AGENT_ENABLED=true`)**. Default off keeps the single-agent path byte-exact with the 22/22 characterization gate.
+- **Status:** **implemented (opt-in via `MULTI_AGENT_ENABLED=true`)**. Default off keeps the single-agent path on the structured output contract gate.
 - **Activation:** `TRADING_STRATEGY=arena-raider-squad` + `MULTI_AGENT_ENABLED=true`
 - **Cost impact:** a cycle that actually invokes the 4 experts is ~2-3× the single-agent cost for the same strategy.
 - **Strictness:** `MULTI_AGENT_STRICT=true` (default) — partial sub-agent failure (e.g. `trendExpert` timeout past `EXPERT_TIMEOUT_SECONDS=15`) raises `MultiAgentDegradedError` and fails the cycle. Ops can set `MULTI_AGENT_STRICT=false` for soft-degrade back to the single-agent path.
@@ -202,7 +202,7 @@ Fully autonomous mode — AI gets maximal latitude with code-level protection as
 | Peak drawdown protection | — |
 | Code-level protection | off |
 
-- **Status:** **implemented (opt-in via `MULTI_AGENT_ENABLED=true`)**. Default off keeps the single-agent path byte-exact with the 22/22 characterization gate.
+- **Status:** **implemented (opt-in via `MULTI_AGENT_ENABLED=true`)**. Default off keeps the single-agent path on the structured output contract gate.
 - **Activation:** `TRADING_STRATEGY=arena-tribunal` + `MULTI_AGENT_ENABLED=true`
 - **Cost impact:** a cycle that actually invokes the 3 jurors is ~2-3× the single-agent cost for the same strategy.
 - **Strictness:** `MULTI_AGENT_STRICT=true` (default) — partial juror failure raises `MultiAgentDegradedError` and fails the cycle. Ops can set `MULTI_AGENT_STRICT=false` for soft-degrade back to the single-agent path.

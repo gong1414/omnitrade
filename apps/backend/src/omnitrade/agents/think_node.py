@@ -126,7 +126,7 @@ def _parse_decision_from_tool_call(tool_name: str, args: dict[str, Any]) -> Deci
       * ``closePosition(symbol, percentage)``  (100 = full; <100 = partial)
       * ``hold()``
     This function is the single place that translates that shape to the
-    ``Decision`` domain entity. The characterization gate depends on it.
+    ``Decision`` domain entity. The structured output contract gate depends on it.
 
     **Dual-path reasoning (PR-B1 Step 4)**:
     All four tool branches run ``_parse_reason`` so that when PR-B2 updates the

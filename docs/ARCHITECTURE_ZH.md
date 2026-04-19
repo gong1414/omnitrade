@@ -189,7 +189,7 @@ flowchart LR
 
 ## 6.5 测试策略
 
-### 行为等价门（22/22）
+### Phase 4.5：22-Cassette 行为等价门 `[已被 Phase 9 PR-B2 取代，见下方 §6.6]`
 
 `apps/backend/tests/behavioral_equivalence/` 下的 22-fixture 门断言：Python Agent 对固化的**手工策展契约**复现通过率 ≥ 0.95。
 
@@ -208,13 +208,43 @@ flowchart LR
 
 ---
 
+## 6.6 Phase 9 PR-B2 Prompt Audit 现代化
+
+PR-B2（commits a6d2ad7、d6f0853、96b20a4、Phase D cleanup）退役了 22-cassette 门，替换为三层结构化测试金字塔：
+
+### 结构化输出契约门（取代 22-cassette 门）
+
+`tests/agents/test_structured_output_contract.py` 中 28 条结构化输出契约测试，断言重写后的 prompt 能产出的所有决策形态、tool-call schema、hold/close action 类型。不需要真实 LLM key 即可在 CI 中运行。
+
+### Tool-Aware Gate
+
+`tests/agents/test_tool_aware_gate.py` 验证 `build_hold_tool` 已激活（Phase B），以及各场景从注册工具集中选择了正确的工具。
+
+### 漂移检测探针
+
+`scripts/pr_b2_phase_a_probe.py` 和 `scripts/pr_b2_phase_b_probe.py` 可在本地对真实 LLM key 运行，在漂移到达 CI 前提前发现 prompt/模型漂移。
+
+**为什么退役 cassette 门：**
+
+- Phase A prompt 重写和 Phase B `build_hold_tool` 激活后，真实 LLM 响应已与冻结 baseline 分道扬镳，旧门成了陈旧的回归目标。
+- 28 条新结构化测试提供了与当前 prompt 契约对齐的更直接信号，不依赖合成 cassette 或特定 provider 响应形态。
+
+**运行新的门：**
+
+```bash
+cd apps/backend
+uv run pytest tests/agents/ -q
+```
+
+---
+
 ## 7. 相关文档
 
 | 文档 | 用途 |
 |---|---|
 | [STRATEGIES_ZH.md](./STRATEGIES_ZH.md) | 11 套策略的参数表 |
 | [RELEASE_CHECKLIST_ZH.md](./RELEASE_CHECKLIST_ZH.md) | 可 dry-run 的生产发布清单 |
-| [VCRPY_REFRESH_ZH.md](./VCRPY_REFRESH_ZH.md) | 如何重新录制 LLM VCR cassette |
+| [VCRPY_REFRESH_ZH.md](./VCRPY_REFRESH_ZH.md) | 已退役的 cassette 刷新 runbook（历史参考） |
 | `docs/history/` | 归档的分阶段 HANDOFF 记录 |
 
 ---
@@ -225,4 +255,4 @@ flowchart LR
 - **三位一体状态契约** —— `{cumulative_close_pct, stop_loss, trailing_peak_pnl_pct}` 的原子性不变量。
 - **Monitor** —— `application/monitors/` 下的 10 秒异步 loop，享有直接组合 infrastructure 的豁免。
 - **Jury / Team** —— `arena-tribunal` 和 `arena-raider-squad` 策略分别使用的子 Agent 集。
-- **行为等价门** —— `scripts/run_characterization.py` 用 VCR cassette 重放 22 份固化 fixture，阈值 0.95。该门断言 Python Agent 能复现冻结的手工策展契约（见 §6.5）。
+- **行为等价门** —— 已在 PR-B2 Phase D 退役。原为 `scripts/run_characterization.py` 以阈值 0.95 对 22 份固化 fixture 做 VCR cassette 重放。已由 `tests/agents/` 下的结构化输出契约门取代（见 §6.6）。

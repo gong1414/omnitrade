@@ -58,15 +58,10 @@
   uv run pytest tests/ -q --cov=src/omnitrade --cov-fail-under=80
   ```
 
-- [ ] **行为等价门（≥ 0.95）：**
+- [ ] **结构化输出契约门：**
 
   ```bash
-  cd ../..
-  uv --project apps/backend run python scripts/run_characterization.py \
-    --fixtures tests/fixtures/frozen/ \
-    --cassettes apps/backend/tests/behavioral_equivalence/cassettes/ \
-    --threshold 0.95 \
-    --report apps/backend/tests/behavioral_equivalence/reports/release-check.json
+  uv run pytest tests/agents/test_structured_output_contract.py tests/agents/test_tool_aware_gate.py -q
   ```
 
 ---
@@ -302,7 +297,7 @@
 
 以下是已被识别的延期项，**都不阻塞** v1.0.0 发布：
 
-- **F-UP 1：** VCR cassette 刷新 runbook —— 见 [VCRPY_REFRESH_ZH.md](./VCRPY_REFRESH_ZH.md)。
+- **F-UP 1：** ~~VCR cassette 刷新 runbook~~ —— 已在 PR-B2 Phase D 退役；历史背景见 [VCRPY_REFRESH_ZH.md](./VCRPY_REFRESH_ZH.md)。
 - **F-UP 2：** Postgres 兼容的 repository（SQLite 是默认发布目标）。
 - **F-UP 3：** Mainnet 审计 + 红队演练 —— 切换 `*_USE_TESTNET=false` 前必须完成。
 - **F-UP 4：** 默认 compose 里加 Redis（目前在 `--profile cache` 后）。

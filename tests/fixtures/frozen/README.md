@@ -1,7 +1,7 @@
 # Frozen Fixtures — Behavioral Baseline Contract
 
 Hand-curated baseline contracts covering the agent's close-path decision surface.
-Used by the characterization harness: feed each `market_snapshots/*.json` into the Python agent, diff the output against the matching `baseline_decisions/*.json`, and fail the build when the pass rate drops below 0.95.
+Used by the structured output contract test suite: feed each `market_snapshots/*.json` into the Python agent, diff the output against the matching `baseline_decisions/*.json`. The fixtures remain the ground-truth contracts; regression is now enforced via `tests/agents/test_structured_output_contract.py` (PR-B2 Phase 9).
 
 ## Layout
 
@@ -94,7 +94,7 @@ tests/fixtures/frozen/
 2. Construct the per-cycle decision payload the think-node expects.
 3. Invoke the Python agent with **deterministic LLM responses** recorded by VCRPY.
 4. Diff tool_calls + state_writes against `baseline_decisions/*.json`.
-5. Build fails when the characterization pass rate drops below 0.95 or any close-path bucket drops below its threshold (see `apps/backend/tests/behavioral_equivalence/parity_lib.py`).
+5. Build fails when any structured output contract assertion in `tests/agents/test_structured_output_contract.py` fails.
 
 ## Source authority
 

@@ -31,10 +31,11 @@ uv run uvicorn omnitrade.api.app:create_app --factory --reload --port 8000
 ## Tests
 
 ```bash
-uv run pytest                                  # 642 green
-uv run pytest -m characterization              # 22 frozen fixtures
-uv run pytest tests/infrastructure/persistence/test_alembic_0002.py   # schema-rename round-trip
-uv run pytest tests/behavioral_equivalence/test_cassette_format.py    # cassette-sentinel gate
+uv run pytest                                                                  # full suite
+uv run pytest -m "not manual_qa"                                               # CI-safe subset
+uv run pytest tests/agents/test_structured_output_contract.py                 # structured-output contract gate
+uv run pytest tests/agents/test_tool_aware_gate.py                            # tool-aware regression gate
+uv run pytest tests/infrastructure/persistence/test_alembic_0002.py           # schema-rename round-trip
 ```
 
 ## Migrations
@@ -54,4 +55,3 @@ Revisions:
 - [../../README.md](../../README.md) — top-level overview
 - [../../docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md) — DDD layers + 5-loop diagram + three-way state
 - [../../docs/STRATEGIES.md](../../docs/STRATEGIES.md) — 11 strategy parameter tables
-- [../../docs/VCRPY_REFRESH.md](../../docs/VCRPY_REFRESH.md) — how to re-record LLM cassettes

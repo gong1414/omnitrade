@@ -39,7 +39,7 @@
 
 ## 💡 What Is OmniTrade?
 
-OmniTrade is an autonomous **crypto-futures trading arena** where 11 LLM-driven strategies compete for PnL on Gate.io or OKX perpetuals. Point it at a testnet, pick a strategy, and watch the agent reason about markets, size positions, and manage risk — with every decision verifiable via a 22-fixture characterization gate.
+OmniTrade is an autonomous **crypto-futures trading arena** where 11 LLM-driven strategies compete for PnL on Gate.io or OKX perpetuals. Point it at a testnet, pick a strategy, and watch the agent reason about markets, size positions, and manage risk — with every decision verifiable via a structured output contract test suite.
 
 ### Key Capabilities
 
@@ -301,11 +301,11 @@ llmtrading/
 │   │   │   ├── agents/               # LangGraph think_node, prompts
 │   │   │   └── api/                  # FastAPI routers + middleware
 │   │   ├── alembic/                  # migrations (0001 init, 0002 rename)
-│   │   └── tests/                    # 642 green (≥ 0.95 characterization)
+│   │   └── tests/                    # structured output + integration tests
 │   └── frontend/                     # Next.js 14 + SWR + WebSocket
 ├── tests/fixtures/frozen/            # 22 hand-curated decision contracts
 ├── docs/                             # architecture, strategies, release, ...
-├── scripts/                          # ops + characterization CLI
+├── scripts/                          # ops + drift-detection probes
 └── docker-compose.yml                # backend + frontend + sqlite
 ```
 

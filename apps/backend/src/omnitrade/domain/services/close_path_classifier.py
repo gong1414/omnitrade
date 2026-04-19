@@ -8,7 +8,7 @@ state and the strategy parameters. Buckets:
   - ``ai_decision``    — LLM-driven close via trade-execution tool.
   - ``none``           — no close this cycle.
 
-The characterization gate validates this classifier against the frozen fixtures
+The structured output contract gate validates this classifier against the frozen fixtures
 in ``tests/fixtures/frozen/baseline_decisions/``.
 """
 

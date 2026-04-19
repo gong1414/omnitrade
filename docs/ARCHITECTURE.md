@@ -189,9 +189,9 @@ Four mutually exclusive paths plus a `none` bucket. See `domain/services/close_p
 
 ## 6.5 Test Strategy
 
-### Characterization Gate (22/22)
+### Phase 4.5: 22-Cassette Characterization Gate `[SUPERSEDED by Phase 9 PR-B2, see §6.6 below]`
 
-The 22-fixture gate in `apps/backend/tests/behavioral_equivalence/` asserts the Python agent reproduces the frozen **hand-curated contract** at ≥ 0.95 pass rate.
+The 22-fixture gate in `apps/backend/tests/behavioral_equivalence/` asserted the Python agent reproduces the frozen **hand-curated contract** at ≥ 0.95 pass rate.
 
 **Why characterization** (see `.omc/plans/phase-8-oracle-spike-report.md` for full evidence):
 
@@ -200,11 +200,41 @@ The 22-fixture gate in `apps/backend/tests/behavioral_equivalence/` asserts the 
 3. Baselines contain human prose, manual arithmetic, and `EDGE CASE` markers — signatures of hand-authored contracts, not captured telemetry.
 4. Cassettes are deterministically synthesised by `_cassette_synth.py` from the baseline JSONs; cassette URIs use a sentinel host, not a real provider.
 
-**What the gate guards:** regression of the Python agent against the frozen hand-curated contract.
+**What the gate guarded:** regression of the Python agent against the frozen hand-curated contract.
 
 **Gate composition** (Phase 8+):
 - `pytest -m characterization`: 22 primary fixtures (≥0.95 pass rate).
 - `pytest -m expert_parity` (Phase 8.5a onward): multi-agent sub-agent cassettes, independent of the 22/22 gate.
+
+---
+
+## 6.6 Phase 9 PR-B2 Prompt Audit Modernization
+
+PR-B2 (commits a6d2ad7, d6f0853, 96b20a4, Phase D cleanup) retired the 22-cassette gate and replaced it with a three-layer structured test pyramid:
+
+### Structured Output Contract Gate (replaces 22-cassette gate)
+
+28 structured-output contract tests in `tests/agents/test_structured_output_contract.py` assert every decision shape, tool-call schema, and hold/close action type that the refactored prompt can produce. These run in CI without a live LLM key.
+
+### Tool-Aware Gate
+
+`tests/agents/test_tool_aware_gate.py` verifies that `build_hold_tool` is activated (Phase B) and that each scenario selects the correct tool from the registered tool set.
+
+### Drift-Detection Probes
+
+`scripts/pr_b2_phase_a_probe.py` and `scripts/pr_b2_phase_b_probe.py` are runnable locally against a live LLM key to detect prompt/model drift before it reaches CI.
+
+**Why the cassette gate was retired:**
+
+- Phase A prompt rewrite and Phase B `build_hold_tool` activation diverged live LLM responses from the frozen baselines, making the old gate a stale regression target.
+- The 28 new structured tests provide a more direct signal aligned with the current prompt contract, without dependency on synthesised cassettes or a specific provider response shape.
+
+**Run the new gate:**
+
+```bash
+cd apps/backend
+uv run pytest tests/agents/ -q
+```
 
 ---
 
@@ -214,7 +244,7 @@ The 22-fixture gate in `apps/backend/tests/behavioral_equivalence/` asserts the 
 |---|---|
 | [STRATEGIES.md](./STRATEGIES.md) | 11 strategies with parameter tables |
 | [RELEASE_CHECKLIST.md](./RELEASE_CHECKLIST.md) | Dry-runnable production release checklist |
-| [VCRPY_REFRESH.md](./VCRPY_REFRESH.md) | How to re-record LLM VCR cassettes |
+| [VCRPY_REFRESH.md](./VCRPY_REFRESH.md) | Retired cassette refresh runbook (historical reference) |
 | `docs/history/` | Archived per-phase handoff notes |
 
 ---
@@ -225,4 +255,4 @@ The 22-fixture gate in `apps/backend/tests/behavioral_equivalence/` asserts the 
 - **Three-way state contract** — the atomicity invariant on `{cumulative_close_pct, stop_loss, trailing_peak_pnl_pct}`.
 - **Monitor** — a 10-second async loop in `application/monitors/` with the waiver to compose infrastructure directly.
 - **Jury / Team** — sub-agent sets used by `arena-tribunal` and `arena-raider-squad` strategies respectively.
-- **Characterization gate** — `scripts/run_characterization.py` replays 22 frozen fixtures against VCR cassettes; threshold 0.95. The gate asserts the Python agent reproduces the frozen hand-curated baseline contract (see §6.5 Test Strategy).
+- **Characterization gate** — retired in PR-B2 Phase D. Was `scripts/run_characterization.py` replaying 22 frozen fixtures against VCR cassettes at threshold 0.95. Replaced by the structured output contract gate in `tests/agents/` (see §6.6).

@@ -58,15 +58,10 @@ Environment assumed: repo root (`/path/to/llmtrading`), `uv` on PATH, `npm` on P
   uv run pytest tests/ -q --cov=src/omnitrade --cov-fail-under=80
   ```
 
-- [ ] **Parity gate (≥ 0.95):**
+- [ ] **Structured output contract gate:**
 
   ```bash
-  cd ../..
-  uv --project apps/backend run python scripts/run_parity.py \
-    --fixtures tests/fixtures/frozen/ \
-    --cassettes apps/backend/tests/behavioral_equivalence/cassettes/ \
-    --threshold 0.95 \
-    --report apps/backend/tests/behavioral_equivalence/reports/release-check.json
+  uv run pytest tests/agents/test_structured_output_contract.py tests/agents/test_tool_aware_gate.py -q
   ```
 
 ---
@@ -302,7 +297,7 @@ If health fails or a smoke test misbehaves, roll back:
 
 These are acknowledged deferrals — none blocks the v1.0.0 release:
 
-- **F-UP 1:** VCR cassette refresh runbook — see [VCRPY_REFRESH.md](./VCRPY_REFRESH.md).
+- **F-UP 1:** ~~VCR cassette refresh runbook~~ — retired in PR-B2 Phase D; see [VCRPY_REFRESH.md](./VCRPY_REFRESH.md) for historical context.
 - **F-UP 2:** Postgres-compatible repository (SQLite is the ship-blocker default).
 - **F-UP 3:** Mainnet audit + red-team run — required before flipping `*_USE_TESTNET=false`.
 - **F-UP 4:** Add Redis to the default compose (currently gated behind `--profile cache`).

@@ -4,7 +4,7 @@ Pins ``build_think_fn``'s 8.5a expansion:
 
   * ``multi_agent_enabled=False`` → ``tool_registry`` is left untouched
     regardless of strategy. The single-agent path remains byte-exact with
-    the 22/22 characterization gate.
+    the structured output contract gate.
   * ``multi_agent_enabled=True`` + ``AGGRESSIVE_TEAM`` → 4 expert tools
     registered.
   * ``multi_agent_enabled=True`` + ``MULTI_AGENT_CONSENSUS`` → 3 juror

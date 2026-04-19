@@ -240,8 +240,7 @@ class Settings(BaseSettings):
     """Rollback kill-switch for the Phase 8.5a multi-agent orchestrator.
 
     When False, ``build_think_fn`` does not register any roster tools and
-    the single-agent path is byte-exact with prior phases (characterization
-    22/22 depends on this). When True AND the active strategy is
+    the single-agent path preserves prior behavior. When True AND the active strategy is
     ``arena-raider-squad`` or ``arena-tribunal``, the per-strategy
     roster (4 experts or 3 jurors) is registered into ``ToolRegistry`` so
     the main LLM can drive sub-agent calls via ``tool_calls``.
@@ -271,8 +270,8 @@ class Settings(BaseSettings):
 
     False (default, rollback-safe): ``observe_market`` reads only via
     the REST ``exchange_observe`` path, and the ``MarketSnapshot.
-    ws_buffer_hash`` field stays ``None`` (byte-exact characterization
-    replay). True: the monitor wires an ``OKXWebSocketClient`` /
+    ws_buffer_hash`` field stays ``None`` (legacy REST-only snapshot
+    shape). True: the monitor wires an ``OKXWebSocketClient`` /
     ``GateWebSocketClient`` into ``run_cycle`` and the per-cycle
     snapshot carries a sha256 fingerprint of the live buffer.
     """

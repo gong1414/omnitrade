@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   backend:
-    name: Backend (ruff + mypy + pytest + characterization)
+    name: Backend (ruff + mypy + pytest)
     runs-on: ubuntu-22.04
     defaults:
       run:
@@ -52,26 +52,10 @@ jobs:
           PYTHONDONTWRITEBYTECODE: "1"
         run: |
           uv run pytest tests/ -q \
+            -m "not manual_qa" \
             --cov=src/omnitrade \
             --cov-report=term-missing \
             --cov-fail-under=80
-
-      - name: Characterization gate (≥ 0.95)
-        working-directory: ${{ github.workspace }}
-        run: |
-          uv --project apps/backend run python scripts/run_characterization.py \
-            --fixtures tests/fixtures/frozen/ \
-            --cassettes apps/backend/tests/behavioral_equivalence/cassettes/ \
-            --threshold 0.95 \
-            --report apps/backend/tests/behavioral_equivalence/reports/ci.json
-
-      - name: Upload characterization report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: characterization-report
-          path: apps/backend/tests/behavioral_equivalence/reports/ci.json
-          if-no-files-found: ignore
 
   frontend:
     name: Frontend (type-check + lint + build + playwright)
