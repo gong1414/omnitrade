@@ -331,6 +331,14 @@ class Settings(BaseSettings):
     scan OPEN positions. Default 10s for responsive protection.
     Ignored when ``scheduler_enabled`` is False."""
 
+    # Price-sync monitor — keeps positions.current_price fresh so the
+    # dashboard PnL and stop-loss ``price_hit`` rule aren't stuck on entry.
+    price_sync_interval_seconds: int = 15
+    """How often ``PriceSyncMonitor`` pulls fresh mark prices from the
+    exchange and writes them into the positions table. Default 15s —
+    shorter than the trading cycle but respectful of exchange rate
+    limits. Ignored when ``scheduler_enabled`` is False."""
+
     # ------------------------------------------------------------------ #
     # PR-D PHASE D3 — Adaptive learning + daily loss cap                  #
     # ------------------------------------------------------------------ #

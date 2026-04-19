@@ -131,6 +131,38 @@ class PositionRepository:
             await session.delete(row)
             await session.flush()
 
+    async def apply_mark_price(
+        self,
+        session: AsyncSession,
+        position_id: int,
+        *,
+        current_price: Decimal,
+        unrealized_pnl: Decimal,
+    ) -> None:
+        """Targeted UPDATE of the mark price + unrealized PnL columns.
+
+        Kept orthogonal to ``apply_three_way_state`` — mark-price sync
+        MUST NOT touch (cumulative_close_pct, stop_loss, trailing_peak)
+        so the 10-second stop-loss monitor can never observe a torn
+        write of the three-way invariant.
+        """
+        with_context(logger).debug(
+            "position_repository.apply_mark_price",
+            position_id=position_id,
+            current_price=str(current_price),
+            unrealized_pnl=str(unrealized_pnl),
+        )
+        stmt = (
+            update(PositionORM)
+            .where(PositionORM.id == position_id)
+            .values(
+                current_price=float(current_price),
+                unrealized_pnl=float(unrealized_pnl),
+            )
+        )
+        await session.execute(stmt)
+        await session.flush()
+
     async def apply_three_way_state(
         self,
         session: AsyncSession,

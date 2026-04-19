@@ -111,6 +111,7 @@ def _start_trading_scheduler(
     from omnitrade.application.monitors.account_recorder_monitor import AccountRecorderMonitor
     from omnitrade.application.monitors.invalidation_monitor import InvalidationMonitor
     from omnitrade.application.monitors.partial_profit_monitor import PartialProfitMonitor
+    from omnitrade.application.monitors.price_sync_monitor import PriceSyncMonitor
     from omnitrade.application.monitors.stop_loss_monitor import StopLossMonitor
     from omnitrade.application.monitors.trailing_stop_monitor import TrailingStopMonitor
     from omnitrade.infrastructure.llm.litellm_client import LiteLLMClient
@@ -161,6 +162,12 @@ def _start_trading_scheduler(
         session_factory=container.open_session,
         position_manager=container.position_manager,
     )
+    price_sync_monitor = PriceSyncMonitor(
+        interval_seconds=settings.price_sync_interval_seconds,
+        exchange=container.exchange,
+        position_repo=container.position_repo,
+        session_factory=container.open_session,
+    )
 
     scheduler = AsyncIOScheduler()
     import datetime as _dt
@@ -208,6 +215,17 @@ def _start_trading_scheduler(
         seconds=pos_mon_interval,
         next_run_time=_dt.datetime.now(_dt.UTC) + timedelta(seconds=8),
         id="partial_profit_monitor",
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        price_sync_monitor.tick,
+        "interval",
+        seconds=settings.price_sync_interval_seconds,
+        # Lead with price-sync at +2s so the first stop-loss tick (+5s) and
+        # trailing-stop tick (+7s) already see fresh mark prices.
+        next_run_time=_dt.datetime.now(_dt.UTC) + timedelta(seconds=2),
+        id="price_sync_monitor",
         max_instances=1,
         coalesce=True,
     )
