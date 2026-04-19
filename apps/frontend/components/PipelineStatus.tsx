@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useDecisions } from "@/hooks/useDecisions";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
+import type { DecisionUpdatePayload, StageTimings, WsEnvelope } from "@/lib/api/types";
 import { StatusDot } from "./obs/Panel";
 
 type StageKey = "observe" | "news" | "think" | "decide" | "execute" | "reflect";
@@ -17,9 +18,19 @@ const STAGES: { key: StageKey; latin: string }[] = [
   { key: "reflect", latin: "06" },
 ];
 
-const STAGE_MS = 220;
+const FALLBACK_STAGE_MS = 220;
+const ANIMATION_SPEEDUP = 10; // replay real timings 10× so the rail animates visibly
 
-export function PipelineStatus() {
+function hasRealTimings(t?: StageTimings | null): boolean {
+  if (!t) return false;
+  return STAGES.some((s) => typeof t[s.key] === "number" && (t[s.key] ?? 0) >= 0);
+}
+
+export function PipelineStatus({
+  lastDecisionEvent,
+}: {
+  lastDecisionEvent?: WsEnvelope<DecisionUpdatePayload> | null;
+} = {}) {
   const { decisions } = useDecisions({ limit: 1 });
   const t = useTranslations("pipeline");
   const latestTs = decisions[0]?.timestamp ?? null;
@@ -27,41 +38,72 @@ export function PipelineStatus() {
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
   const [lastTs, setLastTs] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState<number | null>(null);
+  const [usingRealTimings, setUsingRealTimings] = useState(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
+  // Prefer the WS envelope timestamp so we trigger the replay at the exact
+  // moment the cycle finished (not when SWR gets around to re-polling).
+  const triggerTs =
+    lastDecisionEvent && hasRealTimings(lastDecisionEvent.payload.stage_timings)
+      ? lastDecisionEvent.ts
+      : latestTs;
+
   useEffect(() => {
-    if (!latestTs || latestTs === lastTs) return;
-    setLastTs(latestTs);
+    if (!triggerTs || triggerTs === lastTs) return;
+    setLastTs(triggerTs);
     timers.current.forEach(clearTimeout);
     timers.current = [];
     const start = performance.now();
+
+    const timings = lastDecisionEvent?.payload.stage_timings;
+    const real = hasRealTimings(timings);
+    setUsingRealTimings(real);
+
+    // Build per-stage delay ladder. Real mode replays each stage's actual
+    // wall-clock duration, scaled down by ANIMATION_SPEEDUP and floored at
+    // 60ms so even sub-millisecond stages are visible.
+    const delays: number[] = STAGES.map((s, i) => {
+      if (real && timings) {
+        const raw = Number(timings[s.key] ?? 0);
+        return Math.max(60, raw / ANIMATION_SPEEDUP);
+      }
+      return i * FALLBACK_STAGE_MS;
+    });
+
+    let cumulative = 0;
     STAGES.forEach((_, i) => {
+      cumulative = real ? cumulative + delays[i] : delays[i];
+      const offset = cumulative;
       const tm = setTimeout(() => {
         setActiveIdx(i);
         setElapsed(Math.round(performance.now() - start));
-      }, i * STAGE_MS);
+      }, offset);
       timers.current.push(tm);
     });
-    const reset = setTimeout(
-      () => {
-        setActiveIdx(null);
-        setElapsed(null);
-      },
-      STAGES.length * STAGE_MS + 1100,
-    );
+
+    const totalMs = real
+      ? cumulative
+      : STAGES.length * FALLBACK_STAGE_MS;
+    const reset = setTimeout(() => {
+      setActiveIdx(null);
+      setElapsed(null);
+    }, totalMs + 1100);
     timers.current.push(reset);
+
     return () => {
       timers.current.forEach(clearTimeout);
       timers.current = [];
     };
-  }, [latestTs, lastTs]);
+  }, [triggerTs, lastDecisionEvent, lastTs]);
 
   const running = activeIdx !== null;
   const finalStageReached = activeIdx === STAGES.length - 1;
+  const activeTimings = lastDecisionEvent?.payload.stage_timings;
 
   return (
     <div
       data-testid="pipeline-status"
+      data-timings={usingRealTimings ? "real" : "fallback"}
       className="relative border border-obs-line bg-obs-panel/60 px-5 py-4"
     >
       <div className="flex items-center justify-between gap-4">
@@ -78,6 +120,14 @@ export function PipelineStatus() {
               → {latestAction}
             </span>
           ) : null}
+          {!usingRealTimings ? (
+            <span
+              className="font-mono text-[9px] uppercase tracking-[0.22em] text-obs-text-ghost"
+              title={t("previewTitle")}
+            >
+              {t("preview")}
+            </span>
+          ) : null}
         </div>
         <div className="font-mono text-[11px] text-obs-text-dim tabular-nums">
           {elapsed !== null ? `${elapsed}ms` : "—"}
@@ -89,6 +139,10 @@ export function PipelineStatus() {
           const done = running && activeIdx !== null && i < activeIdx;
           const active = running && activeIdx === i;
           const idle = !running;
+          const ms =
+            usingRealTimings && activeTimings
+              ? Number(activeTimings[stage.key] ?? 0)
+              : null;
           return (
             <li
               key={stage.key}
@@ -115,6 +169,14 @@ export function PipelineStatus() {
               >
                 {t(`stage.${stage.key}`)}
               </span>
+              {ms !== null ? (
+                <span
+                  className="font-mono text-[9px] tabular-nums text-obs-text-ghost"
+                  data-testid={`pipeline-stage-${stage.key}-ms`}
+                >
+                  {ms < 1 ? "<1ms" : `${Math.round(ms)}ms`}
+                </span>
+              ) : null}
             </li>
           );
         })}

@@ -16,7 +16,8 @@ import { TradesTable } from "@/components/TradesTable";
 import { useWebSocket } from "@/hooks/useWebSocket";
 
 export default function DashboardPage() {
-  const { state, lastDisconnectAt, log, orchestratorError } = useWebSocket();
+  const { state, lastDisconnectAt, log, orchestratorError, lastDecisionEvent } =
+    useWebSocket();
 
   return (
     <main className="min-h-screen">
@@ -33,7 +34,7 @@ export default function DashboardPage() {
       )}
 
       <div className="px-6 py-5">
-        <PipelineStatus />
+        <PipelineStatus lastDecisionEvent={lastDecisionEvent} />
       </div>
 
       <div

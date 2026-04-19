@@ -158,6 +158,7 @@ class TradingLoopMonitor:
             ),
             output_language=decision.output_language,
             justification=decision.justification,
+            ws_extras={"stage_timings": outcome.stage_ms} if outcome.stage_ms else None,
         )
 
 

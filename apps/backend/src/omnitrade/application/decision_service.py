@@ -78,6 +78,10 @@ class DecisionService:
         structured_confidence: float | None = None,
         output_language: str | None = None,
         justification: str | None = None,
+        # Transient, WS-only extras. Not persisted, merged into the
+        # ``decision_update`` payload so clients can render cycle telemetry
+        # (e.g. PipelineStatus stage timings) without a DB migration.
+        ws_extras: dict[str, Any] | None = None,
     ) -> AgentDecision:
         """Persist an ``AgentDecision`` row and publish a ``decision_update``."""
         ts = timestamp if timestamp is not None else datetime.now(tz=UTC)
@@ -109,10 +113,10 @@ class DecisionService:
         finally:
             await session.close()
 
-        await self._event_bus.publish(
-            EVENT_DECISION_UPDATE,
-            _decision_to_dict(persisted),
-        )
+        payload = _decision_to_dict(persisted)
+        if ws_extras:
+            payload.update(ws_extras)
+        await self._event_bus.publish(EVENT_DECISION_UPDATE, payload)
         return persisted
 
     async def list_recent(self, limit: int = 50, offset: int = 0) -> list[AgentDecision]:

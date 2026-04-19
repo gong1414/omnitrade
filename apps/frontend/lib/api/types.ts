@@ -262,7 +262,24 @@ export interface WsEnvelope<T = unknown> {
 
 export type AccountUpdatePayload = AccountSnapshot;
 export type PositionUpdatePayload = Position;
-export type DecisionUpdatePayload = AgentDecision;
+
+/**
+ * Transient per-stage wall-clock costs (ms). Keys mirror the
+ * PipelineStatus rail. Populated by `trading_loop.run_cycle` and merged
+ * into the WS payload by DecisionService — NOT persisted to the DB.
+ */
+export interface StageTimings {
+  observe?: number;
+  news?: number;
+  think?: number;
+  decide?: number;
+  execute?: number;
+  reflect?: number;
+}
+
+export type DecisionUpdatePayload = AgentDecision & {
+  stage_timings?: StageTimings;
+};
 
 // Phase 8.5a (plan v3 G-5): multi-agent orchestrator degradation envelope.
 export interface OrchestratorErrorPayload {

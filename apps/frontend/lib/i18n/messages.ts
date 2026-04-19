@@ -150,6 +150,8 @@ const en = {
   "pipeline.stage.decide": "Decide",
   "pipeline.stage.execute": "Execute Trades",
   "pipeline.stage.reflect": "Reflect",
+  "pipeline.preview": "preview",
+  "pipeline.previewTitle": "No stage timings yet — animation is a decorative placeholder. Trigger a cycle to see real durations.",
 
   "reasoning.eyebrow": "Reasoning · Feed",
   "reasoning.title": "Agent thinks aloud",
@@ -326,6 +328,8 @@ const zh: Record<keyof typeof en, string> = {
   "pipeline.stage.decide": "决策",
   "pipeline.stage.execute": "执行交易",
   "pipeline.stage.reflect": "复盘",
+  "pipeline.preview": "占位",
+  "pipeline.previewTitle": "尚未获得真实阶段耗时，目前是装饰性动画；触发一次 cycle 即可看到真实数据。",
 
   "reasoning.eyebrow": "推理 · 流",
   "reasoning.title": "Agent 自述",

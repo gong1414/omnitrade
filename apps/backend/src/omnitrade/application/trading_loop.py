@@ -17,8 +17,9 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import time
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
@@ -60,6 +61,11 @@ class LoopOutcome:
     news: list[NewsItem]
     started_at: datetime
     finished_at: datetime
+    # Per-stage wall-clock cost in milliseconds. Six keys mirror the
+    # PipelineStatus rail (observe / news / think / decide / execute /
+    # reflect) so the frontend can animate each segment proportionally
+    # instead of falling back to a hardcoded setTimeout ladder.
+    stage_ms: dict[str, float] = field(default_factory=dict)
 
 
 # ── step 1 — observe_market ──────────────────────────────────────────── #
@@ -230,7 +236,9 @@ async def run_cycle(
     proceeds. Default ``None`` preserves byte-exact cassette replay.
     """
     started_at = datetime.now(tz=UTC)
+    stage_ms: dict[str, float] = {}
 
+    fanout_t0 = time.perf_counter()
     market_task = asyncio.create_task(
         observe_market(exchange_observe, ws_client, cassette_mode=cassette_mode)
     )
@@ -240,6 +248,11 @@ async def run_cycle(
     # exceptions are returned in the result tuple.
     raw: tuple[Any, Any] = await asyncio.gather(market_task, news_task, return_exceptions=True)
     market_result, news_result = raw
+    fanout_ms = (time.perf_counter() - fanout_t0) * 1000.0
+    # observe + news ran in parallel — attribute half each so the UI
+    # shows both segments without inventing extra duration.
+    stage_ms["observe"] = fanout_ms / 2.0
+    stage_ms["news"] = fanout_ms / 2.0
 
     if isinstance(market_result, BaseException):
         raise market_result
@@ -281,10 +294,21 @@ async def run_cycle(
                     "trading_loop.signal_record_failed", error=str(exc)
                 )
 
+    t0 = time.perf_counter()
     decision = await think(think_fn, market_snapshot, news_items)
+    stage_ms["think"] = (time.perf_counter() - t0) * 1000.0
+
+    t0 = time.perf_counter()
     validated = await validate_decision(risk_check, decision, list(market_snapshot.positions))
+    stage_ms["decide"] = (time.perf_counter() - t0) * 1000.0
+
+    t0 = time.perf_counter()
     trades = await execute_trades(execute_fn, validated)
+    stage_ms["execute"] = (time.perf_counter() - t0) * 1000.0
+
+    t0 = time.perf_counter()
     await reflect(reflect_fn, validated, trades)
+    stage_ms["reflect"] = (time.perf_counter() - t0) * 1000.0
 
     finished_at = datetime.now(tz=UTC)
     return LoopOutcome(
@@ -294,6 +318,7 @@ async def run_cycle(
         news=news_items,
         started_at=started_at,
         finished_at=finished_at,
+        stage_ms=stage_ms,
     )
 
 

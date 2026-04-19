@@ -7,6 +7,7 @@ import type { ConnectionState } from "@/lib/ws/client";
 import { ACCOUNT_KEY } from "./useAccount";
 import { POSITIONS_KEY } from "./usePositions";
 import type {
+  DecisionUpdatePayload,
   OrchestratorErrorPayload,
   WsEnvelope,
   WsEventType,
@@ -30,6 +31,11 @@ export function useWebSocket({ maxLog = 200 }: { maxLog?: number } = {}) {
   // degradation to ConnectionBanner. `null` = no current error.
   const [orchestratorError, setOrchestratorError] =
     useState<OrchestratorErrorPayload | null>(null);
+  // Task 5c — expose the most recent decision_update envelope so
+  // PipelineStatus can animate with real per-stage timings from the
+  // backend instead of a hardcoded setTimeout ladder.
+  const [lastDecisionEvent, setLastDecisionEvent] =
+    useState<WsEnvelope<DecisionUpdatePayload> | null>(null);
 
   useEffect(() => {
     const client = getWsClient();
@@ -56,6 +62,7 @@ export function useWebSocket({ maxLog = 200 }: { maxLog?: number } = {}) {
     });
     const unsubDecision = client.subscribe("decision_update", (env) => {
       pushLog(env);
+      setLastDecisionEvent(env as WsEnvelope<DecisionUpdatePayload>);
       // mutate every /decisions key variant (limit/offset) — SWR key-pattern mutate
       globalMutate((key) => typeof key === "string" && key.startsWith("/api/v1/decisions"));
     });
@@ -81,5 +88,5 @@ export function useWebSocket({ maxLog = 200 }: { maxLog?: number } = {}) {
     };
   }, [maxLog]);
 
-  return { state, lastDisconnectAt, log, orchestratorError };
+  return { state, lastDisconnectAt, log, orchestratorError, lastDecisionEvent };
 }
