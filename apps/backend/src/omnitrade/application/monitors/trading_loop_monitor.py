@@ -133,14 +133,28 @@ class TradingLoopMonitor:
         account_value = (
             outcome.market.account.total_value if outcome.market.account is not None else Decimal(0)
         )
+        decision = outcome.decision
         await self._decision_service.record(
             iteration=self._iteration,
-            decision_text=outcome.decision.action,
+            decision_text=decision.action,
             market_analysis=market_summary,
             actions_taken=actions_json,
             account_value=account_value,
             positions_count=len(outcome.market.positions),
             timestamp=self._clock.now(),
+            # PR-B1/B2 — propagate StructuredReason fields so
+            # /api/v1/decisions can surface them to the UI. None-safe:
+            # the legacy (flat-string) path leaves every field at None.
+            market_context=decision.market_context,
+            gates_passed=decision.gates_passed,
+            invalidation_condition=decision.invalidation_condition,
+            plan=decision.plan,
+            structured_confidence=(
+                float(decision.structured_confidence)
+                if decision.structured_confidence is not None
+                else None
+            ),
+            output_language=decision.output_language,
         )
 
 

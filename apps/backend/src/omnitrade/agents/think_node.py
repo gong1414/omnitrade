@@ -260,6 +260,8 @@ def build_think_graph(
     model: str,
     temperature: float = 0.2,
     max_tool_iterations: int = 3,
+    tools: list[dict[str, Any]] | None = None,
+    tool_choice: str | None = None,
 ) -> Any:
     """Build the 1-node LangGraph for the ``think`` phase.
 
@@ -269,22 +271,32 @@ def build_think_graph(
         model: Model id to pass to ``llm.complete``.
         temperature: Sampling temperature. Low default for parity determinism.
         max_tool_iterations: Hard cap on think→tool→think loops.
+        tools: Optional OpenAI-style tool JSON schemas. When None (default),
+            the legacy stub-empty path is used and ``llm.complete`` sees
+            ``tools=None`` — backward compatible with pre-wiring tests.
+        tool_choice: Optional tool-call policy ("auto" | "required" | "none").
+            Forwarded verbatim to ``llm.complete``. Minimal strategies flip
+            this to ``"required"`` via the composition layer.
 
     Returns:
         A compiled LangGraph that, when invoked with ``{"messages": [...]}``,
         populates ``state['decision']`` with a ``Decision`` entity.
     """
-    tool_schemas: list[dict[str, Any]] = []  # Phase 4.3 injects real JSON schemas
+    tool_schemas: list[dict[str, Any]] = list(tools) if tools else []
+    effective_tool_choice = tool_choice
 
     async def _think(state: ThinkState) -> ThinkState:
         messages = state.get("messages") or []
         with_context(logger).info("think_node.call_llm", n_messages=len(messages), model=model)
-        response = await llm.complete(
-            messages=messages,
-            model=model,
-            temperature=temperature,
-            tools=tool_schemas or None,
-        )
+        kwargs: dict[str, Any] = {
+            "messages": messages,
+            "model": model,
+            "temperature": temperature,
+            "tools": tool_schemas or None,
+        }
+        if effective_tool_choice is not None:
+            kwargs["tool_choice"] = effective_tool_choice
+        response = await llm.complete(**kwargs)
         return {"messages": messages, "raw_response": response}
 
     async def _decide(state: ThinkState) -> ThinkState:

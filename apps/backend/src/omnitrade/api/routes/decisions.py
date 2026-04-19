@@ -24,6 +24,13 @@ def _decision_to_dict(d: AgentDecision) -> dict[str, Any]:
         "account_value": str(d.account_value),
         "positions_count": d.positions_count,
         "correlation_id": d.correlation_id,
+        # PR-B1/B2 structured reasoning — None for legacy rows (UI degrades).
+        "market_context": d.market_context,
+        "gates_passed": d.gates_passed,
+        "invalidation_condition": d.invalidation_condition,
+        "plan": d.plan,
+        "structured_confidence": d.structured_confidence,
+        "output_language": d.output_language,
     }
 
 

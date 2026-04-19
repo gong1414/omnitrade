@@ -15,6 +15,7 @@ from omnitrade.api.routes import (
     account,
     actions,
     config,
+    cycle,
     decisions,
     health,
     history,
@@ -35,6 +36,7 @@ api_router.include_router(decisions.router)
 api_router.include_router(config.router)
 api_router.include_router(actions.router)
 api_router.include_router(rebate.router)
+api_router.include_router(cycle.router)
 
 
 # Phase 8.3: upstream-parity REST routes live at ``/api/...`` (no v1 prefix).

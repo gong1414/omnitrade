@@ -285,6 +285,28 @@ class Settings(BaseSettings):
     deterministic cassette byte-replay toggle this to True.
     """
 
+    # ------------------------------------------------------------------ #
+    # PHASE 8.7 — Scheduler + end-to-end cycle wiring                     #
+    # ------------------------------------------------------------------ #
+    scheduler_enabled: bool = False
+    """Enable the APScheduler-driven trading cycle at app startup.
+
+    Default False keeps the API server read-only (matches pre-8.7 behavior
+    used by the autopilot test harness + local dev). When True AND
+    ``llm_api_key`` is present, ``main.lifespan`` composes the production
+    ``TradingLoopMonitor`` via ``application.composition.build_trading_monitor``
+    and registers a recurring ``monitor.tick`` job at
+    ``trading_interval_minutes``.
+    """
+
+    trading_symbols: list[str] = ["BTC_USDT", "ETH_USDT"]
+    """Symbols observed per trading cycle (tickers + positions).
+
+    Passed into ``build_trading_monitor`` so the composition's
+    ``exchange_observe`` fn knows which tickers to fetch. Ignored when
+    ``scheduler_enabled`` is False.
+    """
+
 
 _settings: Settings | None = None
 

@@ -63,9 +63,80 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     if post_container is not None and getattr(post_container, "log_buffer", None) is not None:
         _install_log_buffer_sidecar(post_container.log_buffer)
 
+    # Phase 8.7: APScheduler-driven trading cycle. Opt-in via
+    # ``SCHEDULER_ENABLED=true``; skipped entirely when no LLM key is
+    # configured so the API server stays usable in read-only / test modes.
+    app.state.trading_monitor = None
+    app.state.scheduler = None
+    if (
+        post_container is not None
+        and settings.scheduler_enabled
+        and settings.llm_api_key is not None
+    ):
+        try:
+            _start_trading_scheduler(app, settings, post_container)
+        except Exception as exc:  # startup wiring is best-effort
+            await logger.aerror("omnitrade.scheduler_start_failed", error=str(exc))
+
     yield
 
+    scheduler = getattr(app.state, "scheduler", None)
+    if scheduler is not None:
+        try:
+            scheduler.shutdown(wait=False)
+        except Exception as exc:  # pragma: no cover — best-effort teardown
+            await logger.awarning("omnitrade.scheduler_shutdown_failed", error=str(exc))
+
     await logger.ainfo("omnitrade.shutdown")
+
+
+def _start_trading_scheduler(
+    app: FastAPI,
+    settings: Settings,
+    container: ApiContainer,
+) -> None:
+    """Compose + start the APScheduler trading cycle.
+
+    Extracted so the lifespan handler stays small and ``build_trading_monitor``
+    import stays local (keeps cold-start import graph lean; only pulled when
+    SCHEDULER_ENABLED=true).
+    """
+    from datetime import timedelta
+
+    from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
+    from omnitrade.application.composition import build_trading_monitor
+    from omnitrade.infrastructure.llm.litellm_client import LiteLLMClient
+
+    assert settings.llm_api_key is not None  # narrowed by caller
+    llm = LiteLLMClient(
+        model=settings.llm_model_name,
+        api_key=settings.llm_api_key.get_secret_value(),
+        base_url=str(settings.llm_base_url) if settings.llm_base_url else None,
+    )
+    monitor = build_trading_monitor(container, settings, llm)
+    app.state.trading_monitor = monitor
+
+    scheduler = AsyncIOScheduler()
+    import datetime as _dt
+
+    scheduler.add_job(
+        monitor.tick,
+        "interval",
+        minutes=settings.trading_interval_minutes,
+        next_run_time=_dt.datetime.now(_dt.UTC) + timedelta(seconds=10),
+        id="trading_cycle",
+        max_instances=1,  # refuse overlapping runs
+        coalesce=True,  # collapse missed ticks into one
+    )
+    scheduler.start()
+    app.state.scheduler = scheduler
+    # Structlog sync emit — lifespan callers use ``ainfo``; this helper is
+    # sync so we use the regular logger call.
+    logger.info(
+        "omnitrade.scheduler_started",
+        interval_minutes=settings.trading_interval_minutes,
+    )
 
 
 def _install_log_buffer_sidecar(log_buffer: Any) -> None:
