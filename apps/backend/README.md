@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat&logo=python&logoColor=white">
   <img src="https://img.shields.io/badge/FastAPI-0.111-009688?style=flat&logo=fastapi&logoColor=white">
   <img src="https://img.shields.io/badge/SQLAlchemy-2.0-CA2136?style=flat">
-  <img src="https://img.shields.io/badge/Tests-642_green-2BB673?style=flat">
+  <img src="https://img.shields.io/badge/Tests-698_green-2BB673?style=flat">
 </p>
 
 Python 3.11 backend for the [OmniTrade](../../README.md) LLM-driven crypto-futures arena. DDD layered, `uv`-managed, FastAPI surface, APScheduler 5-loop engine.
@@ -15,8 +15,8 @@ Python 3.11 backend for the [OmniTrade](../../README.md) LLM-driven crypto-futur
 |---|---|
 | `src/omnitrade/domain/` | Pure entities, value objects, protocols, classifier |
 | `src/omnitrade/application/` | Services, 5 monitors, multi-agent orchestrator |
-| `src/omnitrade/infrastructure/` | Exchange (ccxt), LLM (LiteLLM), persistence, WebSocket |
-| `src/omnitrade/agents/` | LangGraph think-node + prompts (the only module that imports `langgraph`) |
+| `src/omnitrade/infrastructure/` | Exchange (ccxt), LLM (LiteLLM), MCP servers (mcp2py), persistence, WebSocket |
+| `src/omnitrade/agents/` | LangGraph think-node + prompts + MCP tool bridge (the only module that imports `langgraph`) |
 | `src/omnitrade/api/` | FastAPI routers + middleware + DI container |
 | `src/omnitrade/observability/` | Structlog, correlation-id middleware, trace context |
 

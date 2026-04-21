@@ -134,6 +134,13 @@ Disagreement between sources = bug. Silence on this = missed bug.
    show a user-visible artifact (screenshot, curl output with real data,
    video), the work is not done. "Ready in theory" = "not ready".
 
+6. **Changing code without updating all related documentation**. Every code
+   change that affects behavior, architecture, APIs, or configuration MUST
+   also update ALL related documentation — README (all language versions),
+   CLAUDE.md project context section, inline docs, and any `.omc/` specs or
+   plans. If a Chinese README exists alongside an English one, both must be
+   updated. Documentation drift is a bug, not a nice-to-have.
+
 ---
 
 ## 📐 Project Context (quick reference)
@@ -163,6 +170,10 @@ Disagreement between sources = bug. Silence on this = missed bug.
 - **Dashboard**: http://localhost:3000/dashboard — AgentReasoningFeed
   renders structured 5-panel when new fields present, blockquote
   fallback for legacy rows
+- **Tool management**: mcp2py loads MCP servers as Python modules with
+  zero-overhead direct calls. 4 decision tool schemas (schema-only) +
+  15 MCP tools (9 trading + 6 crypto). Adding new exchanges = add MCP
+  tools, no changes to composition.py.
 
 ## 🧭 Working directories / key files
 
@@ -172,7 +183,8 @@ apps/backend/src/omnitrade/
     prompts/            — 13 prompt files (system/think/reflect + 7 experts)
     tools/
       structured_reason.py  — StructuredReason schema (DB column mapping at bottom)
-      trade_execution.py    — 4 LLM tools (open/close/partial/hold)
+      trade_execution.py    — 4 decision tool schemas (open/close/partial/hold)
+      mcp_tool_bridge.py    — mcp2py loader, registers MCP tools in ToolRegistry
     think_node.py       — LangGraph compile + dual-path parser
   application/
     composition.py      — build_trading_monitor (THE wire-it-all-together fn)
@@ -185,6 +197,10 @@ apps/backend/src/omnitrade/
       cycle.py          — POST /api/v1/cycle/trigger
       decisions.py      — GET /api/v1/decisions (serialize all 6 structured cols)
   infrastructure/
+    mcp/
+      trading_mcp_server.py    — 9 exchange/market/account MCP tools (FastMCP stdio)
+    data_sources/
+      crypto_mcp_server.py     — 6 crypto data MCP tools (CoinGecko, Fear&Greed, etc.)
     exchange/
       ccxt_exchange.py  — Gate/OKX adapter; phantom-positions bug fixed
                           (line 142-147: use `contracts` only, not

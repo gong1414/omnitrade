@@ -4,64 +4,87 @@
 
 # LLM Tool Inventory
 
-Matrix of agent-exposed LLM tools and their Python handlers.
+OmniTrade uses a two-layer tool architecture. All tools are managed through MCP servers loaded by **mcp2py** — zero-overhead direct calls, no LLM routing.
 
-| # | Tool name | Python handler | ExchangeClient method | Phase |
-|---|---|---|---|---|
-| 1 | `getMarketPriceTool` | `build_fetch_ticker_tool` | `fetch_ticker` | 4.x |
-| 2 | `getTechnicalIndicatorsTool` | `build_fetch_ohlcv_tool` (+ indicators via 8.2) | `fetch_ohlcv` | 4.x / 8.2 |
-| 3 | `getFundingRateTool` | `build_funding_rate_tool` | `fetch_funding_rate` | **8.4** |
-| 4 | `getOrderBookTool` | `build_order_book_tool` | `fetch_order_book` | **8.4** |
-| 5 | `getOpenInterestTool` | `build_open_interest_tool` | `fetch_open_interest` | **8.4** |
-| 6 | `getAccountBalanceTool` | `build_account_snapshot_tool` | `fetch_balance` | 4.x |
-| 7 | `getPositionsTool` | `build_list_positions_tool` | `fetch_positions` | 4.x |
-| 8 | `getOpenOrdersTool` | `build_open_orders_tool` | `fetch_open_orders` | **8.4** |
-| 9 | `checkOrderStatusTool` | `build_check_order_status_tool` | `fetch_order` | **8.4** |
-| 10 | `calculateRiskTool` | `build_calculate_risk_tool` | — (domain service) | **8.4** |
-| 11 | `syncPositionsTool` | `build_sync_positions_tool` (read-only diff) | `fetch_positions` + `PositionRepository.list_all` | **8.4** |
-| 12 | `getCryptoNewsTool` | `build_news_data_tool` | — (NewsFetcher) | 4.x |
-| 13 | `getExchangeAnnouncementsTool` | `build_external_data_tool` (external fetcher) | — (ExternalFetcher) | 4.x |
-| 14 | `getLatestEventsTool` | `build_external_data_tool` (same fetcher, different endpoint) | — | 4.x |
-| 15 | `openPositionTool` | `build_open_position_tool` | `place_order` | 4.x |
-| 16 | `closePositionTool` | `build_close_position_tool` (+ partial) | `close_position` | 4.x |
-| 17 | `cancelOrderTool` | `build_cancel_order_tool` | `cancel_order` | **8.4** |
+## Layer 1: Decision Tool Schemas (4 tools)
 
-## Notes
+These are **schema-only** JSON contracts sent to the LLM. When the LLM calls one, `think_node._parse_decision_from_tool_call()` translates it into a `Decision` entity. No ToolRegistry handlers needed.
 
-**Naming convention**: Tool names over the LLM boundary use `camelCase`
-(e.g. `fundingRate`, `orderBook`, `cancelOrder`) so cassette replay
-stays byte-exact on `tool_calls[].function.name`. Internal Python
-builders keep `snake_case` (`fetch_ticker`, etc.).
+Defined in `composition.py._build_tool_schemas()`.
 
-**`syncPositions` is READ-ONLY when invoked by the LLM.** The tool
-returns a diff dict (symbols only-on-exchange, only-in-local, size
-mismatches); it never writes. Actual reconciliation lives in
-`scripts/sync_positions.py` (Phase 8.6) behind `--apply --yes-really`.
+| # | Tool name | Decision action | Notes |
+|---|---|---|---|
+| 1 | `open_position` | `open` | Includes symbol, side, size, leverage, reason |
+| 2 | `close_position` | `close` | Close entire position |
+| 3 | `partial_close` | `partial_close` | Close a percentage of position |
+| 4 | `hold_tool` | `hold` | No action; last in schema list (counters hold-bias) |
 
-**Ordering inside the plan.** Phase 8.4 only adds tool builders +
-ExchangeClient implementations; tool *registration* into
-`ToolRegistry` (and thus visibility to the main LLM) lands in Phase
-8.5a alongside the multi-agent orchestrator roster work, because
-registering them now would leak new capabilities before the
-`tool_choice="required"` transition (Phase 8.5b) is in place.
+## Layer 2: MCP Tools via mcp2py (15 tools)
 
-**Rollback pair.** Phase 8.4 depends on Phase 8.0 port-boundary stubs.
-Reverting 8.4 in isolation restores `NotImplementedError` stubs; set
-`settings.degraded_exchange_methods_ok=true` if you need to silently
-downgrade tool calls to no-ops during a partial rollback.
+All info/crypto tools are MCP servers loaded by `mcp2py.load()`. Tool calls are direct Python function calls through stdio — no LLM routing overhead. Registered in `agents/tools/mcp_tool_bridge.py`.
 
-## Phase 8.6 pre-work — ccxt.pro LICENSE spike (MINOR-6)
+### omnitrade-trading MCP Server (9 tools)
 
-- **Spike date:** 2026-04-18 (Phase 8.6 executor kickoff).
-- **Finding:** `ccxt.pro` (legacy standalone package) and its merged
-  successor (`ccxt` ≥ 4.0 with WebSocket support) are both distributed
-  under the MIT License (see upstream `ccxt/ccxt` repo `LICENSE.txt`;
-  PyPI metadata for `ccxt` lists `License: MIT`). MIT is compatible
-  with this project's license (also MIT).
-- **Decision:** F2 (hand-rolled `websockets>=12` against `okx_ws.py` +
-  `gate_ws.py` siblings) remains the chosen ADR-F path for Phase 8.6
-  — scope isolation, deterministic cycle contract, and minimal
-  dependency surface outweigh the license question.
-- **Follow-up (open):** Future phases may reconsider F1 (ccxt.pro / ccxt
-  WS) now that the license is confirmed MIT-compatible. Re-evaluate
-  after 48 h staging soak of the hand-rolled path.
+File: `infrastructure/mcp/trading_mcp_server.py`
+
+| # | Tool name | Description | Dependencies |
+|---|---|---|---|
+| 1 | `fetch_ticker` | Latest ticker (last/bid/ask/volume) | ExchangeClient (env) |
+| 2 | `fetch_ohlcv` | OHLCV candles with timeframe | ExchangeClient (env) |
+| 3 | `funding_rate` | Perpetual swap funding rate | ExchangeClient (env) |
+| 4 | `order_book` | L2 order book snapshot | ExchangeClient (env) |
+| 5 | `open_interest` | Open interest for perp contract | ExchangeClient (env) |
+| 6 | `account_snapshot` | Account balance (total/free/uPnL) | ExchangeClient (env) |
+| 7 | `list_positions` | Open positions with size/pnl/leverage | ExchangeClient (env) |
+| 8 | `open_orders` | Live exchange orders | ExchangeClient (env) |
+| 9 | `calculate_risk` | Leverage band + risk budget (pure compute) | — |
+
+### omnitrade-crypto MCP Server (6 tools)
+
+File: `infrastructure/data_sources/crypto_mcp_server.py`
+
+| # | Tool name | Description | Dependencies |
+|---|---|---|---|
+| 1 | `coingecko_market_overview` | Top coins by market cap | CoinGecko API |
+| 2 | `coingecko_trending` | Trending coins (24h) | CoinGecko API |
+| 3 | `coingecko_global` | Global market data (mcap, dominance) | CoinGecko API |
+| 4 | `fear_greed_index` | Fear & Greed Index (0-100) | Fear & Greed API |
+| 5 | `coinglass_derivatives` | Funding rates, OI, long/short ratios | `COINGLASS_API_KEY` |
+| 6 | `whale_transactions` | Large on-chain transactions | `WHALE_ALERT_API_KEY` |
+
+## Architecture
+
+```
+composition.py
+  ├── _build_tool_schemas()     → 4 decision schemas (schema-only)
+  └── mcp_tool_bridge.py
+        ├── load_mcp_servers()  → mcp2py.load() spawns MCP subprocesses
+        └── register_mcp_tools() → ToolRegistry + LLM schemas
+
+LLM → tool_call → think_node
+  ├── decision tool → _parse_decision_from_tool_call() → Decision entity
+  └── info tool → ToolRegistry.call() → mcp2py direct call → MCP server subprocess
+```
+
+## Extensibility
+
+To add a new exchange or asset class:
+
+1. Add MCP tool functions to the appropriate MCP server (or create a new one)
+2. Add `mcp2py.load("python -m omnitrade.infrastructure.mcp.new_server")` in `mcp_tool_bridge.py`
+3. No changes to `composition.py` or the think loop needed
+
+## Legacy (removed)
+
+The following were replaced by MCP tools:
+
+| Old file | Status |
+|---|---|
+| `agents/tools/market_data.py` | Replaced by trading MCP server |
+| `agents/tools/account_management.py` | Replaced by trading MCP server |
+| `agents/tools/risk.py` | Replaced by trading MCP server |
+| `agents/tools/external_data.py` | Replaced by crypto MCP server |
+| `agents/tools/news_data.py` | Replaced by crypto MCP server |
+| `agents/tools/crypto_market_overview.py` | Replaced by crypto MCP server |
+| `agents/tools/whale_tracking.py` | Replaced by crypto MCP server |
+| `agents/tools/anytool_research.py` | Removed (AnyTool replaced by mcp2py) |

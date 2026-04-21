@@ -4,41 +4,87 @@
 
 # LLM 工具清单
 
-Agent 对 LLM 暴露的工具与 Python 处理器的对照矩阵。
+OmniTrade 采用两层工具架构。所有工具通过 **mcp2py** 加载的 MCP 服务器管理 —— 直接函数调用，零开销，无 LLM 路由。
 
-| # | 工具名 | Python 构造器 | ExchangeClient 方法 | 阶段 |
-|---|---|---|---|---|
-| 1 | `getMarketPriceTool` | `build_fetch_ticker_tool` | `fetch_ticker` | 4.x |
-| 2 | `getTechnicalIndicatorsTool` | `build_fetch_ohlcv_tool`（+ 8.2 引入 indicator） | `fetch_ohlcv` | 4.x / 8.2 |
-| 3 | `getFundingRateTool` | `build_funding_rate_tool` | `fetch_funding_rate` | **8.4** |
-| 4 | `getOrderBookTool` | `build_order_book_tool` | `fetch_order_book` | **8.4** |
-| 5 | `getOpenInterestTool` | `build_open_interest_tool` | `fetch_open_interest` | **8.4** |
-| 6 | `getAccountBalanceTool` | `build_account_snapshot_tool` | `fetch_balance` | 4.x |
-| 7 | `getPositionsTool` | `build_list_positions_tool` | `fetch_positions` | 4.x |
-| 8 | `getOpenOrdersTool` | `build_open_orders_tool` | `fetch_open_orders` | **8.4** |
-| 9 | `checkOrderStatusTool` | `build_check_order_status_tool` | `fetch_order` | **8.4** |
-| 10 | `calculateRiskTool` | `build_calculate_risk_tool` | — （domain 服务） | **8.4** |
-| 11 | `syncPositionsTool` | `build_sync_positions_tool`（只读 diff） | `fetch_positions` + `PositionRepository.list_all` | **8.4** |
-| 12 | `getCryptoNewsTool` | `build_news_data_tool` | — （NewsFetcher） | 4.x |
-| 13 | `getExchangeAnnouncementsTool` | `build_external_data_tool`（外部抓取器） | — （ExternalFetcher） | 4.x |
-| 14 | `getLatestEventsTool` | `build_external_data_tool`（同 fetcher，不同端点） | — | 4.x |
-| 15 | `openPositionTool` | `build_open_position_tool` | `place_order` | 4.x |
-| 16 | `closePositionTool` | `build_close_position_tool`（+ 部分平仓） | `close_position` | 4.x |
-| 17 | `cancelOrderTool` | `build_cancel_order_tool` | `cancel_order` | **8.4** |
+## 第一层：决策工具 Schema（4 个工具）
 
-## 说明
+这些是**纯 schema** 的 JSON 契约，发送给 LLM。LLM 调用时，`think_node._parse_decision_from_tool_call()` 将其转换为 `Decision` 实体。不需要 ToolRegistry 处理器。
 
-**命名约定**：LLM 边界上的工具名用 `camelCase`（如 `fundingRate`、`orderBook`、`cancelOrder`），这样 cassette 重放在 `tool_calls[].function.name` 上 byte-exact。Python 内部构造器保留 `snake_case`（`fetch_ticker` 等）。
+定义在 `composition.py._build_tool_schemas()`。
 
-**`syncPositions` 被 LLM 调用时只读。** 工具返回一个 diff 字典（仅交易所有 / 仅本地有 / size 不一致的 symbol），不写。真正的协调在 `scripts/sync_positions.py`（阶段 8.6），藏在 `--apply --yes-really` 后。
+| # | 工具名 | 决策动作 | 说明 |
+|---|---|---|---|
+| 1 | `open_position` | `open` | 含 symbol、side、size、leverage、reason |
+| 2 | `close_position` | `close` | 全部平仓 |
+| 3 | `partial_close` | `partial_close` | 按比例部分平仓 |
+| 4 | `hold_tool` | `hold` | 不操作；在 schema 列表中排最后（对抗 hold 偏好） |
 
-**阶段内顺序。** 阶段 8.4 只加工具构造器 + ExchangeClient 实现；工具**注册**进 `ToolRegistry`（即对主 LLM 可见）要到阶段 8.5a、配合多智能体编排的名册工作一起落地；否则会在 `tool_choice="required"` 迁移（阶段 8.5b）之前就泄漏新能力。
+## 第二层：MCP 工具（mcp2py 直调，15 个工具）
 
-**回滚对。** 阶段 8.4 依赖 8.0 端口桩。单独回滚 8.4 就是回到 `NotImplementedError` 桩；如果需要在部分回滚期间把工具调用静默降级成 no-op，设 `settings.degraded_exchange_methods_ok=true`。
+所有行情/加密工具由 `mcp2py.load()` 加载的 MCP 服务器提供。工具调用是通过 stdio 的直接 Python 函数调用 —— 无 LLM 路由开销。注册在 `agents/tools/mcp_tool_bridge.py`。
 
-## 阶段 8.6 预研 —— ccxt.pro LICENSE spike（MINOR-6）
+### omnitrade-trading MCP 服务器（9 个工具）
 
-- **Spike 日期：** 2026-04-18（阶段 8.6 executor kickoff）。
-- **结论：** `ccxt.pro`（legacy 独立包）及其合并后的继任者（`ccxt` ≥ 4.0，带 WebSocket 支持）都以 MIT License 发布（见上游 `ccxt/ccxt` 仓 `LICENSE.txt`；`ccxt` 的 PyPI metadata 里 `License: MIT`）。MIT 与本项目同一许可证，兼容。
-- **决策：** F2（手写 `websockets>=12` + `okx_ws.py` + `gate_ws.py` 同级）仍然是阶段 8.6 ADR-F 选择的路径 —— 作用域隔离、确定性周期契约、最小依赖面，优先级高于 license 问题。
-- **Follow-up（开放）：** 未来阶段可重新评估 F1（ccxt.pro / ccxt WS），license 已确认 MIT 兼容。手写路径在 staging 跑满 48h 后再评估。
+文件：`infrastructure/mcp/trading_mcp_server.py`
+
+| # | 工具名 | 说明 | 依赖 |
+|---|---|---|---|
+| 1 | `fetch_ticker` | 最新行情（最新价/买/卖/成交量） | ExchangeClient（环境变量） |
+| 2 | `fetch_ohlcv` | K 线数据（含时间周期） | ExchangeClient（环境变量） |
+| 3 | `funding_rate` | 永续合约资金费率 | ExchangeClient（环境变量） |
+| 4 | `order_book` | L2 盘口快照 | ExchangeClient（环境变量） |
+| 5 | `open_interest` | 持仓量 | ExchangeClient（环境变量） |
+| 6 | `account_snapshot` | 账户余额（总额/可用/未实现盈亏） | ExchangeClient（环境变量） |
+| 7 | `list_positions` | 当前持仓（数量/盈亏/杠杆） | ExchangeClient（环境变量） |
+| 8 | `open_orders` | 活跃委托 | ExchangeClient（环境变量） |
+| 9 | `calculate_risk` | 杠杆区间 + 风险预算（纯计算） | — |
+
+### omnitrade-crypto MCP 服务器（6 个工具）
+
+文件：`infrastructure/data_sources/crypto_mcp_server.py`
+
+| # | 工具名 | 说明 | 依赖 |
+|---|---|---|---|
+| 1 | `coingecko_market_overview` | 按市值排名的币种数据 | CoinGecko API |
+| 2 | `coingecko_trending` | 热门币种（24h） | CoinGecko API |
+| 3 | `coingecko_global` | 全球市场数据（总市值、BTC 占比） | CoinGecko API |
+| 4 | `fear_greed_index` | 恐惧与贪婪指数（0-100） | Fear & Greed API |
+| 5 | `coinglass_derivatives` | 资金费率、持仓量、多空比 | `COINGLASS_API_KEY` |
+| 6 | `whale_transactions` | 大额链上转账追踪 | `WHALE_ALERT_API_KEY` |
+
+## 架构
+
+```
+composition.py
+  ├── _build_tool_schemas()     → 4 个决策 schema（纯 schema）
+  └── mcp_tool_bridge.py
+        ├── load_mcp_servers()  → mcp2py.load() 启动 MCP 子进程
+        └── register_mcp_tools() → ToolRegistry + LLM schema
+
+LLM → tool_call → think_node
+  ├── 决策工具 → _parse_decision_from_tool_call() → Decision 实体
+  └── 信息工具 → ToolRegistry.call() → mcp2py 直调 → MCP 服务器子进程
+```
+
+## 可扩展性
+
+添加新交易所或资产类别：
+
+1. 在对应 MCP 服务器中添加工具函数（或创建新 MCP 服务器）
+2. 在 `mcp_tool_bridge.py` 中添加 `mcp2py.load("python -m omnitrade.infrastructure.mcp.new_server")`
+3. 无需修改 `composition.py` 或 think loop
+
+## 已移除的遗留文件
+
+以下文件已被 MCP 工具替代：
+
+| 旧文件 | 状态 |
+|---|---|
+| `agents/tools/market_data.py` | 替代为 trading MCP 服务器 |
+| `agents/tools/account_management.py` | 替代为 trading MCP 服务器 |
+| `agents/tools/risk.py` | 替代为 trading MCP 服务器 |
+| `agents/tools/external_data.py` | 替代为 crypto MCP 服务器 |
+| `agents/tools/news_data.py` | 替代为 crypto MCP 服务器 |
+| `agents/tools/crypto_market_overview.py` | 替代为 crypto MCP 服务器 |
+| `agents/tools/whale_tracking.py` | 替代为 crypto MCP 服务器 |
+| `agents/tools/anytool_research.py` | 已移除（AnyTool 被 mcp2py 替代） |

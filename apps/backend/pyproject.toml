@@ -28,6 +28,9 @@ dependencies = [
     "greenlet>=3.0.0",
     "numpy>=1.26",
     "websockets>=12",
+    "mcp2py>=0.6.0",
+    "fastmcp>=2.0.0",
+    "colorama>=0.4.6",
 ]
 
 [project.optional-dependencies]
@@ -48,6 +51,9 @@ omnitrade = "omnitrade.main:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/omnitrade"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.ruff]
 line-length = 100
@@ -106,6 +112,8 @@ module = [
     "alembic.*",
     "vcr.*",
     "structlog.*",
+    "mcp2py.*",
+    "fastmcp.*",
     "yaml.*",
     "requests.*",
     "syrupy.*",
