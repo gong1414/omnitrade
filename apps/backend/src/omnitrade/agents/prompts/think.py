@@ -24,8 +24,6 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any, Literal
 
-from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate
-
 # Per-cycle user prompt. Fields:
 #   {iteration}, {current_time}, {minutes_elapsed}, {interval_minutes},
 #   {strategy_banner}, {hard_risk_floor}, {tactical_box}, {decision_flow},
@@ -67,20 +65,6 @@ Based on the above, call ONE of: open_position / close_position / partial_close 
 The `reason` field MUST be a complete StructuredReason JSON object with all 7 keys.
 Reply reasoning (market_context / gates_passed / invalidation_condition / justification fields) in {output_language}. Use the section headers "Market Context" / "Gates Passed" / "Invalidation" / "Plan" / "Confidence" in that language where applicable.
 """
-
-think_user_template: HumanMessagePromptTemplate = HumanMessagePromptTemplate.from_template(
-    THINK_USER_TEMPLATE
-)
-
-
-def build_think_prompt() -> ChatPromptTemplate:
-    """Return a ``ChatPromptTemplate`` with only the user message attached.
-
-    Combine this with a system template via ``ChatPromptTemplate.from_messages``
-    at wiring time so each strategy picks the correct system branch.
-    """
-    return ChatPromptTemplate.from_messages([think_user_template])
-
 
 def _format_v1_market_block(tickers: Iterable[tuple[str, str]]) -> str:
     """Pre-8.1 market block: ``"SYMBOL: price / ..."`` summary.
@@ -150,7 +134,5 @@ def format_market_data_block(
 
 __all__ = [
     "THINK_USER_TEMPLATE",
-    "build_think_prompt",
     "format_market_data_block",
-    "think_user_template",
 ]

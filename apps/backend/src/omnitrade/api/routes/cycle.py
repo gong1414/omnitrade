@@ -27,21 +27,29 @@ _lock = asyncio.Lock()
 
 @router.post("/cycle/trigger")
 async def trigger_cycle(request: Request) -> dict[str, Any]:
-    """Force one cycle right now. 60s timeout. Returns elapsed time."""
+    """Force one cycle right now. Timeout configurable via
+    ``CYCLE_TRIGGER_TIMEOUT_SECONDS`` (default 60). Slower reasoning
+    models (e.g. deepseek-v4-pro / -reasoner) often need 90–180s."""
     monitor = getattr(request.app.state, "trading_monitor", None)
     if monitor is None:
         raise HTTPException(
             503,
             "trading_monitor not wired (SCHEDULER_ENABLED=false or build failed)",
         )
+    from omnitrade.config import get_settings
+
+    timeout = float(get_settings().cycle_trigger_timeout_seconds)
     if _lock.locked():
         raise HTTPException(409, "another cycle is already running")
     async with _lock:
         t0 = datetime.now(UTC)
         try:
-            await asyncio.wait_for(monitor.tick(), timeout=60.0)
+            await asyncio.wait_for(monitor.tick(), timeout=timeout)
         except TimeoutError as exc:
-            raise HTTPException(504, "cycle exceeded 60s timeout") from exc
+            raise HTTPException(
+                504,
+                f"cycle exceeded {timeout:.0f}s timeout",
+            ) from exc
         elapsed = (datetime.now(UTC) - t0).total_seconds()
     return {"status": "ok", "elapsed_seconds": elapsed}
 

@@ -1,28 +1,31 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, Lora, Poppins } from "next/font/google";
+import { Inter, JetBrains_Mono, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 
-// Anthropic brand pairing: Poppins (display/headings) + Lora (body/serif).
-// IBM Plex Mono is retained for tabular numerals and code-style metadata.
-const poppins = Poppins({
+// Console design pairing (OmniTrade · Agent Observatory):
+//   - Inter for UI surfaces
+//   - JetBrains Mono for tabular numerals + tool-call code blocks
+//   - Source Serif 4 for reasoning prose (italic Justification text)
+const inter = Inter({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--font-display",
-});
-
-const lora = Lora({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  style: ["normal", "italic"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-sans",
 });
 
-const plexMono = IBM_Plex_Mono({
+const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: ["400", "500"],
   variable: "--font-mono",
 });
+
+const sourceSerif = Source_Serif_4({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  style: ["normal", "italic"],
+  variable: "--font-prose",
+});
+
 
 export const metadata: Metadata = {
   title: "OmniTrade · Observatory",
@@ -35,9 +38,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const bodyClass = [
-    poppins.variable,
-    lora.variable,
-    plexMono.variable,
+    inter.variable,
+    jetbrainsMono.variable,
+    sourceSerif.variable,
     "min-h-screen",
     "bg-obs-ink",
     "text-obs-text",
@@ -46,8 +49,14 @@ export default function RootLayout({
     "selection:bg-obs-amber/25",
   ].join(" ");
   return (
-    <html suppressHydrationWarning>
-      <body className={bodyClass}>
+    <html lang="zh" className="dark" suppressHydrationWarning>
+      <body
+        className={bodyClass}
+        style={{
+          // Legacy `font-display` callers (e.g. HeaderStrip) fall back to Inter.
+          ["--font-display" as string]: "var(--font-sans)",
+        }}
+      >
         <Providers>{children}</Providers>
       </body>
     </html>

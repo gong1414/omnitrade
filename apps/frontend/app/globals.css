@@ -38,28 +38,78 @@
   --obs-glow-coral: 0 0 18px rgba(193, 74, 58, 0.38);
 }
 
-/* Dark mode overrides — flipped via `class="dark"` on <html> by next-themes. */
+/* Dark mode overrides — flipped via `class="dark"` on <html> by next-themes.
+ * The Console design (OmniTrade · Agent Observatory) ships dark-only with a
+ * warm-neutral gray base + Claude orange accent. Tokens below match the
+ * `OmniTrade Console.html` mock 1:1.
+ */
 .dark {
-  --obs-ink: #141413;
-  --obs-panel: #1c1b19;
-  --obs-panel-2: #252320;
-  --obs-line: #302d28;
-  --obs-line-soft: #26231f;
+  --obs-ink: #1a1815;
+  --obs-panel: #1f1d1a;
+  --obs-panel-2: #25221e;
+  --obs-line: #2c2925;
+  --obs-line-soft: #2a2825;
 
-  --obs-text: #faf9f5;
-  --obs-text-dim: #b0aea5;
-  --obs-text-ghost: #6d6b65;
+  --obs-text: #ece9e2;
+  --obs-text-dim: #c5c0b6;
+  --obs-text-ghost: #8b867d;
 
-  --obs-green: #8ea473;
-  --obs-amber: #e08a6e;
-  --obs-coral: #d0614f;
-  --obs-violet: #85b0d7;
-  --obs-blue:   #85b0d7;
-  --obs-ftpink: #e08a6e;
+  --obs-green: #87a96b;
+  --obs-amber: #d97757;
+  --obs-coral: #c4604c;
+  --obs-violet: #8a9bbd;
+  --obs-blue:   #8a9bbd;
+  --obs-ftpink: #d97757;
 
-  --obs-glow-green: 0 0 24px rgba(142, 164, 115, 0.42);
-  --obs-glow-amber: 0 0 24px rgba(224, 138, 110, 0.42);
-  --obs-glow-coral: 0 0 24px rgba(208, 97, 79, 0.42);
+  --obs-glow-green: 0 0 24px rgba(135, 169, 107, 0.42);
+  --obs-glow-amber: 0 0 24px rgba(217, 119, 87, 0.42);
+  --obs-glow-coral: 0 0 24px rgba(196, 96, 76, 0.42);
+
+  /* Console-design extra tokens — driven by TweaksPanel accent picker. */
+  --cd-line-strong: #3a3631;
+  --cd-text-mute: #8b867d;
+  --cd-text-ghost: #5e5a52;
+  --cd-accent: #d97757;
+  --cd-accent-soft: rgba(217, 119, 87, 0.14);
+  --cd-green-soft: rgba(135, 169, 107, 0.14);
+  --cd-coral-soft: rgba(196, 96, 76, 0.14);
+}
+
+/* Console shell — disables paper-grain backdrop, applies warm-neutral wash. */
+.console-shell {
+  background:
+    radial-gradient(1200px 600px at 12% -5%, rgba(217, 119, 87, 0.05), transparent 60%),
+    radial-gradient(900px 480px at 110% 8%, rgba(138, 155, 189, 0.04), transparent 55%),
+    var(--obs-ink);
+  background-attachment: fixed;
+  font-family: var(--font-sans);
+  color: var(--obs-text);
+  -webkit-font-smoothing: antialiased;
+  position: relative;
+}
+.console-shell::before {
+  content: none;
+}
+body:has(.console-shell)::before {
+  display: none;
+}
+
+@keyframes cd-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.35; }
+  50% { transform: scale(1.6); opacity: 0; }
+}
+.cd-pulse-dot {
+  position: relative;
+}
+.cd-pulse-dot::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.35;
+  animation: cd-pulse 2s ease-in-out infinite;
+  pointer-events: none;
 }
 
 html,

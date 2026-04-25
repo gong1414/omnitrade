@@ -4,15 +4,14 @@ This is the single seam that wires the full production cycle:
 
   * ``observe``  — real REST balances + positions via ``ExchangeClient``.
   * ``news``     — stub (empty list) until the news fetcher is wired.
-  * ``think``    — the LangGraph think node driven by the production LLM,
-    with production-authored tool schemas + ``tool_choice`` policy and
-    the rendered system + user prompts.
+  * ``think``    — the Agno Agent driven by DeepSeek + MultiMCPTools,
+    emitting a ``Decision`` via the DecisionRecorder pattern.
   * ``risk``     — pass-through (risk gating is additive; plugged in later).
   * ``execute``  — dispatch the ``Decision.action`` to ``PositionManager``.
   * ``reflect``  — no-op (RAG layer plugs in later).
 
-No routing logic lives here — ``build_think_graph`` already owns the
-tool-call loop. This module is purely DI wiring.
+No routing logic lives here — ``build_agno_think_fn`` owns the tool-call
+loop inside the Agno Agent. This module is purely DI wiring.
 """
 
 from __future__ import annotations
@@ -27,8 +26,6 @@ import structlog
 
 from omnitrade.agents.prompts.system import format_system_prompt
 from omnitrade.agents.prompts.think import THINK_USER_TEMPLATE
-from omnitrade.agents.think_node import build_think_graph, invoke_think
-from omnitrade.agents.tools.structured_reason import StructuredReason
 from omnitrade.api.container import ApiContainer
 from omnitrade.application.monitors.trading_loop_monitor import TradingLoopMonitor
 from omnitrade.config import Settings
@@ -41,7 +38,6 @@ from omnitrade.domain.entities import (
 )
 from omnitrade.domain.enums import StrategyName
 from omnitrade.domain.errors import PyramidViolationError
-from omnitrade.domain.protocols import LLMClient
 from omnitrade.domain.value_objects import Symbol
 from omnitrade.infrastructure.market_data.indicators import (
     Snapshot,
@@ -51,126 +47,6 @@ from omnitrade.infrastructure.market_data.indicators import (
 from omnitrade.observability.trace_context import with_context
 
 logger = structlog.get_logger(__name__)
-
-
-# ---------------------------------------------------------------------------
-# Tool schemas — verbatim from ``scripts/pr_b2_phase_b_probe.py``.
-# ---------------------------------------------------------------------------
-
-
-def _structured_reason_schema() -> dict[str, Any]:
-    """Return a ``$ref``-resolved JSON schema for :class:`StructuredReason`.
-
-    LiteLLM/OpenAI providers don't reliably resolve ``$defs`` references; we
-    inline them so the upstream tool schema is self-contained.
-    """
-    schema = StructuredReason.model_json_schema()
-    defs = schema.pop("$defs", {})
-
-    def _resolve(node: Any) -> Any:
-        if isinstance(node, dict):
-            if "$ref" in node and node["$ref"].startswith("#/$defs/"):
-                target = node["$ref"].split("/")[-1]
-                resolved = defs.get(target, {})
-                return _resolve(dict(resolved))
-            return {k: _resolve(v) for k, v in node.items()}
-        if isinstance(node, list):
-            return [_resolve(item) for item in node]
-        return node
-
-    result = _resolve(schema)
-    assert isinstance(result, dict)
-    return result
-
-
-def _build_tool_schemas() -> list[dict[str, Any]]:
-    """Four-tool OpenAI JSON schema for the think LLM.
-
-    Order: open_position / close_position / partial_close / hold_tool. The
-    ``hold_tool`` last-ordering matters — Phase A Pre-Mortem #4 M1 showed
-    that placing ``hold_tool`` first biases minimal-prompt strategies toward
-    hold-only behavior.
-    """
-    reason_schema = _structured_reason_schema()
-
-    def _fn(
-        name: str,
-        description: str,
-        extra_props: dict[str, Any],
-        extra_required: list[str],
-    ) -> dict[str, Any]:
-        properties: dict[str, Any] = {**extra_props, "reason": reason_schema}
-        required = [*extra_required, "reason"]
-        return {
-            "type": "function",
-            "function": {
-                "name": name,
-                "description": description,
-                "parameters": {
-                    "type": "object",
-                    "properties": properties,
-                    "required": required,
-                },
-            },
-        }
-
-    return [
-        _fn(
-            "open_position",
-            "Open a new leveraged futures position.",
-            {
-                "symbol": {"type": "string"},
-                "side": {"type": "string", "enum": ["long", "short"]},
-                "size": {"type": "number"},
-                "leverage": {"type": "integer"},
-                "stop_loss": {"type": "number"},
-                "take_profit": {"type": "number"},
-            },
-            ["symbol", "side", "size", "leverage"],
-        ),
-        _fn(
-            "close_position",
-            "Fully close an open position (100%).",
-            {"symbol": {"type": "string"}},
-            ["symbol"],
-        ),
-        _fn(
-            "partial_close",
-            "Partially close an open position (0 < pct <= 100).",
-            {
-                "symbol": {"type": "string"},
-                "percentage": {"type": "number"},
-            },
-            ["symbol", "percentage"],
-        ),
-        _fn(
-            "hold_tool",
-            "Take no new action this cycle; maintain current portfolio state.",
-            {},
-            [],
-        ),
-    ]
-
-
-# ---------------------------------------------------------------------------
-# tool_choice policy — minimal strategies require a tool call every cycle.
-# ---------------------------------------------------------------------------
-
-_MINIMAL_STRATEGIES: frozenset[StrategyName] = frozenset(
-    {StrategyName.AI_AUTONOMOUS, StrategyName.ALPHA_BETA}
-)
-
-
-def _tool_choice_for_strategy(strategy: StrategyName) -> str | None:
-    """Return the ``tool_choice`` policy for ``strategy``.
-
-    Minimal strategies (``arena-autopilot`` / ``arena-dual-signal``) force
-    ``"required"`` (Phase 8.5b + PR-B2). Everything else returns None so the
-    upstream byte-exact shape is preserved.
-    """
-    if strategy in _MINIMAL_STRATEGIES:
-        return "required"
-    return None
 
 
 # ---------------------------------------------------------------------------
@@ -484,64 +360,36 @@ def _render_think_messages(
 def _build_base_think_fn(
     container: ApiContainer,
     settings: Settings,
-    llm: LLMClient,
 ) -> Callable[[MarketSnapshot, list[NewsItem]], Any]:
-    """Return the production ``ThinkFn`` bound to ``container`` + ``llm``."""
-    tool_schemas = _build_tool_schemas()
+    """Return the production ``ThinkFn`` bound to ``container``.
+
+    The Agno Agent owns its DeepSeek model + MultiMCPTools toolkit, so no
+    separate ``LLMClient`` is needed at this seam.
+    """
+    from omnitrade.agents.trading_agent_agno import build_agno_think_fn
+
     try:
         strategy = StrategyName(settings.trading_strategy)
     except ValueError:
-        # Unknown strategy — fall through to autopilot so the wiring still runs.
         with_context(logger).warning(
             "composition.unknown_strategy_fallback",
             strategy=settings.trading_strategy,
         )
         strategy = StrategyName.AI_AUTONOMOUS
-    tc_policy = _tool_choice_for_strategy(strategy)
 
-    # Register info tools via mcp2py — all exchange / market / crypto tools
-    # are MCP servers loaded with zero-overhead direct calls.
-    # Adding new exchanges or asset classes only requires adding MCP tools.
-    from omnitrade.agents.tools.mcp_tool_bridge import (
-        load_mcp_servers,
-        register_mcp_tools,
-    )
-
-    mcp_servers = load_mcp_servers()
-    n_mcp = register_mcp_tools(mcp_servers, tool_schemas, container.tool_registry)
     with_context(logger).info(
-        "composition.mcp_tools_registered",
-        mcp_tool_count=n_mcp,
-        total_tool_count=len(tool_schemas),
+        "composition.think_fn_built",
+        strategy=str(strategy),
+        model=settings.agno_llm_model,
     )
-
-    async def think_fn(market: MarketSnapshot, news: list[NewsItem]) -> Decision:
-        positions = list(market.positions)
-        market_block = await _build_market_block(container, market)
-        recent_trades_block = await _render_recent_trades_block(container)
-        messages = _render_think_messages(
-            strategy=strategy,
-            market=market,
-            news=news,
-            positions=positions,
-            settings=settings,
-            iteration=0,
-            minutes_elapsed=0,
-            market_data_block=market_block,
-            recent_trades_block=recent_trades_block,
-        )
-        graph = build_think_graph(
-            llm,
-            container.tool_registry,
-            model=settings.llm_model_name,
-            tools=tool_schemas,
-            tool_choice=tc_policy,
-            max_tool_iterations=5,
-        )
-        decision = await invoke_think(graph, messages)
-        return decision
-
-    return think_fn
+    return build_agno_think_fn(
+        container,
+        settings,
+        render_messages=_render_think_messages,
+        strategy=strategy,
+        market_block_builder=_build_market_block,
+        recent_trades_block_builder=_render_recent_trades_block,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -766,20 +614,19 @@ def _resolve_symbols(settings: Settings) -> list[str]:
 def build_trading_monitor(
     container: ApiContainer,
     settings: Settings,
-    llm: LLMClient,
 ) -> TradingLoopMonitor:
     """Compose the production ``TradingLoopMonitor``.
 
     This is the seam ``main.lifespan`` calls when SCHEDULER_ENABLED=true AND
-    LLM credentials are present. Everything downstream — tool dispatch,
-    structured reasoning, risk gating — is the standard trading-loop shape.
+    LLM credentials are present. The Agno Agent owns its own model — no
+    separate ``LLMClient`` injection is needed here.
     """
     symbols = _resolve_symbols(settings)
 
     async def observe() -> MarketSnapshot:
         return await _exchange_observe(container, symbols)
 
-    base_think = _build_base_think_fn(container, settings, llm)
+    base_think = _build_base_think_fn(container, settings)
     execute = _build_execute_fn(container, settings)
     risk_check = _build_risk_check_fn(container, settings)
 

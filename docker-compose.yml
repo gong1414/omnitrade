@@ -9,6 +9,25 @@
 #   2. Ensure ./data/ exists (volume mount target for SQLite).
 
 services:
+  # ── postgres: AgentOS sessions + business data (Agno migration Phase 0) ─
+  # Lives alongside the SQLite mount; flip via DATABASE_URL when ready.
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: omnitrade
+      POSTGRES_USER: omnitrade
+      POSTGRES_PASSWORD: omnitrade
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U omnitrade -d omnitrade"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
   # ── db-init: run Alembic migrations once, then exit ──────────────────
   db-init:
     build:
@@ -68,3 +87,6 @@ services:
       start_period: 30s
       retries: 3
     restart: unless-stopped
+
+volumes:
+  pgdata: {}

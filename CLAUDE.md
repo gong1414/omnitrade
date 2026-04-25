@@ -174,6 +174,34 @@ Disagreement between sources = bug. Silence on this = missed bug.
   zero-overhead direct calls. 4 decision tool schemas (schema-only) +
   15 MCP tools (9 trading + 6 crypto). Adding new exchanges = add MCP
   tools, no changes to composition.py.
+- **Agno migration scaffolded** (spec `.omc/specs/deep-interview-agno-migration.md`,
+  plan `~/.claude/plans/mossy-frolicking-hickey.md`, tracker
+  `docs/AGNO_MIGRATION_TRACKER.md`). All 6 phases land as **flag-gated
+  parallel paths** — defaults preserve legacy behavior bit-for-bit.
+  - **Phase 0**: `agno>=2.0.0`, `psycopg[binary]>=3.2.0` deps; Postgres
+    service in `docker-compose.yml`.
+  - **Phase 1** (`AGNO_LLM_ENABLED`): `infrastructure/llm/factory.py` +
+    `agno_llm_adapter.py` swap LiteLLM for Agno's
+    `DeepSeek(id="deepseek-reasoner")` (spec exception E2).
+  - **Phase 2** (`AGNO_AGENT_ENABLED`): `agents/trading_agent_agno.py` +
+    `agents/tools/decision_schemas.py` + `agents/tools/mcp_bridge_agno.py`
+    replace the LangGraph think loop with an Agno Agent + MultiMCPTools.
+    `composition._build_base_think_fn` branches on the flag.
+  - **Phase 3** (`AGNO_WORKFLOW_ENABLED`): `application/trading_workflow_agno.py`
+    + `agents/experts_team_agno.py` provide a 6-step Agno `Workflow` and
+    a `Team` (coordinate mode) for AGGRESSIVE_TEAM / MULTI_AGENT_CONSENSUS.
+  - **Phase 4** (`AGNO_AGENT_OS_ENABLED`): `api/agent_os_app.py::wrap_with_agent_os`
+    overlays AgentOS on the existing FastAPI app
+    (`on_route_conflict='preserve_base_app'`). +92 routes when on; legacy
+    routes survive intact.
+  - **Phase 5**: `apps/frontend/lib/sse/client.ts` mirrors WS client
+    surface so the dashboard hook can flip transports by env flag.
+  - **Phase 6**: `infrastructure/persistence/database.py` routes Postgres
+    URLs through `psycopg3` (single driver, sync + async). Existing 5
+    Alembic revisions auto-upgrade on Postgres.
+  - **Tracker**: `docs/AGNO_MIGRATION_TRACKER.md` enumerates legacy files
+    slated for deletion and tests slated for rewrite, gated on user
+    sign-off of G1–G6 against the AgentOS path.
 
 ## 🧭 Working directories / key files
 

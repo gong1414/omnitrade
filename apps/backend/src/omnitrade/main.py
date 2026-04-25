@@ -114,15 +114,14 @@ def _start_trading_scheduler(
     from omnitrade.application.monitors.price_sync_monitor import PriceSyncMonitor
     from omnitrade.application.monitors.stop_loss_monitor import StopLossMonitor
     from omnitrade.application.monitors.trailing_stop_monitor import TrailingStopMonitor
-    from omnitrade.infrastructure.llm.litellm_client import LiteLLMClient
+    from omnitrade.infrastructure.llm.agno_llm_adapter import AgnoLLMAdapter
 
     assert settings.llm_api_key is not None  # narrowed by caller
-    llm = LiteLLMClient(
-        model=settings.llm_model_name,
-        api_key=settings.llm_api_key.get_secret_value(),
-        base_url=str(settings.llm_base_url) if settings.llm_base_url else None,
-    )
-    monitor = build_trading_monitor(container, settings, llm)
+    # The trading Agent (Agno) owns its own DeepSeek client — this LLMClient
+    # is only used by the auxiliary InvalidationMonitor that still consumes
+    # the LiteLLM-shaped surface.
+    llm = AgnoLLMAdapter.from_settings(settings)
+    monitor = build_trading_monitor(container, settings)
     app.state.trading_monitor = monitor
 
     # PR-D Phase D2: invalidation monitor runs independently of the trading
@@ -383,6 +382,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(api_router)
     app.include_router(api_v8_router)
     app.include_router(ws_router)
+
+    # AgentOS overlays its REST surface (sessions / memory / runs / schedules)
+    # onto the same app. `on_route_conflict='preserve_base_app'` keeps every
+    # legacy route live; AgentOS adds its own surface alongside. Skipped when
+    # no LLM credentials are configured (test / read-only deployments).
+    if settings.llm_api_key is not None or settings.deepseek_api_key is not None:
+        from omnitrade.api.agent_os_app import wrap_with_agent_os
+
+        app = wrap_with_agent_os(app, settings)
 
     return app
 

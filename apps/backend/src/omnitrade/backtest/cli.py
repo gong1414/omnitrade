@@ -34,7 +34,7 @@ from omnitrade.backtest.exchange import BacktestExchange
 from omnitrade.backtest.llm_cache import CachedLLMClient
 from omnitrade.config import Settings
 from omnitrade.domain.protocols import LLMClient
-from omnitrade.infrastructure.llm.litellm_client import LiteLLMClient
+from omnitrade.infrastructure.llm.agno_llm_adapter import AgnoLLMAdapter
 
 logger = structlog.get_logger(__name__)
 
@@ -105,7 +105,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
 
 def _build_llm(*, use_cache: bool, cache_path: str) -> LLMClient:
     settings = Settings()
-    base: LLMClient = LiteLLMClient.from_settings(settings)
+    base: LLMClient = AgnoLLMAdapter.from_settings(settings)
     if use_cache:
         return CachedLLMClient(base, cache_path=cache_path, use_cache=True)
     return base

@@ -1,4 +1,4 @@
-"""System prompt — 2-branch (minimal vs full) ChatPromptTemplate builder.
+"""System prompt — 2-branch (minimal vs full) string template.
 
 PR-B2 Phase B rewrote both branches into the Alpha Arena 4-section
 structure (IDENTITY / QUANTITATIVE FRAMEWORK / VALIDATION GATES / OUTPUT
@@ -17,8 +17,6 @@ per-strategy ``{strategy_specific_content}`` interpolation.
 """
 
 from __future__ import annotations
-
-from langchain_core.prompts import ChatPromptTemplate, SystemMessagePromptTemplate
 
 from omnitrade.agents.prompts._template import (
     CANONICAL_IDENTITY_HEADER,
@@ -122,29 +120,8 @@ def format_system_prompt(
     )
 
 
-def build_system_template(strategy: StrategyName) -> SystemMessagePromptTemplate:
-    """Return a LangChain ``SystemMessagePromptTemplate`` for ``strategy``.
-
-    The returned template still carries the unfilled ``{var}`` placeholders
-    so downstream code can pass its own values via ``.format()``.
-    """
-    template_str = (
-        MINIMAL_SYSTEM_PROMPT_TEMPLATE
-        if strategy in _MINIMAL_PROMPT_STRATEGIES
-        else FULL_SYSTEM_PROMPT_TEMPLATE
-    )
-    return SystemMessagePromptTemplate.from_template(template_str)
-
-
-def build_system_prompt(strategy: StrategyName) -> ChatPromptTemplate:
-    """Return a single-message ``ChatPromptTemplate`` wrapping the system template."""
-    return ChatPromptTemplate.from_messages([build_system_template(strategy)])
-
-
 __all__ = [
     "FULL_SYSTEM_PROMPT_TEMPLATE",
     "MINIMAL_SYSTEM_PROMPT_TEMPLATE",
-    "build_system_prompt",
-    "build_system_template",
     "format_system_prompt",
 ]

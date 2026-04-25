@@ -124,6 +124,23 @@ class Settings(BaseSettings):
     deepseek_api_key: SecretStr | None = None
     """Direct DeepSeek API key (alternative to llm_api_key)."""
 
+    # ── Agno runtime (always-on after Stage A cutover) ─────────────────────
+    agno_llm_model: str = "deepseek-reasoner"
+    """Agno DeepSeek model id. Per spec exception E2 prefer
+    'deepseek-reasoner' (tool-in-thinking, stable) over 'deepseek-chat'
+    (Agno docs flag tool calling as unstable). Override per deployment to
+    'deepseek-v4-pro' / 'deepseek-v4-flash' as needed."""
+
+    cycle_trigger_timeout_seconds: float = 60.0
+    """Manual `/api/v1/cycle/trigger` wait_for timeout. Bump to 180+ when
+    using slow reasoning models (deepseek-v4-pro / -reasoner) to avoid
+    spurious 504s on otherwise-healthy cycles."""
+
+    agno_postgres_url: str | None = None
+    """Postgres connection string for AgentOS sessions/memory/tracing.
+    Format: `postgresql+psycopg://user:pass@host:5432/db` (psycopg3).
+    When None, AgentOS runs DB-less (no session persistence)."""
+
     # ------------------------------------------------------------------ #
     # DATASOURCE_* — external market data toggles + API keys              #
     # ------------------------------------------------------------------ #
@@ -241,32 +258,14 @@ class Settings(BaseSettings):
     """
 
     # ------------------------------------------------------------------ #
-    # PHASE 8.5a — Multi-agent orchestrator                                #
+    # Multi-agent orchestrator surface                                    #
     # ------------------------------------------------------------------ #
     multi_agent_enabled: bool = False
-    """Rollback kill-switch for the Phase 8.5a multi-agent orchestrator.
+    """Reserved for the Agno ``Team`` orchestrator (raider-squad / tribunal).
 
-    When False, ``build_think_fn`` does not register any roster tools and
-    the single-agent path preserves prior behavior. When True AND the active strategy is
-    ``arena-raider-squad`` or ``arena-tribunal``, the per-strategy
-    roster (4 experts or 3 jurors) is registered into ``ToolRegistry`` so
-    the main LLM can drive sub-agent calls via ``tool_calls``.
-    """
-
-    multi_agent_strict: bool = True
-    """Strictness policy for multi-agent sub-agent failures (plan v3 MINOR-7).
-
-    True (default): partial sub-agent failure raises
-    ``MultiAgentDegradedError`` and fails the cycle. False: soft-degrade
-    — fall through to the single-agent path, log a warning.
-    """
-
-    expert_timeout_seconds: int = 15
-    """Per-sub-agent LLM timeout budget (plan v3 MAJOR-3).
-
-    Each expert/juror handler wraps its ``llm.complete`` call in
-    ``asyncio.wait_for(..., timeout=expert_timeout_seconds)``. Timeout
-    raises ``MultiAgentDegradedError``.
+    Currently unwired in the runtime — the trading agent runs as a single
+    Agno ``Agent``. Surfaced via ``GET /api/v1/strategy`` so the dashboard
+    can keep its capability checks stable across deployments.
     """
 
     # ------------------------------------------------------------------ #

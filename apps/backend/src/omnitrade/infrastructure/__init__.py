@@ -11,8 +11,9 @@ from dataclasses import dataclass
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from omnitrade.config import Settings
+from omnitrade.domain.protocols import LLMClient
 from omnitrade.infrastructure.exchange.ccxt_exchange import CCXTExchange
-from omnitrade.infrastructure.llm.litellm_client import LiteLLMClient
+from omnitrade.infrastructure.llm.agno_llm_adapter import AgnoLLMAdapter
 from omnitrade.infrastructure.news.news_fetcher import NewsFetcher
 from omnitrade.infrastructure.persistence.database import build_engines, init_async_factory
 from omnitrade.infrastructure.scheduling.scheduler import OmniScheduler
@@ -27,7 +28,7 @@ class InfrastructureContainer:
     """
 
     exchange: CCXTExchange
-    llm: LiteLLMClient
+    llm: LLMClient
     vector_store: SQLiteVecStore
     scheduler: OmniScheduler
     news: NewsFetcher
@@ -72,7 +73,8 @@ def build_infrastructure(settings: Settings) -> InfrastructureContainer:
         )
 
     # ── LLM ────────────────────────────────────────────────────────────── #
-    llm = LiteLLMClient.from_settings(settings)
+    # Agno's DeepSeek adapter is the only LLMClient now.
+    llm: LLMClient = AgnoLLMAdapter.from_settings(settings)
 
     # ── Vector store ───────────────────────────────────────────────────── #
     vector_db_path = getattr(settings, "vector_db_path", "./data/trading_lessons.db")

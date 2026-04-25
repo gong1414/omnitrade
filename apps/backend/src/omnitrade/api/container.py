@@ -14,7 +14,6 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from omnitrade.agents.think_node import ToolRegistry
 from omnitrade.application.account_service import AccountService
 from omnitrade.application.decision_service import DecisionService
 from omnitrade.application.events.bus import EventBus
@@ -23,8 +22,7 @@ from omnitrade.application.rebate.service import RebateService
 from omnitrade.application.risk_service import DrawdownThresholds, RiskService
 from omnitrade.application.signal_service import SignalService
 from omnitrade.config import Settings
-from omnitrade.domain.enums import StrategyName
-from omnitrade.domain.protocols import ExchangeClient, LLMClient
+from omnitrade.domain.protocols import ExchangeClient
 from omnitrade.infrastructure.market_data.gate_ws import GateWebSocketClient
 from omnitrade.infrastructure.market_data.multi_timeframe import MultiTimeframeFetcher
 from omnitrade.infrastructure.market_data.okx_ws import OKXWebSocketClient
@@ -89,11 +87,6 @@ class ApiContainer:
     # Phase 8.2 additions (indicator pipeline; service idle when
     # ``settings.indicators_enabled`` is False).
     signal_service: SignalService
-    # Phase 8.5a additions (multi-agent orchestrator; roster tools are
-    # registered into ``tool_registry`` at startup only when
-    # ``settings.multi_agent_enabled`` is True AND the active strategy is
-    # one of the two multi-agent strategies).
-    tool_registry: ToolRegistry
     # Phase 8.6 additions (WebSocket ticker stream; ``None`` when
     # ``settings.use_ws_market_data`` is False — rollback-safe default).
     ws_client: WSClient | None = None
@@ -105,7 +98,6 @@ def build_api_container(
     settings: Settings,
     exchange: ExchangeClient,
     session_factory: async_sessionmaker[AsyncSession],
-    llm: LLMClient | None = None,
 ) -> ApiContainer:
     """Construct an ``ApiContainer`` from an already-built infrastructure stack."""
     event_bus = EventBus()
@@ -188,44 +180,6 @@ def build_api_container(
         session_factory=open_session,
     )
 
-    # Phase 8.5a: build the ToolRegistry and — only when the kill-switch is
-    # on AND the active strategy is multi-agent — register the strategy's
-    # roster. The single-agent path leaves the registry empty (or
-    # pre-populated by other phases that hook in later).
-    tool_registry = ToolRegistry()
-    if settings.multi_agent_enabled and llm is not None:
-        active_strategy: StrategyName | None
-        try:
-            active_strategy = StrategyName(settings.trading_strategy)
-        except ValueError:
-            active_strategy = None  # unknown strategy — skip roster registration
-        if active_strategy in (
-            StrategyName.AGGRESSIVE_TEAM,
-            StrategyName.MULTI_AGENT_CONSENSUS,
-        ):
-            from omnitrade.application.multi_agent.roster import roster_for_strategy
-
-            # active_strategy is narrowed by the membership check above but
-            # mypy doesn't propagate Optional narrowing through ``in``; the
-            # explicit cast keeps ``--strict`` happy.
-            assert active_strategy is not None
-            for tool in roster_for_strategy(
-                active_strategy, llm=llm, settings=settings
-            ):
-
-                def _make_handler(
-                    bound_tool: Any,
-                ) -> Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]:
-                    async def _handler(args: dict[str, Any]) -> dict[str, Any]:
-                        result = await bound_tool.ainvoke(args)
-                        if isinstance(result, dict):
-                            return result
-                        return {"result": result}
-
-                    return _handler
-
-                tool_registry.register(tool.name, _make_handler(tool))
-
     return ApiContainer(
         event_bus=event_bus,
         session_factory=session_factory,
@@ -248,7 +202,6 @@ def build_api_container(
         log_buffer=log_buffer,
         multi_tf_fetcher=multi_tf_fetcher,
         signal_service=signal_service,
-        tool_registry=tool_registry,
         ws_client=ws_client,
         vec_store=vec_store,
     )
