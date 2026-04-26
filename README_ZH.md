@@ -18,7 +18,7 @@
   <img src="https://img.shields.io/badge/策略-11-FF6B6B" alt="Strategies">
   <img src="https://img.shields.io/badge/Close_Paths-4%2B1-4ECDC4" alt="Close Paths">
   <img src="https://img.shields.io/badge/固化_fixture-22%2F22-FFD93D" alt="Fixtures">
-  <img src="https://img.shields.io/badge/测试-642_绿-2BB673" alt="Tests">
+  <img src="https://img.shields.io/badge/测试-702_绿-2BB673" alt="Tests">
   <img src="https://img.shields.io/badge/交易所-Gate%20%2B%20OKX-F6465D" alt="Exchanges">
 </p>
 
@@ -33,6 +33,31 @@
   <a href="#-路线图">路线图</a> &nbsp;&middot;&nbsp;
   <a href="#-许可证">许可证</a>
 </p>
+
+---
+
+## ⚠️ 风险提示 — 运行前请仔细阅读
+
+OmniTrade 会在加密货币交易所执行真实交易。合约本身是高杠杆品种，一个错误的
+周期就可能让账户全亏。本项目是 MIT 协议下发布的研究型软件，**不附带任何形式
+的担保**；维护者不是投资顾问，对你运行本软件造成的任何损失不承担责任。
+
+使用本软件即代表你接受：
+
+- **每一笔交易最终责任在你**。Agent 会自主开仓、定仓位、平仓，请把它的每一
+  个决策当作你自己的决策来对待。
+- **先在 testnet 跑**。`GATE_USE_TESTNET=true` 和 `OKX_USE_TESTNET=true` 是默认
+  值；在切到 mainnet 之前请连续在 testnet 跑数周。
+- **mainnet 先小额**。第一次实盘只放你能承受全亏的金额。HITL 大单审批
+  (`HITL_OPEN_SIZE_THRESHOLD_USD`，默认 1 万美元) 是兜底，不是仓位上限的替代。
+- **API Key 权限收紧**。Gate.io / OKX 上把 API key 设置成「仅交易，不允许提
+  现」；交易所账户开启 2FA。
+- **持续盯**。仪表盘会渲染每一个周期的推理、持仓、各 gate 状态。读它。G5
+  故障短语扫描器会自动标出明显问题，但更隐蔽的问题需要人工把关。
+- **合规自担**。在你所在司法管辖区内，对加密合约进行算法化交易可能受限或被
+  禁止 — 运行本软件前请确认本地法规。
+
+如果你不能接受这些前提，请到此为止。
 
 ---
 

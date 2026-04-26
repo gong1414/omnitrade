@@ -10,7 +10,11 @@
 #   - Healthchecks on backend + frontend with start_period 30s
 #   - Resource limits via `deploy.resources`
 #   - Log rotation (json-file driver)
-#   - Volumes for SQLite DB + logs
+#   - Volumes for the data + logs directories (Postgres + pgvector lives
+#     in the dedicated `postgres` service in the dev compose; this prod
+#     file assumes you're pointing DATABASE_URL at an external managed
+#     Postgres + pgvector instance — bring your own postgres service if
+#     you want to host it in-stack)
 #   - Optional redis cache via `--profile cache`
 
 services:

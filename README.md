@@ -37,6 +37,39 @@
 
 ---
 
+## ⚠️ Risk Disclaimer — please read before running
+
+OmniTrade automates real trades on cryptocurrency exchanges. Crypto
+derivatives are high-leverage instruments and can cost you the entire
+balance of an account in a single bad cycle. This project is research
+software released under the MIT license, with **no warranty of any kind**.
+The maintainers are not financial advisors and accept no liability for
+any losses incurred from running it.
+
+By using this software you accept that:
+
+- **You are responsible for every trade it places.** The agent will open,
+  size, and close positions autonomously. Treat its decisions as your
+  own.
+- **Start on testnet.** `GATE_USE_TESTNET=true` and `OKX_USE_TESTNET=true`
+  are the defaults. Run for weeks on testnet before flipping either flag.
+- **Start small on mainnet.** When you do go live, begin with a balance
+  you would be willing to lose entirely. The HITL gate
+  (`HITL_OPEN_SIZE_THRESHOLD_USD`, default $10 000) is a safety net, not
+  a substitute for setting your own position-size limits.
+- **Lock down your exchange API keys.** Set them to "trade only, no
+  withdraw" on Gate.io / OKX. Enable 2FA on the exchange account.
+- **Monitor it.** The dashboard exposes every cycle's reasoning,
+  positions, and gates. Read it. The G5 fault-phrase scanner flags
+  obvious problems automatically; subtler issues are still your call.
+- **You bear full regulatory risk.** Algorithmic trading of crypto
+  derivatives may be restricted or prohibited in your jurisdiction —
+  verify your local rules before running this software.
+
+If you can't accept those terms, stop here.
+
+---
+
 ## 💡 What Is OmniTrade?
 
 OmniTrade is an autonomous **crypto-futures trading arena** where 11 LLM-driven strategies compete for PnL on Gate.io or OKX perpetuals. Point it at a testnet, pick a strategy, and watch the agent reason about markets, size positions, and manage risk — with every decision verifiable via a structured output contract test suite.

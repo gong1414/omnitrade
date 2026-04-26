@@ -68,6 +68,13 @@ dev = [
     "hypothesis>=6.100.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/yifu/llmtrading"
+Repository = "https://github.com/yifu/llmtrading"
+Documentation = "https://github.com/yifu/llmtrading/tree/main/docs"
+Issues = "https://github.com/yifu/llmtrading/issues"
+Changelog = "https://github.com/yifu/llmtrading/blob/main/CHANGELOG.md"
+
 [project.scripts]
 omnitrade = "omnitrade.main:main"
 
