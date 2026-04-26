@@ -10,7 +10,10 @@ export function useRebate() {
   const { data, error, isLoading, mutate } = useSWR<RebateSummary>(
     REBATE_KEY,
     () => apiClient.fetchRebate(),
-    { refreshInterval: 60_000, revalidateOnFocus: false },
+    // SSE `position_update` with action ∈ {close, partial_close}
+    // triggers a global mutate of this key, so a periodic poll would
+    // only ever surface duplicates of the same window summary.
+    { revalidateOnFocus: false },
   );
   return { rebate: data, error, isLoading, mutate };
 }

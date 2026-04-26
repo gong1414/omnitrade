@@ -50,16 +50,31 @@ export function useRealtime({ maxLog = 200 }: { maxLog?: number } = {}) {
     const mutateTrades = () =>
       globalMutate((key) => typeof key === "string" && key.startsWith("/api/v1/trades"));
     const mutateStats = () => globalMutate("/api/stats");
+    const mutateHistory = () =>
+      globalMutate((key) => typeof key === "string" && key.startsWith("/api/history"));
+    const mutateRebate = () => globalMutate("/api/v1/rebate");
 
     const unsubAccount = client.subscribe("account_update", (env) => {
       pushLog(env);
       globalMutate(ACCOUNT_KEY);
       mutateStats();
+      // Equity sparkline shares the account snapshot cadence — every
+      // recorder tick writes one history row, so refresh the chart on
+      // the same SSE beat instead of polling.
+      mutateHistory();
     });
     const unsubPosition = client.subscribe("position_update", (env) => {
       pushLog(env);
       globalMutate(POSITIONS_KEY);
-      mutateTrades();
+      // mark_sync_batch (15s tick) and open events don't move trades or
+      // rebate; only close + partial_close carry a Trade row + new fee.
+      const action = (env.payload as { action?: string } | null)?.action;
+      if (action === "close" || action === "partial_close") {
+        mutateTrades();
+        mutateRebate();
+      } else if (action === "open") {
+        mutateTrades();
+      }
     });
     const unsubDecision = client.subscribe("decision_update", (env) => {
       pushLog(env);

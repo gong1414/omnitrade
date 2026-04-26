@@ -20,7 +20,10 @@ export function AccountSummary() {
   const { data: history } = useSWR<HistoryResponse>(
     HISTORY_KEY,
     () => apiClient.fetchHistory("24h"),
-    { refreshInterval: 30_000, revalidateOnFocus: false },
+    // SSE `account_update` triggers a global mutate of every
+    // `/api/history*` key, so the periodic poll would only ever return
+    // the same row that the recorder just emitted.
+    { revalidateOnFocus: false },
   );
 
   const points = history
