@@ -397,6 +397,16 @@ llmtrading/
 
 ---
 
+## 🌟 Star 增长 & 贡献者
+
+[![Star History Chart](https://api.star-history.com/svg?repos=gong1414/omnitrade&type=Date)](https://www.star-history.com/#gong1414/omnitrade&Date)
+
+<a href="https://github.com/gong1414/omnitrade/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=gong1414/omnitrade" alt="Contributors" />
+</a>
+
+---
+
 ## 📄 许可证
 
 MIT，详见 [LICENSE](./LICENSE)。

@@ -1,0 +1,72 @@
+version: 2
+
+updates:
+  # GitHub Actions in workflows
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "deps"
+      - "github-actions"
+
+  # Backend (uv-managed Python via pyproject.toml)
+  - package-ecosystem: "pip"
+    directory: "/apps/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "deps"
+      - "area: backend"
+    groups:
+      # Bundle non-major bumps so we don't flood the queue
+      python-minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Frontend (npm)
+  - package-ecosystem: "npm"
+    directory: "/apps/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "deps"
+      - "area: frontend"
+    groups:
+      js-minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Repo-root npm (workspace scripts only)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "deps"
+
+  # Docker base images (apps/backend/Dockerfile + apps/frontend/Dockerfile)
+  - package-ecosystem: "docker"
+    directory: "/apps/backend"
+    schedule:
+      interval: "monthly"
+    labels:
+      - "deps"
+      - "area: ops"
+  - package-ecosystem: "docker"
+    directory: "/apps/frontend"
+    schedule:
+      interval: "monthly"
+    labels:
+      - "deps"
+      - "area: ops"

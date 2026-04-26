@@ -1,0 +1,55 @@
+# pre-commit — https://pre-commit.com
+# Install once:  uv tool install pre-commit  &&  pre-commit install
+# Then every `git commit` runs these hooks against staged files.
+#
+# Mirrors what CI runs so contributors catch issues before pushing.
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^docs/.*\.md$
+      - id: end-of-file-fixer
+      - id: check-yaml
+        # GitHub Actions allows certain advanced YAML constructs
+        # check-yaml chokes on; skip workflow files.
+        exclude: ^\.github/workflows/.*$
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+      - id: detect-private-key
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+
+  # Ruff — backend lint + format
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.7.4
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+        files: ^apps/backend/(src|tests)/
+      - id: ruff-format
+        files: ^apps/backend/(src|tests)/
+
+  # Common typos
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.3.0
+    hooks:
+      - id: codespell
+        args: ["--ignore-words-list=alle,nd,ot"]
+        exclude: ^(apps/frontend/package-lock\.json|apps/backend/uv\.lock|docs/history/)
+
+  # Conventional Commits — gentle guidance, not a hard gate.
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v3.31.0
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]
+
+ci:
+  # If users enable pre-commit.ci on their fork, auto-fix PRs land here.
+  autofix_commit_msg: "style: auto-fixes from pre-commit hooks"
+  autoupdate_schedule: monthly
+  skip: [commitizen]

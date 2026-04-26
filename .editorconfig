@@ -1,0 +1,33 @@
+# EditorConfig — https://editorconfig.org
+# Cross-IDE consistency for indent / charset / line endings.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# Python — PEP 8 standard
+[*.{py,pyi}]
+indent_size = 4
+max_line_length = 100
+
+# Markdown — preserve trailing whitespace (line breaks)
+[*.md]
+trim_trailing_whitespace = false
+
+# Makefiles require tabs
+[Makefile]
+indent_style = tab
+
+# Go uses tabs by convention (in case any tooling lands)
+[*.go]
+indent_style = tab
+
+# Commit messages
+[COMMIT_EDITMSG]
+max_line_length = 72

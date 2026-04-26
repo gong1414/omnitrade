@@ -407,6 +407,16 @@ Issues and PRs welcome. Please:
 
 ---
 
+## 🌟 Stargazers & contributors
+
+[![Star History Chart](https://api.star-history.com/svg?repos=gong1414/omnitrade&type=Date)](https://www.star-history.com/#gong1414/omnitrade&Date)
+
+<a href="https://github.com/gong1414/omnitrade/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=gong1414/omnitrade" alt="Contributors" />
+</a>
+
+---
+
 ## 📄 License
 
 MIT — see [LICENSE](./LICENSE).
