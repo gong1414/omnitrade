@@ -18,8 +18,11 @@ from pydantic import SecretStr
 import omnitrade.config as cfg
 import omnitrade.main as main_mod
 from omnitrade.api.agent_os_app import MonitorHolder
-from omnitrade.config import Settings
-from omnitrade.main import _cron_for_interval, _register_agentos_trading_schedule, lifespan
+
+Settings = cfg.Settings
+_cron_for_interval = main_mod._cron_for_interval
+_register_agentos_trading_schedule = main_mod._register_agentos_trading_schedule
+lifespan = main_mod.lifespan
 
 
 @pytest.mark.parametrize(

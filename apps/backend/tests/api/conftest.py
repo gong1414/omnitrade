@@ -14,10 +14,11 @@ from httpx import ASGITransport, AsyncClient
 
 import omnitrade.config as cfg
 from omnitrade.api.container import build_api_container
-from omnitrade.config import Settings
 from omnitrade.domain.entities import AccountSnapshot
 from omnitrade.main import create_app
 from tests.application._fakes import FakeExchange, build_sqlite_session_factory, make_trade
+
+Settings = cfg.Settings
 
 
 @pytest.fixture(autouse=True)

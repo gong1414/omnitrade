@@ -35,33 +35,46 @@ def get_leverage_band(strategy: StrategyName, max_leverage: int) -> tuple[int, i
     """
     max_lev = max_leverage
 
-    match strategy:
-        case StrategyName.CONSERVATIVE:
-            return (max(math.ceil(0.1 * max_lev), 2), max(math.ceil(0.3 * max_lev), 4))
-        case StrategyName.BALANCED:
-            return (max(math.ceil(0.3 * max_lev), 3), max(math.ceil(0.6 * max_lev), 8))
-        case StrategyName.AGGRESSIVE:
-            return (max(math.ceil(0.6 * max_lev), 8), max(max_lev, 15))
-        case StrategyName.AGGRESSIVE_TEAM:
-            # team-led arena-raider
-            return (max(math.ceil(0.6 * max_lev), 8), max(max_lev, 15))
-        case StrategyName.ULTRA_SHORT:
-            return (max(math.ceil(0.5 * max_lev), 3), max(math.ceil(0.75 * max_lev), 5))
-        case StrategyName.SWING_TREND:
-            return (max(math.ceil(0.2 * max_lev), 2), max(math.ceil(0.5 * max_lev), 5))
-        case StrategyName.MEDIUM_LONG:
-            return (max(math.ceil(0.1 * max_lev), 2), max(math.ceil(0.3 * max_lev), 5))
-        case StrategyName.REBATE_FARMING:
-            # low band, same as arena-guardian
-            return (max(math.ceil(0.1 * max_lev), 2), max(math.ceil(0.3 * max_lev), 4))
-        case StrategyName.AI_AUTONOMOUS:
-            # full leverage
-            return (max_lev, max_lev)
-        case StrategyName.ALPHA_BETA:
-            # full leverage (code-level default)
-            return (max_lev, max_lev)
-        case StrategyName.MULTI_AGENT_CONSENSUS:
-            # arena-steward band
-            return (max(math.ceil(0.3 * max_lev), 3), max(math.ceil(0.6 * max_lev), 8))
-        case _:
-            raise ValueError(f"Unknown strategy for leverage band: {strategy!r}")
+    bands: dict[StrategyName, tuple[int, int]] = {
+        StrategyName.CONSERVATIVE: (
+            max(math.ceil(0.1 * max_lev), 2),
+            max(math.ceil(0.3 * max_lev), 4),
+        ),
+        StrategyName.BALANCED: (
+            max(math.ceil(0.3 * max_lev), 3),
+            max(math.ceil(0.6 * max_lev), 8),
+        ),
+        StrategyName.AGGRESSIVE: (max(math.ceil(0.6 * max_lev), 8), max(max_lev, 15)),
+        # team-led arena-raider — same band as AGGRESSIVE
+        StrategyName.AGGRESSIVE_TEAM: (max(math.ceil(0.6 * max_lev), 8), max(max_lev, 15)),
+        StrategyName.ULTRA_SHORT: (
+            max(math.ceil(0.5 * max_lev), 3),
+            max(math.ceil(0.75 * max_lev), 5),
+        ),
+        StrategyName.SWING_TREND: (
+            max(math.ceil(0.2 * max_lev), 2),
+            max(math.ceil(0.5 * max_lev), 5),
+        ),
+        StrategyName.MEDIUM_LONG: (
+            max(math.ceil(0.1 * max_lev), 2),
+            max(math.ceil(0.3 * max_lev), 5),
+        ),
+        # low band, same as arena-guardian
+        StrategyName.REBATE_FARMING: (
+            max(math.ceil(0.1 * max_lev), 2),
+            max(math.ceil(0.3 * max_lev), 4),
+        ),
+        # full leverage
+        StrategyName.AI_AUTONOMOUS: (max_lev, max_lev),
+        # full leverage (code-level default)
+        StrategyName.ALPHA_BETA: (max_lev, max_lev),
+        # arena-steward band
+        StrategyName.MULTI_AGENT_CONSENSUS: (
+            max(math.ceil(0.3 * max_lev), 3),
+            max(math.ceil(0.6 * max_lev), 8),
+        ),
+    }
+    band = bands.get(strategy)
+    if band is None:
+        raise ValueError(f"Unknown strategy for leverage band: {strategy!r}")
+    return band
