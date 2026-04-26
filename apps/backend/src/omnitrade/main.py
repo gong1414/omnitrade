@@ -20,6 +20,7 @@ from fastapi.responses import ORJSONResponse
 from omnitrade.api.container import ApiContainer, build_api_container
 from omnitrade.api.middleware import IPBlacklistMiddleware
 from omnitrade.api.routes import api_router, api_v8_router
+from omnitrade.api.sse import sse_router
 from omnitrade.api.ws import ws_router
 from omnitrade.config import Settings, get_settings
 from omnitrade.observability.log_store import buffer_processor
@@ -382,6 +383,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(api_router)
     app.include_router(api_v8_router)
     app.include_router(ws_router)
+    app.include_router(sse_router)
 
     # AgentOS overlays its REST surface (sessions / memory / runs / schedules)
     # onto the same app. `on_route_conflict='preserve_base_app'` keeps every
