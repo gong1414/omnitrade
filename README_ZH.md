@@ -36,6 +36,21 @@
 
 ---
 
+## 📢 项目状态
+
+OmniTrade **持续开发中**。架构、API、策略都会随着实际运营反馈不断演进——
+欢迎随时提 issue 与新需求，每一条都会被认真当回事。
+
+如果你遇到任何问题、觉得哪里不顺手，或者想要某个新策略 / 数据源 / 仪表盘
+组件，请直接 [开 issue][issues] 或 PR——具体协作流程见
+[CONTRIBUTING.md](CONTRIBUTING.md)，安全漏洞请走
+[SECURITY.md](SECURITY.md) 的私有上报通道。觉得项目有用的话，欢迎点
+Star 关注后续进展。
+
+[issues]: https://github.com/yifu/llmtrading/issues
+
+---
+
 ## ⚠️ 风险提示 — 运行前请仔细阅读
 
 OmniTrade 会在加密货币交易所执行真实交易。合约本身是高杠杆品种，一个错误的
@@ -106,7 +121,7 @@ OmniTrade 是一个自动化**合约期货竞技场**，11 套由大模型驱动
       <div align="left">
         • ccxt 统一封装，默认 testnet<br>
         • REST: ticker / OHLCV / orderbook / openInterest / funding<br>
-        • WebSocket 行情流（手写 <code>websockets&gt;=12</code>）<br>
+        • Server-Sent Events 实时仪表盘（单一推流通道）<br>
         • 订单全生命周期：开 / 平 / 分批 / 撤单
       </div>
     </td>
@@ -169,16 +184,24 @@ OmniTrade 是一个自动化**合约期货竞技场**，11 套由大模型驱动
 
 ```bash
 cp apps/backend/.env.example .env
-# 编辑 .env —— 打开对应的 LLM_PROVIDER 块，填 GATE_API_KEY / OKX_API_KEY
+# 编辑 .env —— 填 LLM_API_KEY（DeepSeek）、GATE_API_KEY / OKX_API_KEY，testnet 开关保持开
 docker compose up -d
-docker compose exec backend alembic upgrade head   # 首次运行
+# `db-init` 会自动执行 `alembic upgrade head`，backend 上线前会等它
+# `service_completed_successfully`，所以无需手动迁移。
+```
+
+启动后验证一下端到端 cycle 是否真的在跑：
+
+```bash
+curl -X POST http://localhost:8000/api/v1/cycle/trigger          # ≤60s 内应返回 {"status":"ok"}
+curl -s 'http://localhost:8000/api/v1/decisions?limit=1' | jq    # 最近一条决策 JSON
 ```
 
 | URL | 用途 |
 |---|---|
-| `http://localhost:3000` | Next.js 仪表盘 |
+| `http://localhost:3000/dashboard` | Next.js 仪表盘 |
 | `http://localhost:8000/docs` | FastAPI 交互文档 |
-| `ws://localhost:8000/ws` | 实时 account / position / decision 流 |
+| `http://localhost:8000/sse/stream` | Server-Sent Events 流（decision / position / run-paused） |
 
 ### 方案 B · 本地开发（Python 3.11 + Node 20）
 
@@ -306,7 +329,13 @@ uv run uvicorn omnitrade.api.app:create_app --factory
 | `GET` | `/api/rebate` | 24h 返佣汇总 |
 | `GET` | `/api/logs` | 内存日志缓冲（可 tail） |
 | `POST` | `/api/actions/close-all` | 紧急全平仓（有保护） |
-| `WS` | `/ws` | 流式 `account` / `position` / `decision` |
+| `POST` | `/api/v1/cycle/trigger` | 同步触发一次交易 cycle |
+| `POST` | `/api/v1/runs/{run_id}/confirm` · `/reject` | T9 HITL：批准 / 拒绝被暂停的大单 |
+| `GET` | `/sse/stream` | Server-Sent Events 流（`decision_update` / `position_update` / `run_paused` / `orchestrator_error` 等） |
+| `GET` | `/traces` | AgentOS 暴露的每周期 OTel span 树（T4） |
+
+上述路由同时挂载在 `/api/v1/*` 前缀下；不带前缀的 `/api/*` 是 Phase-8 留下
+的兼容路径，供仪表盘已有的 fetch 地址继续使用。
 
 交互式文档：`http://localhost:8000/docs`。
 
@@ -330,7 +359,7 @@ llmtrading/
 ├── tests/fixtures/frozen/            # 22 份手工策展决策契约
 ├── docs/                             # 架构 / 策略 / 发布 / ...
 ├── scripts/                          # 运维 + 行为等价 CLI
-└── docker-compose.yml                # backend + frontend + sqlite
+└── docker-compose.yml                # postgres + pgvector + db-init + backend + frontend
 ```
 
 ---
@@ -340,7 +369,7 @@ llmtrading/
 | 阶段 | 范围 | 状态 |
 |---|---|---|
 | 0-7 | DDD 分层、监控器、仪表盘、可观测性 | ✅ 已发 |
-| 8.x | 端口桩、多周期数据、LLM 工具、multi-agent 编排、WebSocket 行情流 | ✅ 已发 |
+| 8.x | 端口桩、多周期数据、LLM 工具、multi-agent 编排、WebSocket 行情流 | ✅ 已发（Agno 切换后 WS 已被 SSE 替换） |
 | 9.x | 零共享品牌重构（策略名 / 列名 / fixture ID / cassette 哨兵） | ✅ 已发 |
 | 10.x | 依赖许可审计、历史清理 | ✅ 已发 |
 | 11 | Postgres + Decimal/Numeric 精度、可观测事件、子智能体 cassette | 📋 规划中 |
@@ -367,3 +396,50 @@ MIT，详见 [LICENSE](./LICENSE)。
 ## ⚠️ 免责声明
 
 默认 testnet，也只推荐 testnet。实盘交易承担真实的**全额亏损风险**。维护者**不是金融顾问**，本仓库任何内容都不构成金融建议。自担风险。
+
+---
+
+## 🙏 致谢 — 站在这些开源项目的肩膀上
+
+OmniTrade 之所以能跑起来，全靠下面这些开源项目。请大家也给它们点
+Star 支持一下：
+
+**Agent 运行时**
+- [**Agno**](https://github.com/agno-agi/agno) —— Agent / Team / Workflow / AgentOS 全栈，每一个 cycle 都跑在它上面。Agno 切换之后是项目唯一的 LLM/Agent/MCP 框架。
+- [**FastMCP**](https://github.com/jlowin/fastmcp) —— MCP 服务端框架，9 个交易工具 + 6 个加密数据工具的承载层。
+- [**OpenInference**](https://github.com/Arize-ai/openinference) —— `AgnoInstrumentor`，把 Agno 的 run / model / tool call 转成 OpenTelemetry span。
+- [**OpenTelemetry**](https://github.com/open-telemetry) —— `GET /traces` 背后的 tracing API + SDK。
+
+**大模型 + 向量化**
+- [**DeepSeek**](https://www.deepseek.com/) —— 默认对话模型（`deepseek-v4-pro` / `-flash` / `-reasoner`），快、便宜、tool-calling 稳。
+- [**fastembed**](https://github.com/qdrant/fastembed) + [**BAAI/bge-small-en-v1.5**](https://huggingface.co/BAAI/bge-small-en-v1.5) —— trade-journal RAG 的本地 384 维 embedder。
+- [**hf-mirror.com**](https://hf-mirror.com/) —— 社区维护的 HuggingFace 镜像，让 fastembed 在 cn 网络里也能下到模型。
+
+**后端**
+- [**FastAPI**](https://github.com/fastapi/fastapi) + [**Uvicorn**](https://github.com/encode/uvicorn) —— HTTP / SSE 端口。
+- [**SQLAlchemy**](https://github.com/sqlalchemy/sqlalchemy) + [**Alembic**](https://github.com/sqlalchemy/alembic) —— 异步 ORM + 迁移工具。
+- [**Postgres**](https://www.postgresql.org/) + [**pgvector**](https://github.com/pgvector/pgvector) —— 主存储 + Knowledge 层用的向量索引。
+- [**psycopg**](https://github.com/psycopg/psycopg)（3.x） —— 同步 + 异步合一的 PG 驱动，由 SQLAlchemy 路由。
+- [**APScheduler**](https://github.com/agronholm/apscheduler) —— 6 个仓位保护监控器的 10 秒定时器。
+- [**ccxt**](https://github.com/ccxt/ccxt) —— Gate.io / OKX 统一封装。
+- [**structlog**](https://github.com/hynek/structlog) —— 结构化 JSON 日志 + 自动脱敏 processor。
+- [**pydantic**](https://github.com/pydantic/pydantic) + [**pydantic-settings**](https://github.com/pydantic/pydantic-settings) —— 配置 + `domain/` 里全部 schema。
+
+**前端**
+- [**Next.js 14**](https://github.com/vercel/next.js) —— App Router 仪表盘。
+- [**React**](https://github.com/facebook/react) —— UI 运行时。
+- [**Tailwind CSS**](https://github.com/tailwindlabs/tailwindcss) —— 样式体系。
+- [**Recharts**](https://github.com/recharts/recharts) —— 净值曲线 / confidence-gauge 等图表。
+- [**SWR**](https://github.com/vercel/swr) —— 非流式接口的数据拉取。
+
+**工具链**
+- [**uv**](https://github.com/astral-sh/uv) —— Python 包管理（比 pip 快 10–100×）。
+- [**Ruff**](https://github.com/astral-sh/ruff) —— Lint + format。
+- [**pytest**](https://github.com/pytest-dev/pytest) + [**vcrpy**](https://github.com/kevin1024/vcrpy) —— 测试运行器 + cassette HTTP 录回放。
+- [**vitest**](https://github.com/vitest-dev/vitest) + [**Playwright**](https://github.com/microsoft/playwright) —— 前端单测 + E2E。
+- [**Docker**](https://www.docker.com/) / [**OrbStack**](https://orbstack.dev/) —— 本地栈运行时。
+
+**加密数据源** —— 只读，免费 / freemium：
+[CoinGecko](https://www.coingecko.com/)、[Alternative.me 恐惧贪婪指数](https://alternative.me/crypto/fear-and-greed-index/)、[Whale Alert](https://whale-alert.io/)、[Coinglass](https://www.coinglass.com/)、[LunarCrush](https://lunarcrush.com/)、[Etherscan](https://etherscan.io/)、[Gate MCP News](https://api.gatemcp.ai/mcp/news)。
+
+如果我们漏掉了你的项目，请 [开个 issue][issues] 告诉我们，会立刻补上。

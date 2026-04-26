@@ -37,6 +37,22 @@
 
 ---
 
+## 📢 Project Status
+
+OmniTrade is **actively developed**. The architecture, API surface, and
+strategies all evolve in response to operator feedback — issues and
+feature requests are very welcome and treated as first-class signal.
+
+If anything breaks, feels off, or you'd like to see a new strategy /
+data source / dashboard panel, please [open an issue][issues] or a
+pull request — see [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow
+and [SECURITY.md](SECURITY.md) for vulnerability reports (private
+channel only). Star the repo if you'd like to follow along.
+
+[issues]: https://github.com/yifu/llmtrading/issues
+
+---
+
 ## ⚠️ Risk Disclaimer — please read before running
 
 OmniTrade automates real trades on cryptocurrency exchanges. Crypto
@@ -115,7 +131,7 @@ OmniTrade is an autonomous **crypto-futures trading arena** where 11 LLM-driven 
       <div align="left">
         • ccxt unified adapter; testnet default<br>
         • REST: ticker, OHLCV, order book, open interest, funding<br>
-        • Optional WebSocket market stream (hand-rolled <code>websockets&gt;=12</code>) into the trading cycle<br>
+        • Real-time dashboard via Server-Sent Events (single transport)<br>
         • Order lifecycle: open, close, partial close, cancel
       </div>
     </td>
@@ -178,16 +194,24 @@ Full rules + truth table: [`apps/backend/src/omnitrade/domain/services/close_pat
 
 ```bash
 cp apps/backend/.env.example .env
-# edit .env — uncomment LLM_PROVIDER block, set GATE_API_KEY / OKX_API_KEY
+# edit .env — set LLM_API_KEY (DeepSeek), GATE_API_KEY / OKX_API_KEY, leave testnet flags ON
 docker compose up -d
-docker compose exec backend alembic upgrade head   # first run only
+# `db-init` runs `alembic upgrade head` automatically and the backend
+# waits on `service_completed_successfully` before starting.
+```
+
+Verify the cycle is running end-to-end:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/cycle/trigger          # should return {"status":"ok"} in ≤60s
+curl -s 'http://localhost:8000/api/v1/decisions?limit=1' | jq    # last decision JSON
 ```
 
 | URL | Surface |
 |---|---|
-| `http://localhost:3000` | Next.js dashboard |
+| `http://localhost:3000/dashboard` | Next.js dashboard |
 | `http://localhost:8000/docs` | FastAPI interactive docs |
-| `ws://localhost:8000/ws` | Live account / position / decision events |
+| `http://localhost:8000/sse/stream` | Server-Sent Events feed (decision / position / run-paused) |
 
 ### Path B · Local (Python 3.11 + Node 20)
 
@@ -315,7 +339,14 @@ uv run uvicorn omnitrade.api.app:create_app --factory
 | `GET` | `/api/rebate` | 24 h rebate summary |
 | `GET` | `/api/logs` | in-memory log buffer (tailable) |
 | `POST` | `/api/actions/close-all` | emergency close-all (guarded) |
-| `WS` | `/ws` | streaming `account` / `position` / `decision` events |
+| `POST` | `/api/v1/cycle/trigger` | trigger one trading cycle synchronously |
+| `POST` | `/api/v1/runs/{run_id}/confirm` · `/reject` | T9 HITL approve / reject a paused large open |
+| `GET` | `/sse/stream` | Server-Sent Events feed (`decision_update`, `position_update`, `run_paused`, `orchestrator_error`, …) |
+| `GET` | `/traces` | AgentOS-served OTel span tree per cycle (T4) |
+
+The same routes are also reachable under the `/api/v1/*` prefix; the
+unprefixed `/api/*` surface is the Phase-8 legacy mount and is kept for
+the dashboard's existing fetch URLs.
 
 Interactive docs: `http://localhost:8000/docs`.
 
@@ -339,7 +370,7 @@ llmtrading/
 ├── tests/fixtures/frozen/            # 22 hand-curated decision contracts
 ├── docs/                             # architecture, strategies, release, ...
 ├── scripts/                          # ops + drift-detection probes
-└── docker-compose.yml                # backend + frontend + sqlite
+└── docker-compose.yml                # postgres + pgvector + db-init + backend + frontend
 ```
 
 ---
@@ -360,7 +391,7 @@ llmtrading/
 
 Issues and PRs welcome. Please:
 
-1. Run `uv run pytest` inside `apps/backend` — the **642-test suite must stay green**, and the 22 frozen fixtures must replay at ≥ 0.95.
+1. Run `uv run pytest` inside `apps/backend` — the **702-test suite must stay green**, and the 22 frozen fixtures must replay at ≥ 0.95.
 2. The Agno cutover (Stages A–E, see `docs/AGNO_MIGRATION_TRACKER.md`) removed every LangGraph / LangChain / LiteLLM / mcp2py / WebSocket consumer — keep them out of new code.
 3. Respect the **three-way state atomicity** — any code path that writes a position's `cumulative_close_pct`, `stop_loss`, or `trailing_peak_pnl_pct` must go through `PositionRepository.apply_three_way_state`.
 4. Keep new dependencies within the allow-list (MIT / Apache-2.0 / BSD / ISC / MPL-2.0). See [docs/LICENSE_INVENTORY.md](./docs/LICENSE_INVENTORY.md).
@@ -376,3 +407,52 @@ MIT — see [LICENSE](./LICENSE).
 ## ⚠️ Disclaimer
 
 Testnet is the default and the recommended mode. Live trading on mainnet carries a real risk of total loss of funds. The maintainers are **not financial advisors**; nothing in this repository constitutes financial advice. Use at your own risk.
+
+---
+
+## 🙏 Acknowledgments — built on the shoulders of these projects
+
+OmniTrade only exists because of the open-source ecosystem around it.
+Huge thanks to the maintainers of every project below — please go star
+their repos:
+
+**Agent runtime**
+- [**Agno**](https://github.com/agno-agi/agno) — the Agent / Team / Workflow / AgentOS layer that drives every cycle. Single source of truth after the cutover.
+- [**FastMCP**](https://github.com/jlowin/fastmcp) — the MCP server framework powering the 9 trading + 6 crypto-data tools.
+- [**OpenInference**](https://github.com/Arize-ai/openinference) — the `AgnoInstrumentor` that turns Agno run / model / tool calls into OpenTelemetry spans.
+- [**OpenTelemetry**](https://github.com/open-telemetry) — the tracing API + SDK behind `GET /traces`.
+
+**LLM + embeddings**
+- [**DeepSeek**](https://www.deepseek.com/) — the default chat model (`deepseek-v4-pro` / `-flash` / `-reasoner`) — fast, cheap, reliable tool-calling.
+- [**fastembed**](https://github.com/qdrant/fastembed) + [**BAAI/bge-small-en-v1.5**](https://huggingface.co/BAAI/bge-small-en-v1.5) — local 384-dim embedder for the trade-journal RAG.
+- [**hf-mirror.com**](https://hf-mirror.com/) — community-run HuggingFace mirror that makes fastembed reachable on cn networks.
+
+**Backend**
+- [**FastAPI**](https://github.com/fastapi/fastapi) + [**Uvicorn**](https://github.com/encode/uvicorn) — the HTTP / SSE surface.
+- [**SQLAlchemy**](https://github.com/sqlalchemy/sqlalchemy) + [**Alembic**](https://github.com/sqlalchemy/alembic) — async ORM + migrations.
+- [**Postgres**](https://www.postgresql.org/) + [**pgvector**](https://github.com/pgvector/pgvector) — primary store + vector index for the trade-journal Knowledge layer.
+- [**psycopg**](https://github.com/psycopg/psycopg) (3.x) — single sync+async driver routed through SQLAlchemy.
+- [**APScheduler**](https://github.com/agronholm/apscheduler) — drives the 6 fast position-protection monitors at 10s cadence.
+- [**ccxt**](https://github.com/ccxt/ccxt) — unified Gate.io / OKX adapter.
+- [**structlog**](https://github.com/hynek/structlog) — the structured-JSON logging layer with secret-stripping processors.
+- [**pydantic**](https://github.com/pydantic/pydantic) + [**pydantic-settings**](https://github.com/pydantic/pydantic-settings) — config + every schema in `domain/`.
+
+**Frontend**
+- [**Next.js 14**](https://github.com/vercel/next.js) — App Router dashboard.
+- [**React**](https://github.com/facebook/react) — UI runtime.
+- [**Tailwind CSS**](https://github.com/tailwindlabs/tailwindcss) — design system.
+- [**Recharts**](https://github.com/recharts/recharts) — the equity-curve & confidence-gauge charts.
+- [**SWR**](https://github.com/vercel/swr) — data fetching for non-streaming endpoints.
+
+**Tooling**
+- [**uv**](https://github.com/astral-sh/uv) — Python package manager (10-100× faster than pip).
+- [**Ruff**](https://github.com/astral-sh/ruff) — lint + format.
+- [**pytest**](https://github.com/pytest-dev/pytest) + [**vcrpy**](https://github.com/kevin1024/vcrpy) — test runner + cassette-based HTTP record/replay.
+- [**vitest**](https://github.com/vitest-dev/vitest) + [**Playwright**](https://github.com/microsoft/playwright) — frontend unit + E2E tests.
+- [**Docker**](https://www.docker.com/) / [**OrbStack**](https://orbstack.dev/) — local stack runtime.
+
+**Crypto data sources** — read-only, free or freemium:
+[CoinGecko](https://www.coingecko.com/), [Alternative.me Fear & Greed](https://alternative.me/crypto/fear-and-greed-index/), [Whale Alert](https://whale-alert.io/), [Coinglass](https://www.coinglass.com/), [LunarCrush](https://lunarcrush.com/), [Etherscan](https://etherscan.io/), [Gate MCP News](https://api.gatemcp.ai/mcp/news).
+
+If we missed your project, please [open an issue][issues] and we'll add
+you in.
