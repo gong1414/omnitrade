@@ -160,7 +160,7 @@ def wrap_with_agent_os(
     Args:
         app: The base FastAPI app from ``create_app(settings)``.
         settings: The active Settings instance.
-        holder: A :class:`MonitorHolder` whose ``monitor`` is populated
+        holder: A :class:`MonitorHolder` whose monitor reference is populated
             by the FastAPI lifespan once the ``ApiContainer`` exists.
             The trading workflow's step callables read from this on
             every run.
@@ -190,7 +190,7 @@ def wrap_with_agent_os(
 
     status_agent = _build_status_agent(settings)
     workflow = build_agno_trading_workflow(
-        lambda: holder.monitor,
+        holder.get_monitor,
         settings,
         db=db,
     )

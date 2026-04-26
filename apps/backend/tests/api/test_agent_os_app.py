@@ -19,9 +19,12 @@ import asyncio
 from typing import Any
 
 import pytest
+from fastapi import FastAPI
+from pydantic import SecretStr
 
-from omnitrade.api.agent_os_app import MonitorHolder
+from omnitrade.api.agent_os_app import MonitorHolder, wrap_with_agent_os
 from omnitrade.application.trading_workflow import build_agno_trading_workflow
+from omnitrade.config import Settings
 
 
 class _FakeMonitor:
@@ -67,8 +70,9 @@ async def test_monitor_holder_aget_waits_for_bind() -> None:
         await asyncio.sleep(delay)
         holder.set_monitor(monitor)  # type: ignore[arg-type]
 
-    asyncio.create_task(_bind_after(0.05))
+    bind_task = asyncio.create_task(_bind_after(0.05))
     bound = await holder.aget_monitor(timeout=1.0)
+    await bind_task
     assert bound is monitor
 
 
@@ -110,3 +114,55 @@ async def test_workflow_tick_propagates_failure_when_monitor_missing() -> None:
     assert any(
         "monitor not initialized" in (sr.error or "") for sr in step_results
     ), "step error message must point at the unbound-monitor cause"
+
+
+def test_workflow_id_matches_agentos_schedule_endpoint() -> None:
+    class _StubSettings:
+        pass
+
+    workflow = build_agno_trading_workflow(
+        lambda: _FakeMonitor("bound"),  # type: ignore[return-value]
+        _StubSettings(),  # type: ignore[arg-type]
+        db=None,
+    )
+
+    assert workflow.id == "trading-cycle"
+
+
+def test_wrap_with_agent_os_uses_holder_get_monitor(monkeypatch: pytest.MonkeyPatch) -> None:
+    app = FastAPI()
+    holder = MonitorHolder()
+    monitor = _FakeMonitor("bound")
+    holder.set_monitor(monitor)  # type: ignore[arg-type]
+
+    captured: dict[str, Any] = {}
+
+    def _fake_build_workflow(accessor: Any, settings: Settings, *, db: Any = None) -> object:
+        captured["accessor"] = accessor
+        captured["db"] = db
+        return object()
+
+    class _FakeAgentOS:
+        def __init__(self, **kwargs: Any) -> None:
+            captured["agent_os_kwargs"] = kwargs
+
+        def get_app(self) -> FastAPI:
+            return app
+
+    monkeypatch.setattr(
+        "omnitrade.application.trading_workflow.build_agno_trading_workflow",
+        _fake_build_workflow,
+    )
+    monkeypatch.setattr("agno.os.AgentOS", _FakeAgentOS)
+    monkeypatch.setattr(
+        "omnitrade.api.agent_os_app._build_status_agent",
+        lambda settings: object(),
+    )
+
+    wrap_with_agent_os(
+        app,
+        Settings(llm_api_key=SecretStr("test-key")),
+        holder,
+    )
+
+    assert captured["accessor"]() is monitor

@@ -34,7 +34,7 @@ correlation ids — the visibility loss is cosmetic.
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, cast
 
 import structlog
@@ -103,6 +103,7 @@ def build_agno_trading_workflow(
     tick_step = Step(name="tick", executor=_tick_executor)
 
     workflow = Workflow(
+        id="trading-cycle",
         name="trading-cycle",
         description=(
             "OmniTrade trading cycle (observe → news → think → risk → "

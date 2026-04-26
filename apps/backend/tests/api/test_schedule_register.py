@@ -12,9 +12,12 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from fastapi import FastAPI
+from pydantic import SecretStr
 
+from omnitrade.api.agent_os_app import MonitorHolder
 from omnitrade.config import Settings
-from omnitrade.main import _cron_for_interval, _register_agentos_trading_schedule
+from omnitrade.main import _cron_for_interval, _register_agentos_trading_schedule, lifespan
 
 
 @pytest.mark.parametrize(
@@ -125,3 +128,61 @@ async def test_register_schedule_closes_owned_db() -> None:
         await _register_agentos_trading_schedule(settings, shared_db=None)
 
     own_db.close.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_lifespan_builds_agentos_monitor_before_schedule_register(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AgentOS-driven cycles must have a bound monitor before cron registration."""
+    import omnitrade.config as cfg
+    import omnitrade.main as main_mod
+
+    app = FastAPI()
+    app.state.api_container = object()
+    holder = MonitorHolder()
+    app.state.agent_os_monitor_holder = holder
+
+    settings = Settings(
+        llm_api_key=SecretStr("test-key"),
+        agno_postgres_url="postgresql+psycopg://x:x@x:5432/x",
+        agno_scheduler_drives_cycle=True,
+        scheduler_enabled=False,
+    )
+    monkeypatch.setattr(cfg, "_settings", settings)
+
+    events: list[str] = []
+    fake_monitor = object()
+
+    def _fake_ensure_trading_monitor(
+        app_arg: FastAPI,
+        settings_arg: Settings,
+        container_arg: object,
+        *,
+        driver: str,
+    ) -> object:
+        assert app_arg is app
+        assert settings_arg is settings
+        assert container_arg is app.state.api_container
+        assert driver == "agentos"
+        events.append("build")
+        app_arg.state.trading_monitor = fake_monitor
+        return fake_monitor
+
+    async def _fake_register_schedule(
+        settings_arg: Settings,
+        *,
+        shared_db: Any | None = None,
+    ) -> None:
+        assert settings_arg is settings
+        assert shared_db is None
+        assert holder.get_monitor() is fake_monitor
+        events.append("register")
+
+    monkeypatch.setattr(main_mod, "_ensure_trading_monitor", _fake_ensure_trading_monitor)
+    monkeypatch.setattr(main_mod, "_register_agentos_trading_schedule", _fake_register_schedule)
+
+    async with lifespan(app):
+        pass
+
+    assert events == ["build", "register"]
