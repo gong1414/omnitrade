@@ -56,7 +56,14 @@ jobs:
       - name: pytest with coverage ≥ 80%
         env:
           PYTHONDONTWRITEBYTECODE: "1"
+          # In-memory SQLite for the whole test run. Some tests build a
+          # full FastAPI app via `create_app()` which runs the prod
+          # DB-init path before per-test fixtures override the session
+          # factory; an in-memory URL keeps that init from failing on
+          # the missing `apps/backend/data/` directory in CI.
+          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
         run: |
+          mkdir -p data
           uv run pytest tests/ -q \
             -m "not manual_qa" \
             --cov=src/omnitrade \
