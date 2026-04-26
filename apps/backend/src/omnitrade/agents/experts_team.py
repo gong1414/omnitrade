@@ -74,6 +74,19 @@ When you produce a final answer, structure it as:
 
 Do NOT call any tools yourself; route to members. Do NOT make up data."""
 
+_TEAM_RETRIES: int = 2
+"""Per-run Agno-native retries on transient LLM failures inside the
+advisory Team. The outer ``_TEAM_RUN_TIMEOUT_SECONDS`` cap in
+``trading_agent.py`` still bounds wall-clock; this just gives the
+coordinator a graceful retry path on a transient panel-member error
+instead of soft-degrading the whole advisory."""
+
+_MEMBER_RETRIES: int = 2
+"""Per-call retries on each panel member Agent. The coordinator may
+already retry the call to a member, but this catches in-member
+transients (e.g. parser hiccups) before the coordinator sees them as
+member-level failures."""
+
 
 def _strip_provider_prefix(model_id: str) -> str:
     return model_id.split("/", 1)[1] if "/" in model_id else model_id
@@ -111,6 +124,8 @@ def _build_member(
         tools=extra_tools or [],
         markdown=False,
         telemetry=False,
+        retries=_MEMBER_RETRIES,
+        exponential_backoff=True,
     )
 
 
@@ -213,6 +228,7 @@ def build_agno_team(
         max_iterations=6,
         markdown=False,
         telemetry=False,
+        retries=_TEAM_RETRIES,
     )
     logger.info(
         "experts_team.built",

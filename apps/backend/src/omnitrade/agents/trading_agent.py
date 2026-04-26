@@ -110,6 +110,12 @@ _TEAM_RUN_TIMEOUT_SECONDS: float = 60.0
 4-5 LLM calls; this keeps a slow upstream from blocking the main Agent
 beyond the per-cycle budget. On timeout we soft-degrade to no advisory."""
 
+_AGENT_RETRIES: int = 2
+"""Per-cycle Agno-native retries on transient LLM failures (HTTP 5xx,
+parser hiccups). With ``exponential_backoff=True`` each retry doubles
+its wait. The outer ``_TEAM_RUN_TIMEOUT_SECONDS`` and the cycle's own
+``asyncio.Lock`` still bound the worst-case wall-clock budget."""
+
 
 def _build_session_db(settings: Settings) -> Any:
     """Construct the optional Agno session DB from `agno_postgres_url`.
@@ -292,6 +298,12 @@ def build_agno_think_fn(
             "instructions": system_prompt,
             "tools": tools_for_agent,
             "telemetry": False,
+            # Agno-native retry on transient LLM failures. The outer
+            # _TEAM_RUN_TIMEOUT_SECONDS budget still applies, so a
+            # flapping upstream cannot pile up retries past the cycle
+            # cap.
+            "retries": _AGENT_RETRIES,
+            "exponential_backoff": True,
         }
         if session_db is not None:
             # Persist this cycle as a run inside the shared trading session
@@ -301,6 +313,13 @@ def build_agno_think_fn(
             agent_kwargs["session_id"] = _TRADING_SESSION_ID
             agent_kwargs["add_history_to_context"] = True
             agent_kwargs["num_history_runs"] = _NUM_HISTORY_RUNS
+            # T2: ask Agno to write per-session rolling summaries to the
+            # `ai.agno_sessions.summary` column. The summary is fed back
+            # into the LLM context on subsequent runs in the same
+            # session, which gives the trading agent a longer effective
+            # memory than ``num_history_runs`` alone (5 cycles raw + a
+            # narrative summary stretching further back).
+            agent_kwargs["enable_session_summaries"] = True
 
         agent = Agent(**agent_kwargs)
 

@@ -310,3 +310,88 @@ def test_think_fn_exposes_mcp_bridge_attribute(
     bridge = getattr(think, "mcp_bridge", None)
     assert bridge is not None
     assert isinstance(bridge, ta_mod.AgnoMCPBridge)
+
+
+# ---------------------------------------------------------------------------
+# T1 + T2 — Agno-native retries + session summaries kwargs
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_agent_built_with_native_retries(
+    stub_agno: type[_StubAgent],
+) -> None:
+    """Each cycle constructs the Agent with retries=2 + exponential backoff.
+
+    Replaces the prior ``asyncio.wait_for`` + try/except retry pattern
+    around the LLM call. The outer ``_TEAM_RUN_TIMEOUT_SECONDS`` cap
+    still applies; this is purely the per-call retry policy on transient
+    upstream failures.
+    """
+    settings = _make_settings(
+        multi_agent_enabled=False,
+        strategy=StrategyName.AI_AUTONOMOUS,
+    )
+    think = ta_mod.build_agno_think_fn(
+        container=None,
+        settings=settings,
+        render_messages=_render_messages_stub,
+        strategy=StrategyName.AI_AUTONOMOUS,
+        market_block_builder=_mb,
+        recent_trades_block_builder=_rt,
+    )
+    await think(_make_market(), [])
+
+    assert stub_agno.last_kwargs.get("retries") == ta_mod._AGENT_RETRIES
+    assert stub_agno.last_kwargs.get("exponential_backoff") is True
+
+
+@pytest.mark.asyncio
+async def test_session_summaries_enabled_only_when_session_db_wired(
+    stub_agno: type[_StubAgent],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``enable_session_summaries`` rides on the same gate as session db.
+
+    Without ``agno_postgres_url`` Agno has nowhere to persist a summary,
+    so the kwarg stays absent — sending it would raise on the agent's
+    first ``arun`` (the summariser writes through ``Agent.db``).
+    """
+    # 1. No postgres → no session_db → no session summaries.
+    settings = _make_settings(
+        multi_agent_enabled=False,
+        strategy=StrategyName.AI_AUTONOMOUS,
+    )
+    think = ta_mod.build_agno_think_fn(
+        container=None,
+        settings=settings,
+        render_messages=_render_messages_stub,
+        strategy=StrategyName.AI_AUTONOMOUS,
+        market_block_builder=_mb,
+        recent_trades_block_builder=_rt,
+    )
+    await think(_make_market(), [])
+    assert "enable_session_summaries" not in stub_agno.last_kwargs
+
+    # 2. With a (mocked) session_db, enable_session_summaries=True is set.
+    sentinel_db = object()
+    monkeypatch.setattr(ta_mod, "_build_session_db", lambda _s: sentinel_db)
+
+    settings2 = Settings(
+        llm_api_key=SecretStr("test-key"),
+        trading_strategy=StrategyName.AI_AUTONOMOUS.value,
+        multi_agent_enabled=False,
+        agno_postgres_url="postgresql://stub/stub",
+    )
+    think2 = ta_mod.build_agno_think_fn(
+        container=None,
+        settings=settings2,
+        render_messages=_render_messages_stub,
+        strategy=StrategyName.AI_AUTONOMOUS,
+        market_block_builder=_mb,
+        recent_trades_block_builder=_rt,
+    )
+    await think2(_make_market(), [])
+    assert stub_agno.last_kwargs.get("db") is sentinel_db
+    assert stub_agno.last_kwargs.get("enable_session_summaries") is True
+    assert stub_agno.last_kwargs.get("add_history_to_context") is True
