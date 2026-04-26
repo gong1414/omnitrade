@@ -1,26 +1,23 @@
-"""AgnoLLMAdapter — implements `LLMClient` via Agno's DeepSeek model.
+"""AgnoLLMAdapter — implements the auxiliary ``LLMClient`` surface via Agno.
 
-Phase 1 of the Agno migration (`.omc/specs/deep-interview-agno-migration.md`,
-plan: `~/.claude/plans/mossy-frolicking-hickey.md`).
+The main trading agent does **not** use this adapter — it instantiates
+``agno.agent.Agent`` directly in :mod:`omnitrade.agents.trading_agent`.
+This adapter exists for the auxiliary
+:class:`~omnitrade.application.monitors.invalidation_monitor.InvalidationMonitor`
+which still consumes the dict-shaped ``LLMClient.complete`` surface
+inherited from the legacy code path.
 
-Why this shape:
-  - We adopt Agno's `agno.models.deepseek.DeepSeek` for **config / auth /
-    base_url ownership** — the same model class Phase 2's Agno Agent will
-    use, so by Phase 1 the model spec is already on Agno's side.
-  - We then call the underlying `openai.AsyncOpenAI` client (which Agno
-    builds for us via `get_async_client()`) directly. This returns an
-    OpenAI-shaped `ChatCompletion`, which `model_dump()`s into the same
-    dict layout `LiteLLMClient.complete` produces — so the `think_node`
-    parser, `_parse_decision_from_tool_call()`, and every cassette test
-    keeps working unchanged.
-  - Per spec exception **E2** the default model id is `deepseek-reasoner`
-    (Agno docs explicitly flag `deepseek-chat` tool calling as unstable;
-    the trading loop is 100% tool-driven).
-
-Rollback path:
-  Settings field `agno_llm_enabled=False` (default) routes back to
-  `LiteLLMClient`. The factory at `infrastructure/llm/factory.py` is the
-  single decision seam.
+Implementation:
+  - Wraps ``agno.models.deepseek.DeepSeek`` for config / auth / base-url
+    ownership (the same model class the trading Agent uses).
+  - Delegates to the underlying ``openai.AsyncOpenAI`` client (built for
+    us via ``DeepSeek.get_async_client()``) so the response is an
+    OpenAI-shaped ``ChatCompletion``. ``model_dump()`` then yields the
+    dict layout ``InvalidationMonitor`` expects
+    (``choices[0].message.tool_calls`` / ``choices[0].message.content``).
+  - The default model id is ``deepseek-reasoner`` — Agno docs flag
+    ``deepseek-chat`` tool calling as unstable, and the trading loop is
+    100% tool-driven.
 """
 
 from __future__ import annotations
@@ -75,12 +72,12 @@ class AgnoLLMAdapter:
         tools: list[dict[str, Any]] | None = None,
         tool_choice: Literal["auto", "required", "none"] | None = None,
     ) -> dict[str, Any]:
-        """Same surface as `LiteLLMClient.complete`.
+        """OpenAI-shaped chat completion for ``LLMClient`` consumers.
 
-        Returns an OpenAI-shaped dict (via ChatCompletion.model_dump()) so
-        downstream parsers — including `think_node._parse_decision_from_tool_call`
-        — see exactly the keys they already expect (`choices[0].message.tool_calls`,
-        `choices[0].message.content`, etc.).
+        Returns an OpenAI-shaped dict (via ``ChatCompletion.model_dump()``) so
+        :class:`InvalidationMonitor` and other ``LLMClient`` consumers see
+        exactly the keys they expect (``choices[0].message.tool_calls``,
+        ``choices[0].message.content``, etc.).
         """
         effective_model = _strip_provider_prefix(model) if model else self._model_id
         with_context(logger).info(

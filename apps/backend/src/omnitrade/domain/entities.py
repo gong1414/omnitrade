@@ -218,11 +218,13 @@ class TradeOutcome(BaseModel):
 
 
 class Decision(BaseModel):
-    """Agent decision output — produced by the LangGraph ``think`` node.
+    """Agent decision output — produced by the Agno trading agent.
 
     This is the *DSL* the agent emits; it is distinct from ``AgentDecision``
     (a persisted audit-log row). A ``Decision`` is the structured instruction
-    for the outer loop's ``execute_trades`` step.
+    for the outer loop's ``execute_trades`` step. The Agno Agent's
+    ``DecisionRecorder`` tools (``agents/tools/decision_schemas.py``)
+    construct it from the LLM's tool-call payload.
 
     The JSON contract is documented in ``agents/prompts/think.py`` alongside
     the user-message template that instructs the LLM to emit this shape.

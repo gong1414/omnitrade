@@ -29,9 +29,7 @@ async def get_strategy(
         "max_holding_hours": settings.max_holding_hours,
         "extreme_stop_loss_percent": settings.extreme_stop_loss_percent,
         "initial_balance_usdt": settings.initial_balance_usdt,
-        # ``multi_agent_enabled`` is planned for Phase 8.5a; expose False
-        # today so the frontend can switch on it without a schema change.
-        "multi_agent_enabled": False,
+        "multi_agent_enabled": settings.multi_agent_enabled,
     }
 
 

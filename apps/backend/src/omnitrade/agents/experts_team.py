@@ -1,8 +1,8 @@
-"""Agno Team factory for multi-agent strategies (Phase 3 Agno migration).
+"""Agno Team factory for multi-agent strategies.
 
-Replaces the LangChain `StructuredTool` rosters in `application/multi_agent/`
-with an Agno `Team` whose members are individual `Agent` objects, each
-loaded with the corresponding system prompt from `agents/prompts/multi_agent/`.
+Returns an Agno ``Team`` whose members are individual ``Agent`` objects,
+each loaded with the corresponding system prompt from
+``agents/prompts/multi_agent/``.
 
 Two strategies use a Team today:
 
@@ -11,15 +11,19 @@ Two strategies use a Team today:
   * **MULTI_AGENT_CONSENSUS** (`arena-tribunal`) — 3 jurors:
       `technical_analyst`, `trend_analyst`, `risk_assessor`.
 
-The TeamMode is `coordinate` — the team leader orchestrates iterative
-calls into members and synthesizes the final response. Each sub-agent
+The TeamMode is ``coordinate`` — the team leader orchestrates iterative
+calls into members and synthesises the final response. Each sub-agent
 shares the same Agno DeepSeek model instance (configured per Settings)
 and a small set of MCP info tools so jurors / experts can fetch their
 own market context if needed.
 
-Flag: `settings.agno_workflow_enabled` (Phase 3) gates whether
-`composition.py` instantiates this Team. The legacy `multi_agent/` path
-remains untouched for rollback.
+The Team is **advisory only**: it is invoked by
+:func:`omnitrade.agents.trading_agent.build_agno_think_fn` whenever
+``settings.multi_agent_enabled`` is true and the active strategy is one
+of the two supported rosters. The Team's verdict is injected as context
+into the main Agno Agent's user prompt; the Agent remains the sole
+producer of the cycle's ``Decision`` via the ``DecisionRecorder`` tool
+calls. Team failures soft-degrade — the Agent runs without advisory.
 """
 
 from __future__ import annotations

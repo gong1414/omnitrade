@@ -17,8 +17,8 @@ flowchart TD
     api[api<br/>FastAPI router / 中间件 / DI 容器]
     app[application<br/>services / 用例 / orchestrator]
     dom[(domain<br/>value objects / entities / protocols / 纯服务)]
-    infra[infrastructure<br/>SQLAlchemy / ccxt / LiteLLM / sqlite-vec / APScheduler]
-    agents[agents<br/>LangGraph think_node / jury / team experts]
+    infra[infrastructure<br/>SQLAlchemy / ccxt / Agno DeepSeek / sqlite-vec / APScheduler + AgentOS scheduler]
+    agents[agents<br/>Agno trading_agent / experts_team]
 
     api --> app
     app --> dom
@@ -35,10 +35,10 @@ flowchart TD
 | 层 | 可以 import | 禁止 import |
 |---|---|---|
 | `domain/` | Python 标准库、`pydantic`、`typing` | `infrastructure/`、`api/`、`application/` 下任何内容 |
-| `infrastructure/` | `domain/`、外部库（`sqlalchemy`、`ccxt`、`litellm`、`httpx`） | `application/`、`api/` |
+| `infrastructure/` | `domain/`、外部库（`sqlalchemy`、`ccxt`、`agno`、`httpx`） | `application/`、`api/` |
 | `application/` | `domain/`、`agents/`、通过 protocol 调 `infrastructure/` | `api/` |
 | `api/` | `application/`、`domain/` DTO | 直接调 `infrastructure/` |
-| `agents/` | `domain/`、`application/` DTO、**`langgraph`（仅限 `think_node.py`）** | 直接调 `infrastructure/` |
+| `agents/` | `domain/`、`application/` DTO、**`agno`（Agent / Team / 模型类）** | 直接调 `infrastructure/` |
 
 ### 监控器豁免（ADR）
 
@@ -123,17 +123,21 @@ sequenceDiagram
 
 ---
 
-## 4. LangGraph 作用域约束（R9）
+## 4. LLM 框架作用域约束
 
-> **只有** `apps/backend/src/omnitrade/agents/think_node.py` 允许 `import langgraph`。
+> **只有** `apps/backend/src/omnitrade/agents/` 允许 `import agno`。
 
-`think_node.py` 是 LLM 推理节点。其他所有 `agents/` 模块（`jury/`、`team/`、`orchestration.py`）都是 framework-free 的 Python，通过普通 Pydantic DTO 通信。这么做保证：
+`agents/trading_agent.py` 是生产 think 路径（Agno Agent + DeepSeek +
+MultiMCPTools）。`agents/experts_team.py` 暴露 `arena-raider-squad` /
+`arena-tribunal` 用的咨询 Agno Team。其他模块（`application/`、
+`infrastructure/`、`domain/`）都是 framework-free 的 Python，通过普
+通 Pydantic DTO 通信。这么做保证：
 
-- Domain 层不会被 graph 框架污染。
-- 策略子智能体（jury + team）可移植到其他 runtime（LiteLLM 原生、OpenAI Assistants 等）。
-- 行为等价测试不需要启动 langgraph。
-
-CI 通过 `scripts/check_langgraph_scope.py` 在 mypy 阶段强制检查。
+- Domain 层不会被 LLM 框架污染。
+- Trading loop 单测不需要启动 Agno 或 DeepSeek。
+- 辅助模块 `infrastructure/llm/agno_llm_adapter.py` 仅暴露
+  OpenAI 风格的 `LLMClient` dict 接口，供 `InvalidationMonitor` 等
+  消费方继续沿用。
 
 ---
 

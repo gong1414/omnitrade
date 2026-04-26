@@ -87,10 +87,15 @@ High-leverage single-agent mode.
 
 ## 4. `arena-raider-squad` — 激进团
 
-Multi-agent arena-raider mode. Uses 4 sub-agents registered as
-``StructuredTool`` in the think-node ``ToolRegistry`` (Phase 8.5a):
+Multi-agent arena-raider mode. Wired through the advisory Agno
+``Team`` built by ``agents/experts_team.build_agno_team`` (gated by
+``MULTI_AGENT_ENABLED=true``). 4 sub-agents:
 
 - **trendExpert**, **predictionExpert**, **moneyFlowExpert**, **riskControlExpert**
+
+The Team's verdict is injected into the main Agno Agent's prompt as
+advisory context — the Agent still produces the final ``Decision`` via
+its DecisionRecorder tool calls.
 
 | Param | Value |
 |---|---|
@@ -190,9 +195,11 @@ Fully autonomous mode — AI gets maximal latitude with code-level protection as
 
 ## 10. `arena-tribunal` — 陪审团
 
-3-expert jury registered as ``StructuredTool`` in the think-node
-``ToolRegistry`` (Phase 8.5a): **technicalAnalyst**, **trendAnalyst**,
-**riskAssessor**.
+3-expert jury wired through the advisory Agno ``Team`` built by
+``agents/experts_team.build_agno_team`` (gated by
+``MULTI_AGENT_ENABLED=true``): **technicalAnalyst**, **trendAnalyst**,
+**riskAssessor**. The Team's verdict is injected as advisory context;
+the main Agno Agent still owns the final ``Decision``.
 
 | Param | Value |
 |---|---|

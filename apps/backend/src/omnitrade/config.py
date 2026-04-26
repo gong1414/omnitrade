@@ -265,18 +265,17 @@ class Settings(BaseSettings):
     """
 
     # ------------------------------------------------------------------ #
-    # PHASE 8.5b — Strict tool_choice                                      #
+    # Strict tool-call requirement                                        #
     # ------------------------------------------------------------------ #
     strict_tool_calls: bool = True
-    """Reject LLM responses without ``tool_calls`` (Phase 8.5b, plan v3).
+    """Historical flag retained for env-file compatibility.
 
-    When True (default), ``agents/think_node._decision_from_llm_response``
-    raises :class:`~omnitrade.agents.think_node.ToolCallRequiredError`
-    whenever an upstream LLM reply is missing ``choices[0].message.tool_calls``.
-    The minimal-prompt branch (``arena-autopilot`` / ``arena-dual-signal``) already
-    forces ``tool_choice="required"``; this flag is the 1-release rollback
-    seam (set ``STRICT_TOOL_CALLS=false`` to re-enable a legacy fallback if
-    a provider regresses).
+    The Agno path enforces tool calls structurally: when the LLM declines
+    to invoke any DecisionRecorder tool, ``trading_agent.build_agno_think_fn``
+    falls through to a defensive ``Decision(action="hold", ...)`` so the
+    cycle still records a row. This setting is currently unread; deleting
+    it would break ``.env`` files that still set ``STRICT_TOOL_CALLS=`` so
+    we leave it parked here.
     """
 
     # ------------------------------------------------------------------ #

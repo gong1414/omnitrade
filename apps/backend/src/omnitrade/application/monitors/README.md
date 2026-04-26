@@ -23,9 +23,9 @@ Rules the monitors still honour:
    `grep -l 'partial_profit\|cumulative_close_pct' apps/backend/src/omnitrade/application/monitors/trailing_stop_monitor.py` → empty.
 4. **Clock injection.** Every monitor takes a `ClockProtocol` so tests are
    deterministic under `freezegun` or hand-rolled stub clocks.
-5. **LangGraph scope.** Monitors must not import from `langgraph`; only
-   `agents/think_node.py` may. This keeps the orchestrator free of
-   framework bleed.
+5. **LLM-framework scope.** Monitors must not import Agno or any other
+   LLM framework; only `agents/trading_agent.py` may. This keeps the
+   orchestrator free of framework bleed.
 
 Each monitor exposes two public surfaces:
 

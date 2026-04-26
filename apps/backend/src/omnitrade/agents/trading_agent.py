@@ -1,4 +1,4 @@
-"""Agno Agent-based think function — the only think path after Stage A.
+"""Agno Agent-based think function — the production think path.
 
 Returns a `(MarketSnapshot, list[NewsItem]) -> Decision` callable that
 `composition._build_base_think_fn` wires into the trading loop.
@@ -11,14 +11,25 @@ Architecture:
       └─ run          = agent.arun(user_prompt) → DecisionRecorder.decision
 
 The DecisionRecorder pattern lets the LLM "vote" via tool call without
-side-effecting the exchange. Real trade execution stays in step 5 of the
-trading loop. This keeps Phase 2 additive — same Decision shape, same
-output contract, no behavior change to downstream RiskService / executor.
+side-effecting the exchange. Real trade execution stays in the
+post-think pipeline (risk_check → execute → reflect). The Decision shape
+is the contract — downstream RiskService / executor never see a tool call.
+
+Optional Team advisory:
+    When ``settings.multi_agent_enabled`` is true AND the active strategy
+    is one of ``AGGRESSIVE_TEAM`` (raider squad) / ``MULTI_AGENT_CONSENSUS``
+    (tribunal), an Agno ``Team`` runs first and produces a directional
+    verdict. The verdict is injected into the main Agent's user prompt as
+    advisory context — it does NOT replace the Decision. The single Agno
+    Agent remains the only producer of the final ``Decision``. Team
+    failures soft-degrade: a warning is logged and the Agent runs without
+    advisory rather than failing the cycle.
 
 Lifecycle:
     The MCP bridge is created once per think-fn factory call and held in
-    closure. It's connected lazily on first cycle and stays open for the
-    process lifetime. The OS cleans up subprocesses on shutdown.
+    closure. ``mcp_bridge`` is exposed as an attribute on the returned
+    callable so the FastAPI lifespan can call ``await fn.mcp_bridge.close()``
+    on shutdown rather than relying on process exit to reap subprocesses.
 """
 
 from __future__ import annotations
@@ -41,6 +52,7 @@ from omnitrade.agents.tools.decision_schemas import (
 )
 from omnitrade.agents.tools.mcp_bridge import AgnoMCPBridge
 from omnitrade.domain.entities import Decision, MarketSnapshot, NewsItem
+from omnitrade.domain.enums import StrategyName
 from omnitrade.observability.trace_context import with_context
 
 logger = structlog.get_logger(__name__)
@@ -86,6 +98,18 @@ each new run's context. Five cycles ≈ 100 minutes at the default 20-min
 cadence — long enough to catch a regime shift, short enough to keep the
 prompt budget bounded."""
 
+_TEAM_ELIGIBLE_STRATEGIES: frozenset[StrategyName] = frozenset(
+    {StrategyName.AGGRESSIVE_TEAM, StrategyName.MULTI_AGENT_CONSENSUS}
+)
+"""Only these two strategies have prompt rosters wired in
+`agents/prompts/multi_agent/`. Other strategies fall through even when
+`MULTI_AGENT_ENABLED=true`."""
+
+_TEAM_RUN_TIMEOUT_SECONDS: float = 60.0
+"""Hard cap on the advisory Team call. Coordinator + members can issue
+4-5 LLM calls; this keeps a slow upstream from blocking the main Agent
+beyond the per-cycle budget. On timeout we soft-degrade to no advisory."""
+
 
 def _build_session_db(settings: Settings) -> Any:
     """Construct the optional Agno session DB from `agno_postgres_url`.
@@ -106,7 +130,7 @@ def build_agno_think_fn(
     settings: Settings,
     *,
     render_messages: Callable[..., list[dict[str, str]]],
-    strategy: Any,
+    strategy: StrategyName,
     market_block_builder: Callable[[Any, MarketSnapshot], Awaitable[str]],
     recent_trades_block_builder: Callable[[Any], Awaitable[str]],
 ) -> ThinkFn:
@@ -116,6 +140,10 @@ def build_agno_think_fn(
     callables (render_messages, market_block_builder, recent_trades_block_builder)
     + the resolved StrategyName. This makes the function easy to unit-test
     with stub renderers.
+
+    The returned callable exposes ``mcp_bridge`` as an attribute so the
+    FastAPI lifespan can shut down the spawned MCP subprocesses cleanly
+    on application teardown.
     """
     bridge = AgnoMCPBridge()
     bridge_lock = asyncio.Lock()
@@ -123,12 +151,86 @@ def build_agno_think_fn(
     # session table sees one logical trading session, not one per tick.
     session_db = _build_session_db(settings)
 
+    # Team advisory state — only populated when MULTI_AGENT_ENABLED + the
+    # strategy is one of the two team-eligible rosters. Lazy-built on
+    # first cycle (and cached in closure) so a misconfigured team never
+    # crashes startup; subsequent failures fall through to the warn path
+    # in the per-cycle handler below.
+    team_advisory_enabled = (
+        settings.multi_agent_enabled and strategy in _TEAM_ELIGIBLE_STRATEGIES
+    )
+    team_holder: dict[str, Any] = {"team": None, "build_failed": False}
+
     async def _ensure_mcp_connected() -> None:
         if bridge._toolset is not None:
             return
         async with bridge_lock:
             if bridge._toolset is None:
                 await bridge.connect()
+
+    def _build_team_once() -> Any:
+        """Lazy-build the Team on first cycle, cache in closure.
+
+        Returns ``None`` and flips ``build_failed`` on construction error
+        so we don't repeatedly retry a busted import / config.
+        """
+        if team_holder["team"] is not None or team_holder["build_failed"]:
+            return team_holder["team"]
+        try:
+            from omnitrade.agents.experts_team import build_agno_team
+
+            extra_tools: list[Any] = []
+            if bridge._toolset is not None:
+                extra_tools.append(bridge._toolset)
+            team = build_agno_team(strategy, settings, extra_tools=extra_tools)
+            team_holder["team"] = team
+            with_context(logger).info(
+                "trading_agent.team_advisory.built",
+                strategy=str(strategy),
+            )
+        except Exception as exc:
+            team_holder["build_failed"] = True
+            with_context(logger).warning(
+                "trading_agent.team_advisory.build_failed",
+                strategy=str(strategy),
+                error=str(exc),
+            )
+        return team_holder["team"]
+
+    async def _team_advisory_text(user_prompt: str) -> str | None:
+        """Run the advisory Team and return its verdict text, or None.
+
+        Soft-degrade contract: any failure (build / timeout / runtime)
+        returns ``None`` so the main Agent still produces the cycle's
+        Decision. The team output is **advisory only** — it does not
+        replace or short-circuit the Decision contract.
+        """
+        team = _build_team_once()
+        if team is None:
+            return None
+        try:
+            run = await asyncio.wait_for(
+                team.arun(user_prompt),
+                timeout=_TEAM_RUN_TIMEOUT_SECONDS,
+            )
+        except TimeoutError:
+            with_context(logger).warning(
+                "trading_agent.team_advisory.timeout",
+                timeout_s=_TEAM_RUN_TIMEOUT_SECONDS,
+            )
+            return None
+        except Exception as exc:
+            with_context(logger).warning(
+                "trading_agent.team_advisory.run_failed",
+                error=str(exc),
+            )
+            return None
+
+        text = str(getattr(run, "content", "") or "").strip()
+        if not text:
+            with_context(logger).warning("trading_agent.team_advisory.empty_output")
+            return None
+        return text
 
     async def think_fn(market: MarketSnapshot, news: list[NewsItem]) -> Decision:
         positions = list(market.positions)
@@ -156,11 +258,26 @@ def build_agno_think_fn(
 
         try:
             await _ensure_mcp_connected()
-        except Exception as exc:  # noqa: BLE001 — degrade to no-MCP rather than fail
+        except Exception as exc:
             with_context(logger).warning(
                 "trading_agent.mcp_unavailable",
                 error=str(exc),
             )
+
+        # Optional Team advisory — runs BEFORE the main Agent so its verdict
+        # can appear in the Agent's user prompt as advisory context. The
+        # Team never produces a Decision: that contract belongs to the
+        # main Agent's DecisionRecorder tool calls. Soft-degrades on any
+        # team error so a flaky panel never breaks the cycle.
+        if team_advisory_enabled:
+            advisory = await _team_advisory_text(user_prompt)
+            if advisory:
+                user_prompt = (
+                    "[Team advisory — informational only; you remain the "
+                    "sole decision-maker and MUST still call exactly one "
+                    f"decision tool]\n{advisory}\n\n[Situation report]\n"
+                    + user_prompt
+                )
 
         # Tools: MCP toolkit (info tools) first, decision recorders last
         # so the LLM consumes context before deciding (mirrors PR-B2 ordering
@@ -197,7 +314,7 @@ def build_agno_think_fn(
 
         try:
             run_result = await agent.arun(user_prompt)
-        except Exception as exc:  # noqa: BLE001 — Phase 2 must not crash the cycle
+        except Exception as exc:
             with_context(logger).error(
                 "trading_agent.run_failed",
                 error=str(exc),
@@ -210,9 +327,7 @@ def build_agno_think_fn(
         if recorder.decision is not None:
             return recorder.decision
 
-        # No decision tool fired — fall through to a defensive hold.
-        # In legacy LangGraph this raises ToolCallRequiredError when
-        # tool_choice='required'; for Phase 2 we degrade gracefully so a
+        # No decision tool fired — fall through to a defensive hold so a
         # failed cycle still produces a row downstream observers can see.
         text = str(getattr(run_result, "content", "") or "")[:512]
         with_context(logger).warning(
@@ -224,6 +339,11 @@ def build_agno_think_fn(
             reasoning=text or "agno_agent: no decision tool fired (defaulting to hold)",
         )
 
+    # Surface the MCP bridge so the FastAPI lifespan can close subprocesses
+    # cleanly. ``ThinkFn`` is a plain callable; setting an attribute on a
+    # closure is safe and lets the trading-monitor wiring stay opaque to
+    # bridge mechanics.
+    think_fn.mcp_bridge = bridge  # type: ignore[attr-defined]
     return think_fn
 
 

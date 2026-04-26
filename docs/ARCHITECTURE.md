@@ -17,8 +17,8 @@ flowchart TD
     api[api<br/>FastAPI routers, middleware, DI container]
     app[application<br/>services, use-cases, orchestrators]
     dom[(domain<br/>value objects, entities, protocols, pure services)]
-    infra[infrastructure<br/>SQLAlchemy, ccxt, LiteLLM, sqlite-vec, APScheduler]
-    agents[agents<br/>LangGraph think_node, jury, team experts]
+    infra[infrastructure<br/>SQLAlchemy, ccxt, Agno DeepSeek, sqlite-vec, APScheduler + AgentOS scheduler]
+    agents[agents<br/>Agno trading_agent, advisory experts_team]
 
     api --> app
     app --> dom
@@ -35,10 +35,10 @@ flowchart TD
 | Layer | May import from | Must NOT import from |
 |---|---|---|
 | `domain/` | Python stdlib, `pydantic`, `typing` | anything in `infrastructure/`, `api/`, `application/` |
-| `infrastructure/` | `domain/`, external libs (`sqlalchemy`, `ccxt`, `litellm`, `httpx`) | `application/`, `api/` |
+| `infrastructure/` | `domain/`, external libs (`sqlalchemy`, `ccxt`, `agno`, `httpx`) | `application/`, `api/` |
 | `application/` | `domain/`, `agents/`, `infrastructure/` via protocols | `api/` |
 | `api/` | `application/`, `domain/` DTOs | `infrastructure/` direct |
-| `agents/` | `domain/`, `application/` DTOs, **langgraph (only in `think_node.py`)** | `infrastructure/` direct |
+| `agents/` | `domain/`, `application/` DTOs, **`agno` (Agent / Team / model classes)** | `infrastructure/` direct |
 
 ### Monitor Waiver (ADR)
 
@@ -123,17 +123,22 @@ The invariant is encoded in `domain/services/three_way_state.py::apply_three_way
 
 ---
 
-## 4. LangGraph scope constraint (R9)
+## 4. LLM-framework scope constraint
 
-> **Only** `apps/backend/src/omnitrade/agents/think_node.py` may import `langgraph`.
+> **Only** `apps/backend/src/omnitrade/agents/` may import `agno`.
 
-`think_node.py` is the LLM reasoning node. All other `agents/` modules (`jury/`, `team/`, `orchestration.py`) are framework-free Python and communicate via plain Pydantic DTOs. This keeps:
+`agents/trading_agent.py` is the production think path (Agno Agent +
+DeepSeek + MultiMCPTools). `agents/experts_team.py` exposes the
+advisory Agno Team for ``arena-raider-squad`` / ``arena-tribunal``.
+Everything else — `application/`, `infrastructure/`, `domain/` — is
+framework-free Python that communicates via plain Pydantic DTOs. This
+keeps:
 
-- The domain layer free of graph-framework leak.
-- Strategy sub-agents (jury + team) portable to other runtimes (LiteLLM native, OpenAI Assistants, etc.).
-- Parity testing possible without langgraph startup overhead.
-
-A mypy check (`scripts/check_langgraph_scope.py`) enforces this at CI time.
+- The domain layer free of LLM-framework leak.
+- The trading loop testable without spinning up Agno or DeepSeek.
+- The auxiliary `infrastructure/llm/agno_llm_adapter.py` confined to
+  the OpenAI-shaped ``LLMClient`` surface that `InvalidationMonitor`
+  still consumes.
 
 ---
 

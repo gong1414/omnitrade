@@ -16,5 +16,4 @@ async def test_strategy_snapshot_matches_settings(api_settings, api_client) -> N
     assert body["max_leverage"] == api_settings.max_leverage
     assert body["max_positions"] == api_settings.max_positions
     assert body["max_holding_hours"] == api_settings.max_holding_hours
-    # Phase 8.5a placeholder.
-    assert body["multi_agent_enabled"] is False
+    assert body["multi_agent_enabled"] == api_settings.multi_agent_enabled

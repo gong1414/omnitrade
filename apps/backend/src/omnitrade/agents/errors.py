@@ -1,8 +1,9 @@
-"""Agent-layer error types (PR-B1 Step 4).
+"""Agent-layer error types.
 
-Companion to ``omnitrade.application.multi_agent.errors`` (which owns the
-multi-agent orchestrator errors). This module owns parser/contract errors
-that live at the ``agents/think_node`` boundary.
+Owns parser/contract errors raised when an LLM tool-call payload fails
+the :class:`StructuredReason` schema. The Agno DecisionRecorder tools in
+:mod:`omnitrade.agents.tools.decision_schemas` raise these so the cycle
+fails loudly instead of silently dropping malformed reasoning.
 """
 
 from __future__ import annotations

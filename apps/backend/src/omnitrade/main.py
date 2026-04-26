@@ -8,8 +8,8 @@ manage the APScheduler lifecycle via the lifespan context.
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
-from decimal import Decimal
 from contextlib import asynccontextmanager
+from decimal import Decimal
 from typing import Any
 
 import structlog
@@ -64,21 +64,28 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     if post_container is not None and getattr(post_container, "log_buffer", None) is not None:
         _install_log_buffer_sidecar(post_container.log_buffer)
 
-    # Phase 8.7: APScheduler-driven trading cycle. Opt-in via
-    # ``SCHEDULER_ENABLED=true``; skipped entirely when no LLM key is
-    # configured so the API server stays usable in read-only / test modes.
+    # Phase 8.7 / 4.5: compose the trading monitor whenever a configured
+    # runtime will invoke it. APScheduler owns the legacy interval path;
+    # AgentOS can own just the trading-cycle schedule while leaving
+    # SCHEDULER_ENABLED=false.
     app.state.trading_monitor = None
     app.state.invalidation_monitor = None
     app.state.scheduler = None
-    if (
-        post_container is not None
-        and settings.scheduler_enabled
-        and settings.llm_api_key is not None
-    ):
-        try:
-            _start_trading_scheduler(app, settings, post_container)
-        except Exception as exc:  # startup wiring is best-effort
-            await logger.aerror("omnitrade.scheduler_start_failed", error=str(exc))
+    has_llm_credentials = _has_llm_credentials(settings)
+    if post_container is not None and has_llm_credentials:
+        if settings.scheduler_enabled:
+            try:
+                _start_trading_scheduler(app, settings, post_container)
+            except Exception as exc:  # startup wiring is best-effort
+                await logger.aerror("omnitrade.scheduler_start_failed", error=str(exc))
+        elif settings.agno_scheduler_drives_cycle:
+            try:
+                _ensure_trading_monitor(app, settings, post_container, driver="agentos")
+            except Exception as exc:  # startup wiring is best-effort
+                await logger.aerror(
+                    "omnitrade.agentos_trading_monitor_build_failed",
+                    error=str(exc),
+                )
 
     # Phase 4.5: bind the trading monitor to the AgentOS workflow holder
     # so the registered Workflow can resolve its step callables. Holder is
@@ -120,6 +127,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         settings.agno_postgres_url
         and settings.agno_scheduler_drives_cycle
         and post_container is not None
+        and holder is not None
+        and getattr(app.state, "trading_monitor", None) is not None
     ):
         try:
             await _register_agentos_trading_schedule(settings, shared_db=shared_db)
@@ -137,7 +146,54 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         except Exception as exc:  # pragma: no cover — best-effort teardown
             await logger.awarning("omnitrade.scheduler_shutdown_failed", error=str(exc))
 
+    # Reap MCP server subprocesses spawned by the Agno think-fn rather than
+    # leaving them to the OS to GC on process exit. The bridge is set on
+    # app.state by `_ensure_trading_monitor` when the production think_fn
+    # is wired; absent in tests / no-LLM-credentials runs.
+    bridge = getattr(app.state, "agno_mcp_bridge", None)
+    if bridge is not None:
+        try:
+            await bridge.close()
+        except Exception as exc:  # pragma: no cover — best-effort teardown
+            await logger.awarning(
+                "omnitrade.agno_mcp_bridge_close_failed", error=str(exc)
+            )
+
     await logger.ainfo("omnitrade.shutdown")
+
+
+def _has_llm_credentials(settings: Settings) -> bool:
+    """Return True when a trading LLM credential is configured."""
+    return settings.llm_api_key is not None or settings.deepseek_api_key is not None
+
+
+def _ensure_trading_monitor(
+    app: FastAPI,
+    settings: Settings,
+    container: ApiContainer,
+    *,
+    driver: str,
+) -> Any:
+    """Build and store the trading monitor if startup has not already done so."""
+    monitor = getattr(app.state, "trading_monitor", None)
+    if monitor is not None:
+        return monitor
+
+    from omnitrade.application.composition import build_trading_monitor
+
+    monitor = build_trading_monitor(container, settings)
+    app.state.trading_monitor = monitor
+
+    # The Agno think_fn exposes its MCP bridge as an attribute so the
+    # lifespan can shut down spawned MCP subprocesses cleanly. Stash the
+    # bridge on app.state when present; missing on stub/test think_fns,
+    # in which case shutdown becomes a no-op.
+    bridge = getattr(getattr(monitor, "_think_fn", None), "mcp_bridge", None)
+    if bridge is not None:
+        app.state.agno_mcp_bridge = bridge
+
+    logger.info("omnitrade.trading_monitor_built", driver=driver)
+    return monitor
 
 
 def _start_trading_scheduler(
@@ -147,15 +203,14 @@ def _start_trading_scheduler(
 ) -> None:
     """Compose + start the APScheduler trading cycle.
 
-    Extracted so the lifespan handler stays small and ``build_trading_monitor``
-    import stays local (keeps cold-start import graph lean; only pulled when
+    Extracted so the lifespan handler stays small and scheduler-only imports
+    stay local (keeps cold-start import graph lean; only pulled when
     SCHEDULER_ENABLED=true).
     """
     from datetime import timedelta
 
     from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-    from omnitrade.application.composition import build_trading_monitor
     from omnitrade.application.monitors.account_recorder_monitor import AccountRecorderMonitor
     from omnitrade.application.monitors.invalidation_monitor import InvalidationMonitor
     from omnitrade.application.monitors.partial_profit_monitor import PartialProfitMonitor
@@ -164,13 +219,14 @@ def _start_trading_scheduler(
     from omnitrade.application.monitors.trailing_stop_monitor import TrailingStopMonitor
     from omnitrade.infrastructure.llm.agno_llm_adapter import AgnoLLMAdapter
 
-    assert settings.llm_api_key is not None  # narrowed by caller
+    if not _has_llm_credentials(settings):
+        raise RuntimeError("trading scheduler requires an LLM API key")
+
     # The trading Agent (Agno) owns its own DeepSeek client — this LLMClient
     # is only used by the auxiliary InvalidationMonitor that still consumes
     # the LiteLLM-shaped surface.
     llm = AgnoLLMAdapter.from_settings(settings)
-    monitor = build_trading_monitor(container, settings)
-    app.state.trading_monitor = monitor
+    monitor = _ensure_trading_monitor(app, settings, container, driver="apscheduler")
 
     # PR-D Phase D2: invalidation monitor runs independently of the trading
     # cycle so positions auto-close the moment the LLM-authored

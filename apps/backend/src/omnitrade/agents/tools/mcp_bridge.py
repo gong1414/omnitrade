@@ -1,12 +1,14 @@
-"""Agno MultiMCPTools bridge (Phase 2 Agno migration).
+"""Agno MultiMCPTools bridge.
 
-Replaces `agents/tools/mcp_tool_bridge.py` (which uses mcp2py + the in-house
-ToolRegistry) with Agno's native `MultiMCPTools(commands=[...])` toolkit.
+Wraps Agno's ``MultiMCPTools(commands=[...])`` toolkit so the Agno trading
+agent can discover the two FastMCP stdio servers in one place. Agno
+spawns them as stdio subprocesses and discovers their ``listTools()``
+output automatically:
 
-The 2 FastMCP stdio servers — `infrastructure/mcp/trading_mcp_server.py`
-and `infrastructure/data_sources/crypto_mcp_server.py` — are unchanged;
-Agno spawns them as stdio subprocesses and discovers their `listTools()`
-output automatically.
+  * ``infrastructure/mcp/trading_mcp_server.py`` — exchange + market +
+    account read-only tools.
+  * ``infrastructure/data_sources/crypto_mcp_server.py`` — CoinGecko,
+    Fear & Greed and friends.
 
 Lifecycle:
     bridge = AgnoMCPBridge()
@@ -16,6 +18,9 @@ Lifecycle:
 
 The bridge is a thin wrapper that hides the connect/close pair behind a
 single object so callers don't need to import MultiMCPTools directly.
+:func:`omnitrade.agents.trading_agent.build_agno_think_fn` exposes the
+bridge as an attribute on the returned think-fn so the FastAPI lifespan
+can reap subprocesses on shutdown.
 """
 
 from __future__ import annotations
@@ -46,8 +51,8 @@ def _subprocess_env() -> dict[str, str]:
     fails to find the module unless PYTHONPATH is forwarded explicitly.
 
     Forwarding the full parent env keeps DB / API-key / observability vars
-    aligned with the parent process — same expectation our FastMCP servers
-    had under the legacy mcp2py bridge.
+    aligned with the parent process — the same env the FastMCP servers
+    expect when launched as plain ``python -m`` modules.
     """
     return dict(os.environ)
 
@@ -57,8 +62,8 @@ class AgnoMCPBridge:
 
     `allow_partial_failure=True` is set so that if (e.g.) the crypto-data
     server fails to start because an upstream API key is missing, the
-    trading server still works. This mirrors the legacy `mcp2py` bridge's
-    soft-failure semantics.
+    trading server still works — the cycle degrades gracefully instead
+    of crashing.
     """
 
     def __init__(self, commands: list[str] | None = None, *, timeout_seconds: int = 15) -> None:

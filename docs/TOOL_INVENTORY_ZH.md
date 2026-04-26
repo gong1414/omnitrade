@@ -4,24 +4,34 @@
 
 # LLM 工具清单
 
-OmniTrade 采用两层工具架构。所有工具通过 **mcp2py** 加载的 MCP 服务器管理 —— 直接函数调用，零开销，无 LLM 路由。
+OmniTrade 采用两层工具架构。交易代理是 [Agno](https://github.com/agno-agi/agno)
+的 `Agent`；工具分为两层：**DecisionRecorder schema**（四个产出最终
+`Decision` 的工具调用）和 **MultiMCPTools 工具集**（从 FastMCP stdio
+服务器加载的只读行情 / 加密上下文工具）。
 
-## 第一层：决策工具 Schema（4 个工具）
+## 第一层：决策记录工具（4 个）
 
-这些是**纯 schema** 的 JSON 契约，发送给 LLM。LLM 调用时，`think_node._parse_decision_from_tool_call()` 将其转换为 `Decision` 实体。不需要 ToolRegistry 处理器。
-
-定义在 `composition.py._build_tool_schemas()`。
+定义在 `agents/tools/decision_schemas.py`。每个工具都是 *纯记录器*：
+当 LLM 调用其中一个时，Agno 触发对应的 async 函数，把 LLM 的意图写入
+本轮的 `DecisionRecorder`，并返回一个小的确认 payload。真正的下单仍
+在后续 `composition._build_execute_fn` 中执行。
 
 | # | 工具名 | 决策动作 | 说明 |
 |---|---|---|---|
-| 1 | `open_position` | `open` | 含 symbol、side、size、leverage、reason |
+| 1 | `open_position` | `open` | 含 symbol、side、size、leverage、structured reason |
 | 2 | `close_position` | `close` | 全部平仓 |
 | 3 | `partial_close` | `partial_close` | 按比例部分平仓 |
 | 4 | `hold_tool` | `hold` | 不操作；在 schema 列表中排最后（对抗 hold 偏好） |
 
-## 第二层：MCP 工具（mcp2py 直调，15 个工具）
+`agent.arun(...)` 返回后，recorder 要么持有 `Decision`，要么为 `None`
+—— `None` 时回退为 `Decision(action="hold", ...)`，让错乱的周期也能落
+盘一行。
 
-所有行情/加密工具由 `mcp2py.load()` 加载的 MCP 服务器提供。工具调用是通过 stdio 的直接 Python 函数调用 —— 无 LLM 路由开销。注册在 `agents/tools/mcp_tool_bridge.py`。
+## 第二层：通过 Agno MultiMCPTools 提供的 MCP 工具（15 个）
+
+`agents/tools/mcp_bridge.py` 中的 Agno `MultiMCPTools` 桥接器会启动两
+个 FastMCP stdio 子进程，并自动发现它们的工具。工具调用是通过 stdio
+执行的 Python 直调 —— 没有额外的 LLM 路由开销。
 
 ### omnitrade-trading MCP 服务器（9 个工具）
 
@@ -55,36 +65,25 @@ OmniTrade 采用两层工具架构。所有工具通过 **mcp2py** 加载的 MCP
 ## 架构
 
 ```
-composition.py
-  ├── _build_tool_schemas()     → 4 个决策 schema（纯 schema）
-  └── mcp_tool_bridge.py
-        ├── load_mcp_servers()  → mcp2py.load() 启动 MCP 子进程
-        └── register_mcp_tools() → ToolRegistry + LLM schema
+agents/trading_agent.py::build_agno_think_fn
+  ├── DecisionRecorder + build_decision_tools  → 4 个决策记录器
+  └── AgnoMCPBridge.connect()                  → MultiMCPTools 工具集
+        启动子进程：
+          ├─ python -m omnitrade.infrastructure.mcp.trading_mcp_server
+          └─ python -m omnitrade.infrastructure.data_sources.crypto_mcp_server
 
-LLM → tool_call → think_node
-  ├── 决策工具 → _parse_decision_from_tool_call() → Decision 实体
-  └── 信息工具 → ToolRegistry.call() → mcp2py 直调 → MCP 服务器子进程
+每轮：
+  Agent(model=DeepSeek(...), tools=[mcp_toolkit, *decision_recorders]).arun(prompt)
+    ├── 决策工具调用 → DecisionRecorder 捕获 Decision
+    └── 信息工具调用 → MCP stdio → 服务器子进程 → 响应
 ```
 
 ## 可扩展性
 
 添加新交易所或资产类别：
 
-1. 在对应 MCP 服务器中添加工具函数（或创建新 MCP 服务器）
-2. 在 `mcp_tool_bridge.py` 中添加 `mcp2py.load("python -m omnitrade.infrastructure.mcp.new_server")`
-3. 无需修改 `composition.py` 或 think loop
-
-## 已移除的遗留文件
-
-以下文件已被 MCP 工具替代：
-
-| 旧文件 | 状态 |
-|---|---|
-| `agents/tools/market_data.py` | 替代为 trading MCP 服务器 |
-| `agents/tools/account_management.py` | 替代为 trading MCP 服务器 |
-| `agents/tools/risk.py` | 替代为 trading MCP 服务器 |
-| `agents/tools/external_data.py` | 替代为 crypto MCP 服务器 |
-| `agents/tools/news_data.py` | 替代为 crypto MCP 服务器 |
-| `agents/tools/crypto_market_overview.py` | 替代为 crypto MCP 服务器 |
-| `agents/tools/whale_tracking.py` | 替代为 crypto MCP 服务器 |
-| `agents/tools/anytool_research.py` | 已移除（AnyTool 被 mcp2py 替代） |
+1. 在对应 FastMCP 服务器中添加工具函数（或在 `infrastructure/` 下创
+   建新的 `python -m ...` 入口）。
+2. 把新入口加入 `agents/tools/mcp_bridge.py` 的 `_DEFAULT_COMMANDS`。
+3. 不需要修改 Agno Agent 或交易循环 —— 下次 bridge connect 时新工具
+   会被自动发现。

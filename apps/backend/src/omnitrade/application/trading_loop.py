@@ -1,10 +1,11 @@
-"""Outer trading loop — pure asyncio orchestration (no langgraph import).
+"""Outer trading loop — pure asyncio orchestration (no LLM imports).
 
-Per consensus plan §6 Phase 4.1, the outer loop composes five plain
-``async def`` steps and calls into the LangGraph ``think`` node at the
-``think()`` boundary. LangGraph is ONLY imported from
-``agents/think_node.py``; this module must stay framework-free at the
-graph level.
+The outer loop composes five plain ``async def`` steps and calls into
+the injected ``ThinkFn`` at the ``think()`` boundary. The production
+``ThinkFn`` is built by
+:func:`omnitrade.agents.trading_agent.build_agno_think_fn` and runs an
+Agno ``Agent`` with DeepSeek + MultiMCPTools; this module stays
+framework-free so unit tests can swap in stub think functions.
 
 Deterministic fan-out (§3 P3 / §10 Changelog #20): ``observe_market`` and
 ``gather_news`` run concurrently via ``asyncio.gather(..., return_exceptions
@@ -144,7 +145,7 @@ async def gather_news(news_gather: NewsGatherFn) -> list[NewsItem]:
         return []
 
 
-# ── step 3 — think (LangGraph boundary; consumes sorted fan-out) ─────── #
+# ── step 3 — think (LLM boundary; consumes sorted fan-out) ───────────── #
 
 
 async def think(
@@ -152,7 +153,7 @@ async def think(
     market: MarketSnapshot,
     news: list[NewsItem],
 ) -> Decision:
-    """Call the LangGraph think node with canonically-ordered inputs.
+    """Call the injected ``ThinkFn`` with canonically-ordered inputs.
 
     Sort news newest-first and symbols alphabetically so fan-out results
     from ``asyncio.gather`` don't leak scheduling order into the prompt

@@ -1,26 +1,19 @@
-"""Decision-recorder tools for the Agno Agent (Phase 2 Agno migration).
+"""Decision-recorder tools for the Agno Agent.
 
-The legacy LangChain `StructuredTool` versions in `trade_execution.py` couple
-schema declaration with side-effecting trade execution. The Agno path
-**separates concerns**:
+The 4 decision tools here are *pure recorders* — they declare schema and
+capture LLM intent only; they never side-effect the exchange. When the
+LLM picks one, Agno fires the corresponding async function which writes
+the choice into a per-cycle :class:`DecisionRecorder` and returns a small
+acknowledgement payload the model can parse. Real trade execution still
+happens in step 5 of the trading loop (``composition._build_execute_fn``).
 
-  * The 4 decision tools here are *pure recorders*. When the LLM picks one,
-    Agno fires the corresponding async function which captures the LLM's
-    intent into a `DecisionRecorder` and returns a small acknowledgement
-    payload. Real trade execution still happens in step 5 of the trading
-    loop (`_build_execute_fn`), exactly like today.
+Once ``agent.arun(...)`` returns, the recorder holds a :class:`Decision`
+(or ``None`` if the LLM declined to call any of these tools — which the
+caller resolves to ``Decision(action="hold")`` for graceful degradation).
 
-  * Once `agent.arun(...)` returns, the recorder holds a `Decision` (or None
-    if the LLM declined to call any of these tools — which we then resolve
-    to `Decision(action="hold")`).
-
-This shape keeps the Agno path schema-equivalent to the LangGraph parser at
-`agents/think_node.py::_parse_decision_from_tool_call`, so swapping is
-behavior-preserving on the structured-output contract (PR-B2 Phase C).
-
-Per spec exception E2 the agent runs `deepseek-reasoner` with tool calling
-in thinking mode — these tool functions must not raise; emitted errors
-become tool-result strings the model can read.
+The agent runs ``deepseek-reasoner`` with tool calling in thinking mode —
+these tool functions must not raise; emitted errors become tool-result
+strings the model can read.
 """
 
 from __future__ import annotations

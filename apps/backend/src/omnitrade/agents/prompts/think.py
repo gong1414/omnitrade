@@ -1,6 +1,6 @@
 """User-message template for the think step.
 
-The think template is the structured view the LangGraph think node feeds
+The think template is the structured view the Agno trading agent feeds
 to the LLM: MarketSnapshot + News + Positions -> a Decision JSON.
 
 Phase 8.1 -- ``{market_data_block}`` has two assembly versions:

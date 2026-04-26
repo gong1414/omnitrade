@@ -4,24 +4,37 @@
 
 # LLM Tool Inventory
 
-OmniTrade uses a two-layer tool architecture. All tools are managed through MCP servers loaded by **mcp2py** — zero-overhead direct calls, no LLM routing.
+OmniTrade uses a two-layer tool architecture. The trading agent is an
+[Agno](https://github.com/agno-agi/agno) `Agent`; tools are split between
+**DecisionRecorder schemas** (the four tool calls that yield the final
+`Decision`) and the **MultiMCPTools toolkit** (read-only market / crypto
+context tools loaded from FastMCP stdio servers).
 
-## Layer 1: Decision Tool Schemas (4 tools)
+## Layer 1: Decision Recorder Tools (4 tools)
 
-These are **schema-only** JSON contracts sent to the LLM. When the LLM calls one, `think_node._parse_decision_from_tool_call()` translates it into a `Decision` entity. No ToolRegistry handlers needed.
-
-Defined in `composition.py._build_tool_schemas()`.
+Defined in `agents/tools/decision_schemas.py`. Each tool is a pure
+recorder: when the LLM picks one, Agno fires the corresponding async
+function which writes the LLM's intent into a per-cycle
+`DecisionRecorder` and returns a small acknowledgement payload. Real
+trade execution happens later in `composition._build_execute_fn`.
 
 | # | Tool name | Decision action | Notes |
 |---|---|---|---|
-| 1 | `open_position` | `open` | Includes symbol, side, size, leverage, reason |
+| 1 | `open_position` | `open` | Includes symbol, side, size, leverage, structured reason |
 | 2 | `close_position` | `close` | Close entire position |
 | 3 | `partial_close` | `partial_close` | Close a percentage of position |
 | 4 | `hold_tool` | `hold` | No action; last in schema list (counters hold-bias) |
 
-## Layer 2: MCP Tools via mcp2py (15 tools)
+When `agent.arun(...)` returns, the recorder either holds a `Decision`
+or `None` — the `None` case resolves to `Decision(action="hold", ...)`
+so a misbehaving cycle still produces a row.
 
-All info/crypto tools are MCP servers loaded by `mcp2py.load()`. Tool calls are direct Python function calls through stdio — no LLM routing overhead. Registered in `agents/tools/mcp_tool_bridge.py`.
+## Layer 2: MCP Tools via Agno MultiMCPTools (15 tools)
+
+The Agno `MultiMCPTools` bridge in `agents/tools/mcp_bridge.py` spawns
+two FastMCP stdio subprocesses and discovers their tools automatically.
+Tool calls are direct Python functions invoked over stdio — no extra
+LLM routing.
 
 ### omnitrade-trading MCP Server (9 tools)
 
@@ -55,36 +68,26 @@ File: `infrastructure/data_sources/crypto_mcp_server.py`
 ## Architecture
 
 ```
-composition.py
-  ├── _build_tool_schemas()     → 4 decision schemas (schema-only)
-  └── mcp_tool_bridge.py
-        ├── load_mcp_servers()  → mcp2py.load() spawns MCP subprocesses
-        └── register_mcp_tools() → ToolRegistry + LLM schemas
+agents/trading_agent.py::build_agno_think_fn
+  ├── DecisionRecorder + build_decision_tools  → 4 decision recorders
+  └── AgnoMCPBridge.connect()                  → MultiMCPTools toolkit
+        spawns:
+          ├─ python -m omnitrade.infrastructure.mcp.trading_mcp_server
+          └─ python -m omnitrade.infrastructure.data_sources.crypto_mcp_server
 
-LLM → tool_call → think_node
-  ├── decision tool → _parse_decision_from_tool_call() → Decision entity
-  └── info tool → ToolRegistry.call() → mcp2py direct call → MCP server subprocess
+per-cycle:
+  Agent(model=DeepSeek(...), tools=[mcp_toolkit, *decision_recorders]).arun(prompt)
+    ├── decision tool call → DecisionRecorder captures Decision
+    └── info tool call     → MCP stdio → server subprocess → response
 ```
 
 ## Extensibility
 
 To add a new exchange or asset class:
 
-1. Add MCP tool functions to the appropriate MCP server (or create a new one)
-2. Add `mcp2py.load("python -m omnitrade.infrastructure.mcp.new_server")` in `mcp_tool_bridge.py`
-3. No changes to `composition.py` or the think loop needed
-
-## Legacy (removed)
-
-The following were replaced by MCP tools:
-
-| Old file | Status |
-|---|---|
-| `agents/tools/market_data.py` | Replaced by trading MCP server |
-| `agents/tools/account_management.py` | Replaced by trading MCP server |
-| `agents/tools/risk.py` | Replaced by trading MCP server |
-| `agents/tools/external_data.py` | Replaced by crypto MCP server |
-| `agents/tools/news_data.py` | Replaced by crypto MCP server |
-| `agents/tools/crypto_market_overview.py` | Replaced by crypto MCP server |
-| `agents/tools/whale_tracking.py` | Replaced by crypto MCP server |
-| `agents/tools/anytool_research.py` | Removed (AnyTool replaced by mcp2py) |
+1. Add MCP tool functions to the appropriate FastMCP server (or add a
+   new `python -m ...` entrypoint under `infrastructure/`).
+2. Add the new entrypoint to `_DEFAULT_COMMANDS` in
+   `agents/tools/mcp_bridge.py`.
+3. No changes to the Agno Agent or trading loop are needed — the new
+   tools are auto-discovered on next bridge connect.
