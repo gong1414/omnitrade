@@ -407,6 +407,38 @@ Issues and PRs welcome. Please:
 
 ---
 
+## 💖 Sponsorship — support the project
+
+OmniTrade is a solo / volunteer-maintained open-source project. If it
+saves you time or makes you money on testnet (and eventually
+mainnet), a small tip is genuinely appreciated — it pays for LLM API
+credits, server time, and the occasional tank of caffeine.
+
+**USDT (Tron · TRC20)**
+
+```
+TMDnFG8KBxNvkgNgqkr9PhL2keNczjSGdS
+```
+
+<a href="assets/sponsor-usdt-trc20.svg">
+  <img src="assets/sponsor-usdt-trc20.svg" alt="USDT TRC20 QR code" width="200" />
+</a>
+
+> **⚠️ Network warning**: This is a **TRON (TRC20)** address. Sending
+> USDT (or anything else) on a different network — Ethereum / ERC20,
+> BSC / BEP20, Polygon, Arbitrum, Solana, etc. — will result in **lost
+> funds with no recovery**. Verify your wallet is set to *Tron* before
+> sending. Always copy-paste the address; a single character changed
+> is a different wallet.
+
+No expectation, no obligation, no donor list, no tax-deductible
+guarantees — just a way for people who want to say thanks. If you'd
+prefer to support via GitHub Sponsors / Open Collective once those
+are set up, [open an issue](https://github.com/gong1414/omnitrade/issues)
+to nudge.
+
+---
+
 ## 🌟 Stargazers & contributors
 
 [![Star History Chart](https://api.star-history.com/svg?repos=gong1414/omnitrade&type=Date)](https://www.star-history.com/#gong1414/omnitrade&Date)

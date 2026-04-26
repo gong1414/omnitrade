@@ -1,0 +1,7 @@
+# GitHub Sponsor button. Crypto-only — see the README "Sponsorship"
+# section for the address (USDT-TRC20). The custom URL deep-links to
+# that section so the GitHub "Sponsor this project" button takes
+# visitors straight to the address + network warnings.
+
+custom:
+  - "https://github.com/gong1414/omnitrade#-sponsorship--support-the-project"

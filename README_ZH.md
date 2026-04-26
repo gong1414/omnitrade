@@ -397,6 +397,33 @@ llmtrading/
 
 ---
 
+## 💖 赞助 — 支持本项目
+
+OmniTrade 是个人 / 志愿者维护的开源项目。如果它帮你在 testnet 上省了
+时间、或者将来在 mainnet 上赚到钱，欢迎随手打赏一点 —— 主要会用来
+支付 LLM API 调用费、服务器时间、以及偶尔的咖啡因补给。
+
+**USDT（Tron · TRC20）**
+
+```
+TMDnFG8KBxNvkgNgqkr9PhL2keNczjSGdS
+```
+
+<a href="assets/sponsor-usdt-trc20.svg">
+  <img src="assets/sponsor-usdt-trc20.svg" alt="USDT TRC20 收款二维码" width="200" />
+</a>
+
+> **⚠️ 网络警告**：这是 **TRON (TRC20)** 地址。如果用 Ethereum / ERC20、
+> BSC / BEP20、Polygon、Arbitrum、Solana 等其他链发送 USDT（或任何资产），
+> **资金将永久丢失，不可找回**。发送前请确认钱包当前网络是 *Tron*；
+> 地址必须复制粘贴整段，错一个字符就是另一个钱包。
+
+没有承诺、没有义务、没有打赏名单、不开发票 —— 只是给想说谢谢的人留一个口子。
+如果你更想走 GitHub Sponsors / Open Collective 走正规化通道，
+[来开个 issue](https://github.com/gong1414/omnitrade/issues) 推一下。
+
+---
+
 ## 🌟 Star 增长 & 贡献者
 
 [![Star History Chart](https://api.star-history.com/svg?repos=gong1414/omnitrade&type=Date)](https://www.star-history.com/#gong1414/omnitrade&Date)
