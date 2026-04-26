@@ -73,7 +73,19 @@ jobs:
             -m "not manual_qa" \
             --cov=src/omnitrade \
             --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
             --cov-fail-under=75
+
+      # Public Codecov upload — no token needed for tokenless OSS uploads.
+      # Soft-fail (`fail_ci_if_error: false`) so a Codecov outage doesn't
+      # turn the gate red; the in-step `--cov-fail-under=75` is the real
+      # threshold.
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: apps/backend/coverage.xml
+          flags: backend
+          fail_ci_if_error: false
 
       # T7 — Agno ReliabilityEval gate. Runs the eval-marked tests in a
       # dedicated step so a failing reliability assertion is visually

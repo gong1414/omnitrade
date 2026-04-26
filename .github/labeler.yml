@@ -1,0 +1,67 @@
+# Auto-label rules consumed by .github/workflows/labeler.yml
+# Format: actions/labeler v5 (`{label}: - changed-files: [{any-glob-to-any-file: [...]}]`).
+
+backend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/backend/**"
+
+frontend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/frontend/**"
+
+agents:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/backend/src/omnitrade/agents/**"
+          - "apps/backend/src/omnitrade/application/trading_workflow.py"
+
+mcp:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/backend/src/omnitrade/infrastructure/mcp/**"
+          - "apps/backend/src/omnitrade/infrastructure/data_sources/**"
+
+exchange:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/backend/src/omnitrade/infrastructure/exchange/**"
+
+migrations:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/backend/alembic/**"
+
+tests:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/tests/**"
+          - "**/*.test.ts"
+          - "apps/backend/tests/**"
+
+docs:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**.md"
+          - "docs/**"
+          - "assets/**"
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/workflows/**"
+          - ".github/dependabot.yml"
+          - ".github/labeler.yml"
+          - ".pre-commit-config.yaml"
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/backend/pyproject.toml"
+          - "uv.lock"
+          - "apps/frontend/package.json"
+          - "apps/frontend/package-lock.json"
+          - "apps/frontend/Dockerfile"
+          - "apps/backend/Dockerfile"
+          - "docker-compose*.yml"

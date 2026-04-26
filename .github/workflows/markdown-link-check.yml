@@ -1,0 +1,38 @@
+# Scans every markdown file in the repo for dead links. Runs weekly on
+# a cron (catches link rot) and on PRs that touch markdown (catches
+# typos before merge). Config in `.github/markdown-link-check.json`
+# whitelists localhost and known-flaky external hosts.
+
+name: Markdown link check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "**.md"
+      - ".github/markdown-link-check.json"
+  pull_request:
+    branches: [main]
+    paths:
+      - "**.md"
+  schedule:
+    - cron: "0 6 * * 1" # Monday 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  link-check:
+    name: Check markdown links
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: gaurav-nelson/github-action-markdown-link-check@v1
+        with:
+          use-quiet-mode: "yes"
+          use-verbose-mode: "yes"
+          config-file: .github/markdown-link-check.json
+          # On schedule and main pushes, scan the whole repo. On PRs,
+          # the action by default scans only changed files.
+          check-modified-files-only: ${{ github.event_name == 'pull_request' && 'yes' || 'no' }}

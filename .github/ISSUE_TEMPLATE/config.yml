@@ -1,0 +1,15 @@
+# Block free-form issues — every issue must use one of the structured
+# forms (bug_report.yml or feature_request.yml). For everything else,
+# point users to the appropriate channel.
+blank_issues_enabled: false
+
+contact_links:
+  - name: 💬 Question / Discussion
+    url: https://github.com/gong1414/omnitrade/discussions
+    about: Ask "how do I…?", show your config, request a strategy review, etc.
+  - name: 🔒 Security vulnerability
+    url: https://github.com/gong1414/omnitrade/security/advisories/new
+    about: Privately report a security issue via GitHub's advisory flow.
+  - name: 📚 Documentation FAQ
+    url: https://github.com/gong1414/omnitrade/blob/main/docs/FAQ.md
+    about: Common errors and answers — check here first.

@@ -1,0 +1,142 @@
+name: Bug report
+description: Something is broken or behaving unexpectedly
+title: "[bug] "
+labels: ["bug", "needs-triage"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. The fields below match
+        what we ask for in `docs/FAQ.md` — filling them in upfront cuts
+        the back-and-forth in half.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One sentence — what's broken?
+      placeholder: "The dashboard shows 6 phantom positions while /api/v1/positions returns 0."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: |
+        Minimal steps for someone else to hit the same issue. If it's
+        strategy-specific, list the strategy (e.g. `arena-tribunal`,
+        `arena-raider-squad`).
+      placeholder: |
+        1. Set TRADING_STRATEGY=arena-tribunal
+        2. docker compose up -d
+        3. curl -X POST http://localhost:8000/api/v1/cycle/trigger
+        4. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-actual
+    attributes:
+      label: Expected vs actual
+      placeholder: |
+        Expected: positions_count in decision JSON matches /api/v1/positions
+        Actual: decision says 6, /positions returns 0
+    validations:
+      required: true
+
+  - type: input
+    id: commit
+    attributes:
+      label: OmniTrade commit / tag
+      placeholder: "fe53df0 (or v0.1.0)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options:
+        - macOS / Apple Silicon
+        - macOS / Intel
+        - Linux x86_64
+        - Linux arm64
+        - Windows (WSL2)
+        - Other (describe in logs)
+    validations:
+      required: true
+
+  - type: input
+    id: llm-model
+    attributes:
+      label: AGNO_LLM_MODEL
+      placeholder: "deepseek-v4-pro / deepseek-v4-flash / deepseek-reasoner / gpt-5.4 ..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: embedder
+    attributes:
+      label: EMBEDDER_PROVIDER
+      options:
+        - fastembed (default)
+        - openai
+        - other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: exchange
+    attributes:
+      label: Exchange + testnet
+      options:
+        - Gate.io testnet
+        - Gate.io mainnet
+        - OKX testnet
+        - OKX mainnet
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / decision JSON
+      description: |
+        Most useful artefacts:
+        - `docker compose logs backend --tail 200`
+        - `curl -s http://localhost:8000/api/v1/decisions?limit=1 | jq`
+        - Browser console errors (dashboard bugs)
+        **Strip API keys before pasting.**
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: What you've already tried
+      description: Helps avoid obvious dead ends.
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - "Blocking — system unusable"
+        - "High — feature broken, no workaround"
+        - "Medium — feature broken, workaround exists"
+        - "Low — cosmetic / minor"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: agreements
+    attributes:
+      label: Pre-submission checks
+      options:
+        - label: I searched existing issues and didn't find a duplicate
+          required: true
+        - label: I stripped any API keys / secrets from the logs above
+          required: true

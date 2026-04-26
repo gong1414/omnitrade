@@ -30,6 +30,8 @@
   <a href="https://github.com/gong1414/omnitrade/issues"><img src="https://img.shields.io/github/issues/gong1414/omnitrade?style=flat&logo=github&color=FF6B6B" alt="GitHub issues"></a>
   <a href="https://github.com/gong1414/omnitrade/releases/latest"><img src="https://img.shields.io/github/v/release/gong1414/omnitrade?style=flat&logo=github&include_prereleases&color=8A2BE2" alt="GitHub release"></a>
   <a href="https://github.com/gong1414/omnitrade/commits/main"><img src="https://img.shields.io/github/last-commit/gong1414/omnitrade?style=flat&logo=github&color=2BB673" alt="last commit"></a>
+  <a href="https://codecov.io/gh/gong1414/omnitrade"><img src="https://img.shields.io/codecov/c/github/gong1414/omnitrade?style=flat&logo=codecov" alt="Codecov"></a>
+  <a href="https://securityscorecards.dev/viewer/?uri=github.com/gong1414/omnitrade"><img src="https://api.securityscorecards.dev/projects/github.com/gong1414/omnitrade/badge" alt="OpenSSF Scorecard"></a>
 </p>
 
 <p align="center">

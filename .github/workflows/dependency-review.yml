@@ -1,0 +1,27 @@
+# Block PRs that introduce vulnerable dependencies (any GHSA advisory
+# at "moderate" severity or above) BEFORE they merge. Dependabot
+# vulnerability updates handle post-merge alerts; this catches them at
+# review time so we never accept a known-bad version in the first place.
+
+name: Dependency Review
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write # to leave the summary comment
+
+jobs:
+  dependency-review:
+    name: Dependency review
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: moderate
+          # Reject GPL-family / SSPL on a permissive (MIT) project.
+          deny-licenses: AGPL-1.0-or-later, AGPL-3.0-or-later, GPL-2.0-or-later, GPL-3.0-or-later, SSPL-1.0
+          comment-summary-in-pr: on-failure

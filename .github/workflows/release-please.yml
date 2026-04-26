@@ -1,0 +1,27 @@
+# release-please reads conventional-commit messages on `main` since the
+# last release tag and:
+#   1. opens / updates a "release PR" with a generated CHANGELOG.md diff
+#      and a bumped version
+#   2. once that PR merges, creates a GitHub release + tag
+# It deliberately does NOT auto-publish to npm/PyPI — we still gate
+# release artefacts manually.
+
+name: Release Please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

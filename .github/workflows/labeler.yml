@@ -1,0 +1,22 @@
+# Auto-applies labels to PRs based on changed file paths. Rules in
+# `.github/labeler.yml`. Re-syncs on every PR push so labels stay
+# accurate as the PR evolves (sync-labels: true).
+
+name: PR labeler
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  label:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/labeler@v5
+        with:
+          sync-labels: true
+          configuration-path: .github/labeler.yml

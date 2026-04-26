@@ -1,0 +1,72 @@
+name: Feature request
+description: Propose a new capability or enhancement
+title: "[feat] "
+labels: ["enhancement", "needs-triage"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea. Filling the structured fields below makes it
+        much easier to triage against the roadmap and existing strategies.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What's missing or hard today? Describe from the user's POV, not the implementation's.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: One paragraph on how you'd like it to work.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: |
+        Other shapes you thought about and why they're worse. Helps the
+        reviewer understand the tradeoff space.
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: Fits within the current 11-strategy / Gate.io+OKX surface
+        - label: Requires a new external integration (name it in the description)
+        - label: Requires a new MCP server / tool
+        - label: Changes the agent runtime (Agno Agent / Team / Workflow)
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: |
+        How will we know this is done? Cite the G-gates if user-visible
+        (G1 cycle trigger, G2 decision JSON, G3 dashboard render, etc.)
+      placeholder: |
+        - [ ] G1: POST /api/v1/cycle/trigger returns ok
+        - [ ] G3: dashboard renders new field
+    validations:
+      required: true
+
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Out of scope
+      description: Things this issue intentionally does *not* cover. Helps prevent scope creep during implementation.
+
+  - type: checkboxes
+    id: agreements
+    attributes:
+      label: Pre-submission checks
+      options:
+        - label: I searched existing issues and discussions for prior art
+          required: true
