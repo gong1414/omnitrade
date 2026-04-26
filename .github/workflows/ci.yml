@@ -136,10 +136,14 @@ jobs:
           cp .env.production.example .env.production
 
       - name: Validate dev compose
-        run: docker compose config >/dev/null && echo "dev: OK"
+        run: |
+          docker compose config >/dev/null
+          echo "dev compose: OK"
 
       - name: Validate prod compose
-        run: docker compose -f docker-compose.prod.yml config >/dev/null && echo "prod: OK"
+        run: |
+          docker compose -f docker-compose.prod.yml config >/dev/null
+          echo "prod compose: OK"
 
   brand-scrub:
     name: Brand scrub
