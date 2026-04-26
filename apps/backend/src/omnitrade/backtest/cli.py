@@ -2,6 +2,7 @@
 
 Usage::
 
+    # First run records DeepSeek HTTP calls into a cassette.
     python -m omnitrade.backtest \\
         --symbol BTC_USDT \\
         --timeframe 4h \\
@@ -9,13 +10,15 @@ Usage::
         --end 2026-02-01 \\
         --strategy arena-autopilot \\
         --initial-balance 10000 \\
-        --output .backtest/runs/
+        --cassette .backtest/cassettes/run-2026-01.yaml
 
-Drives the Agno-backed ``BacktestEngine`` (post-cutover): an Agno Agent
-hits DeepSeek directly each cycle, no MCP / DB / news. For deterministic
-replay across runs, point ``HTTPX_*`` env vars at a vcrpy cassette — the
-caching that the legacy ``CachedLLMClient`` provided is now an HTTP-layer
-concern (Agno owns the model HTTP client).
+    # Subsequent runs replay byte-for-byte without hitting the network.
+    python -m omnitrade.backtest --cassette ... --cassette-mode none ...
+
+Drives the Agno-backed :class:`BacktestEngine`: an Agno Agent hits
+DeepSeek directly each cycle, no MCP / DB / news. The optional
+``--cassette`` flag wraps the run in a vcrpy cassette so DeepSeek
+HTTP exchanges record once and replay deterministically thereafter.
 """
 
 from __future__ import annotations
@@ -29,6 +32,7 @@ from pathlib import Path
 import structlog
 
 from omnitrade.backtest.agno_think import build_backtest_think_fn
+from omnitrade.backtest.cassette import cassette_context
 from omnitrade.backtest.clock import BacktestClock
 from omnitrade.backtest.data_source import HistoricalOHLCV
 from omnitrade.backtest.engine import BacktestEngine
@@ -89,6 +93,25 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         default=".backtest/runs/",
         help="Directory for the generated markdown report (default .backtest/runs/)",
     )
+    p.add_argument(
+        "--cassette",
+        default=None,
+        help=(
+            "Optional vcrpy cassette path. First run records DeepSeek HTTP "
+            "calls; subsequent runs replay them. Without this flag every "
+            "cycle hits DeepSeek live."
+        ),
+    )
+    p.add_argument(
+        "--cassette-mode",
+        default="once",
+        choices=("once", "none", "all", "new_episodes"),
+        help=(
+            "vcrpy record mode. 'once' (default): record on miss, replay "
+            "on hit. 'none': strict replay — error on cache miss. 'all': "
+            "force re-record. 'new_episodes': append new exchanges."
+        ),
+    )
     return p
 
 
@@ -128,9 +151,12 @@ async def _run_async(args: argparse.Namespace) -> int:
         start=start.isoformat(),
         end=end.isoformat(),
         strategy=args.strategy,
+        cassette=args.cassette,
+        cassette_mode=args.cassette_mode,
     )
     try:
-        result = await engine.run()
+        with cassette_context(args.cassette, mode=args.cassette_mode):
+            result = await engine.run()
     finally:
         await data_source.close()
 

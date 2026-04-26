@@ -23,11 +23,11 @@ Validated end-to-end on 2026-04-26 against testnet:
 - No APScheduler `trading_cycle` job in `scheduler.add_job` calls
 - 579 backend tests passed, 1 skipped, 0 failed
 
-What's still pending (small follow-ups):
-
-- **Backtest cassette layer** — `backtest/llm_cache.py` was deleted
-  with `LLMClient`. For deterministic Agno replays, wrap the DeepSeek
-  HTTP client with vcrpy or use Agno's session DB.
+All open Agno-migration follow-ups are landed. The trading cycle
+runs on AgentOS native scheduler, the workflow is registered with
+AgentOS, the backtest engine has been ported, and deterministic
+replays go through vcrpy (`backtest/cassette.py`,
+`--cassette / --cassette-mode` CLI flags).
 
 Last updated: 2026-04-26
 
@@ -46,7 +46,7 @@ Last updated: 2026-04-26
 | 5 — Frontend SSE | ✅ shipped, **default transport** | `apps/frontend/lib/sse/{client,singleton}.ts` + `hooks/useRealtime.ts`. WS client + hook deleted; Playwright e2e ported to `fake-sse-server.ts`. |
 | 6 — Postgres + Agent.memory | ✅ shipped | `infrastructure/persistence/database.py` routes Postgres through psycopg3. The trading Agent runs against `ai.agno_sessions` (session_id="omnitrade-trading", `add_history_to_context=True`, `num_history_runs=5`). |
 | Legacy purge | ✅ shipped (Stages A + E) | LangGraph / LangChain / LiteLLM / mcp2py / multi_agent / api/ws all deleted on disk. APScheduler + `application/trading_loop.py` still drive ticks until the schedule-bootstrap follow-up lands. |
-| Backtest engine | ✅ shipped (Phase 4.5) | `backtest/engine.py` rewritten against an injected `ThinkFn`. `backtest/agno_think.py` builds an Agno-Agent-backed think_fn (no MCP / no DB) for CLI runs. `backtest/llm_cache.py` deleted — for deterministic Agno replays use vcrpy at the HTTP layer. `tests/backtest/test_engine.py` covers the open/close dispatch path with stub data. |
+| Backtest engine | ✅ shipped (Phase 4.5) | `backtest/engine.py` rewritten against an injected `ThinkFn`. `backtest/agno_think.py` builds an Agno-Agent-backed think_fn (no MCP / no DB) for CLI runs. `backtest/llm_cache.py` deleted — replaced by `backtest/cassette.py` (vcrpy-backed HTTP-layer cassette wrapper) wired via `--cassette / --cassette-mode` CLI flags. `tests/backtest/test_engine.py` + `test_cassette.py` cover dispatch + record/replay. |
 
 ---
 

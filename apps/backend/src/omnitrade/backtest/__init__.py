@@ -13,6 +13,7 @@ the FastAPI container.
 from __future__ import annotations
 
 from omnitrade.backtest.agno_think import build_backtest_think_fn
+from omnitrade.backtest.cassette import CassetteMode, cassette_context
 from omnitrade.backtest.clock import BacktestClock
 from omnitrade.backtest.data_source import HistoricalOHLCV
 from omnitrade.backtest.engine import BacktestEngine, BacktestResult, ThinkFn
@@ -24,8 +25,10 @@ __all__ = [
     "BacktestEngine",
     "BacktestExchange",
     "BacktestResult",
+    "CassetteMode",
     "HistoricalOHLCV",
     "ThinkFn",
     "build_backtest_think_fn",
+    "cassette_context",
     "compute_metrics",
 ]
