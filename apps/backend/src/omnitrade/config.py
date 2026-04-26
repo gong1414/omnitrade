@@ -211,6 +211,21 @@ class Settings(BaseSettings):
     environment: Literal["testnet", "mainnet"] = "testnet"
     log_level: str = "INFO"
 
+    otel_tracing_enabled: bool = True
+    """T4 kill switch for the OpenTelemetry tracing overlay.
+
+    When True (default) AND ``agno_postgres_url`` is set, the lifespan
+    handler calls ``observability.tracing.setup_tracing`` which wires
+    Agno's :func:`agno.tracing.setup_tracing` to write spans into the
+    same Postgres DB AgentOS uses for sessions/memory/runs. Spans are
+    exposed via AgentOS at ``GET /traces``, ``GET /traces/{trace_id}``,
+    and ``POST /traces/search`` (see ``agno/os/routers/traces/traces.py``).
+
+    When ``agno_postgres_url`` is None (test path, DB-less local dev) the
+    helper is a no-op and tracing is silently skipped. Set this flag to
+    False to opt out even when Postgres is present (e.g. to debug a
+    Phoenix/Arize wiring locally without double-registration)."""
+
     # ------------------------------------------------------------------ #
     # DATABASE                                                             #
     # ------------------------------------------------------------------ #

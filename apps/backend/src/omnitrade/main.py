@@ -24,6 +24,7 @@ from omnitrade.api.sse import sse_router
 from omnitrade.config import Settings, get_settings
 from omnitrade.observability.log_store import buffer_processor
 from omnitrade.observability.trace_context import TraceContextMiddleware, configure_structlog
+from omnitrade.observability.tracing import setup_tracing
 
 logger = structlog.get_logger(__name__)
 
@@ -40,6 +41,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     settings: Settings = get_settings()
     configure_structlog()
+
+    # T4: install the OpenTelemetry tracing layer before AgentOS wraps the
+    # app. Agno's `setup_tracing` is idempotent and AgentOS won't re-register
+    # because it sees the already-installed TracerProvider. No-op when
+    # `agno_postgres_url` is unset (test path) or `OTEL_TRACING_ENABLED=false`.
+    setup_tracing(settings)
 
     await logger.ainfo(
         "omnitrade.startup",

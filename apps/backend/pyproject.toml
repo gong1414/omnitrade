@@ -21,6 +21,13 @@ dependencies = [
     "httpx>=0.27.0",
     "orjson>=3.10.0",
     "structlog>=24.2.0",
+    # T4: OpenTelemetry tracing overlay. Agno ships `agno.tracing.setup_tracing`
+    # which spins up a TracerProvider, attaches Agno's DatabaseSpanExporter,
+    # and registers OpenInference's `AgnoInstrumentor` to emit spans for
+    # agent runs / model calls / tool executions. Both deps are optional in
+    # Agno (its setup falls back to a noop ImportError) so we pin them here.
+    "opentelemetry-sdk>=1.27.0",
+    "openinference-instrumentation-agno>=0.1.0",
     "aiosqlite>=0.20.0",
     "greenlet>=3.0.0",
     "numpy>=1.26",
