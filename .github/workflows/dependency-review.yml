@@ -18,8 +18,8 @@ jobs:
     name: Dependency review
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/dependency-review-action@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/dependency-review-action@4081bf99e2866ebe428fc0477b69eb4fcda7220a # v4
         with:
           fail-on-severity: moderate
           # Reject GPL-family / SSPL on a permissive (MIT) project.

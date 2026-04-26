@@ -1,10 +1,11 @@
 # OmniTrade backend — Python 3.11 + uv
-FROM python:3.11-slim
+FROM python:3.11-slim@sha256:6d85378d88a19cd4d76079817532d62232be95757cb45945a99fec8e8084b9c2
 
 WORKDIR /app
 
-# Install uv for fast dependency resolution
-RUN pip install --no-cache-dir uv
+# Install uv for fast dependency resolution. Pinned for reproducibility;
+# Dependabot's pip ecosystem will bump this when a new uv lands.
+RUN pip install --no-cache-dir uv==0.11.7
 
 # Copy dependency manifests + README (hatchling reads project.readme)
 COPY pyproject.toml README.md ./

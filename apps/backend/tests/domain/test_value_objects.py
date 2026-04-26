@@ -100,13 +100,13 @@ class TestMoney:
     def test_add_different_currency_raises(self) -> None:
         a = Money(amount=Decimal("10"), currency="USDT")
         b = Money(amount=Decimal("5"), currency="BTC")
-        with pytest.raises(ValueError, match="different currencies"):
+        with pytest.raises(ArithmeticError, match="different currencies"):
             _ = a + b
 
     def test_subtract_different_currency_raises(self) -> None:
         a = Money(amount=Decimal("10"), currency="USDT")
         b = Money(amount=Decimal("5"), currency="BTC")
-        with pytest.raises(ValueError, match="different currencies"):
+        with pytest.raises(ArithmeticError, match="different currencies"):
             _ = a - b
 
     def test_decimal_precision(self) -> None:
