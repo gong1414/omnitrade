@@ -75,6 +75,32 @@ def _resolve_deepseek(settings: Settings) -> DeepSeek:
     return DeepSeek(**kwargs)
 
 
+_TRADING_SESSION_ID = "omnitrade-trading"
+"""Stable session id shared across cycles so Agno persists every run as
+part of one logical trading conversation. With `add_history_to_context=True`
+this is what gives the LLM continuity across `tick()`s."""
+
+_NUM_HISTORY_RUNS = 5
+"""How many previous cycles' worth of run history Agno surfaces back into
+each new run's context. Five cycles ≈ 100 minutes at the default 20-min
+cadence — long enough to catch a regime shift, short enough to keep the
+prompt budget bounded."""
+
+
+def _build_session_db(settings: Settings) -> Any:
+    """Construct the optional Agno session DB from `agno_postgres_url`.
+
+    Returns `None` when the URL is unset so single-process / test runs
+    don't pull psycopg into the Agent path.
+    """
+    if not settings.agno_postgres_url:
+        return None
+    # Lazy import — psycopg only matters when Postgres is actually wired.
+    from agno.db.postgres import PostgresDb
+
+    return PostgresDb(db_url=settings.agno_postgres_url)
+
+
 def build_agno_think_fn(
     container: Any,
     settings: Settings,
@@ -93,6 +119,9 @@ def build_agno_think_fn(
     """
     bridge = AgnoMCPBridge()
     bridge_lock = asyncio.Lock()
+    # Built once at factory time — reused across every cycle so Agno's
+    # session table sees one logical trading session, not one per tick.
+    session_db = _build_session_db(settings)
 
     async def _ensure_mcp_connected() -> None:
         if bridge._toolset is not None:
@@ -141,18 +170,29 @@ def build_agno_think_fn(
             tools_for_agent.append(bridge._toolset)
         tools_for_agent.extend(decision_tools)
 
-        agent = Agent(
-            model=_resolve_deepseek(settings),
-            instructions=system_prompt,
-            tools=tools_for_agent,
-            telemetry=False,
-        )
+        agent_kwargs: dict[str, Any] = {
+            "model": _resolve_deepseek(settings),
+            "instructions": system_prompt,
+            "tools": tools_for_agent,
+            "telemetry": False,
+        }
+        if session_db is not None:
+            # Persist this cycle as a run inside the shared trading session
+            # and surface the last N runs back into the Agent's context so
+            # the LLM has cross-cycle continuity (Stage D of the cutover).
+            agent_kwargs["db"] = session_db
+            agent_kwargs["session_id"] = _TRADING_SESSION_ID
+            agent_kwargs["add_history_to_context"] = True
+            agent_kwargs["num_history_runs"] = _NUM_HISTORY_RUNS
+
+        agent = Agent(**agent_kwargs)
 
         with_context(logger).info(
             "trading_agent_agno.run",
             model=settings.agno_llm_model,
             n_tools=len(tools_for_agent),
             mcp_connected=bridge._toolset is not None,
+            history_runs=_NUM_HISTORY_RUNS if session_db is not None else 0,
         )
 
         try:
