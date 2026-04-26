@@ -159,13 +159,11 @@ module = [
     "ccxt.*",
     "sqlite_vec.*",
     "apscheduler.*",
-    "alembic.*",
     "vcr.*",
     "structlog.*",
     "fastmcp.*",
     "yaml.*",
     "requests.*",
-    "syrupy.*",
     "agno.*",
     "psycopg.*",
 ]

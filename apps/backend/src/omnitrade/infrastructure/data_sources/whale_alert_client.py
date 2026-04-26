@@ -35,7 +35,7 @@ class WhaleAlertClient:
             limit: Max transactions to return (1-100).
         """
         start = int(datetime.now(tz=UTC).timestamp()) - 3600  # last hour
-        params = {
+        params: dict[str, str | int] = {
             "api_key": self._api_key,
             "min_value": min_value_usd,
             "start": start,

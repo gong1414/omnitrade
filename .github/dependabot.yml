@@ -1,7 +1,14 @@
 version: 2
 
+# Strategy: only auto-PR minor + patch + security updates. Major-version
+# bumps (React 18→19, Next 14→16, Tailwind 3→4, Python 3.11→3.14, …)
+# require coordinated migration work and are intentionally pinned.
+# When ready to take a major bump, do it manually rather than reading
+# off Dependabot. The `ignore: [version-update:semver-major]` block
+# below opts out of major bumps everywhere; security advisories still
+# come through as patches.
+
 updates:
-  # GitHub Actions in workflows
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -11,31 +18,34 @@ updates:
     labels:
       - "deps"
       - "github-actions"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
-  # Backend (uv-managed Python via pyproject.toml)
   - package-ecosystem: "pip"
     directory: "/apps/backend"
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     labels:
       - "deps"
       - "area: backend"
     groups:
-      # Bundle non-major bumps so we don't flood the queue
       python-minor-and-patch:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
-  # Frontend (npm)
   - package-ecosystem: "npm"
     directory: "/apps/frontend"
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     labels:
       - "deps"
       - "area: frontend"
@@ -44,8 +54,10 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
-  # Repo-root npm (workspace scripts only)
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
@@ -54,8 +66,10 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "deps"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
-  # Docker base images (apps/backend/Dockerfile + apps/frontend/Dockerfile)
   - package-ecosystem: "docker"
     directory: "/apps/backend"
     schedule:
@@ -63,6 +77,10 @@ updates:
     labels:
       - "deps"
       - "area: ops"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: "docker"
     directory: "/apps/frontend"
     schedule:
@@ -70,3 +88,6 @@ updates:
     labels:
       - "deps"
       - "area: ops"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]

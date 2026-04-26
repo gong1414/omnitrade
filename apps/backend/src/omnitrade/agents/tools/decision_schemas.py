@@ -18,7 +18,7 @@ strings the model can read.
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from decimal import Decimal
 from typing import Any
 
@@ -235,7 +235,7 @@ def build_decision_tools(recorder: DecisionRecorder) -> list[DecisionTool]:
 
 
 def wrap_open_position_for_hitl(
-    tools: list[Function | DecisionTool],
+    tools: Sequence[Function | DecisionTool],
 ) -> list[Function | DecisionTool]:
     """Replace the ``open_position`` callable with an Agno
     :class:`agno.tools.function.Function` that carries

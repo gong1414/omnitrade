@@ -445,12 +445,14 @@ def build_agno_think_fn(
         # Per-cycle DecisionRecorder. Fresh recorder per cycle ⇒ no cross-talk
         # between concurrent triggers.
         recorder = DecisionRecorder()
-        decision_tools = build_decision_tools(recorder)
         # T9: re-wrap ``open_position`` with ``requires_confirmation=True``
         # so Agno emits a ``RunPausedEvent`` per open. The pause loop in
         # ``_resolve_pauses`` then auto-confirms below the HITL
-        # threshold or escalates to a human.
-        decision_tools = wrap_open_position_for_hitl(decision_tools)
+        # threshold or escalates to a human. The wrap returns a wider
+        # union type (Function | Callable) so we keep the wrapped list
+        # under a separate name rather than narrowing back into
+        # ``decision_tools``.
+        agent_tools = wrap_open_position_for_hitl(build_decision_tools(recorder))
 
         try:
             await _ensure_mcp_connected()
@@ -480,7 +482,7 @@ def build_agno_think_fn(
         tools_for_agent: list[Any] = []
         if bridge._toolset is not None:
             tools_for_agent.append(bridge._toolset)
-        tools_for_agent.extend(decision_tools)
+        tools_for_agent.extend(agent_tools)
 
         agent_kwargs: dict[str, Any] = {
             "model": _resolve_deepseek(settings),

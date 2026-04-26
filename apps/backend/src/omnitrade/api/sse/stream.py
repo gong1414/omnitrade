@@ -28,7 +28,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import AsyncGenerator
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import structlog
 from fastapi import APIRouter, Request
@@ -65,7 +65,7 @@ _SUBSCRIBED_NAMES: set[str] = {
 _HEARTBEAT_SECONDS: float = 15.0
 
 
-def _format_sse(event_type: str, payload: dict) -> bytes:
+def _format_sse(event_type: str, payload: dict[str, Any]) -> bytes:
     """Render one SSE message frame (`event:` + `data:` + blank line)."""
     body = json.dumps(payload, default=str)
     return f"event: {event_type}\ndata: {body}\n\n".encode()

@@ -131,12 +131,22 @@ class PositionManager:
                         symbol=symbol,
                         db_qty=str(existing.quantity),
                     )
-                    session = await self._session_factory()
-                    try:
-                        await self._position_repo.delete(session, existing.id)
-                        await session.commit()
-                    finally:
-                        await session.close()
+                    if existing.id is None:
+                        # Defensive: a Position read back from the DB always
+                        # has a primary key. If we got here without one,
+                        # something upstream is wrong — better to skip the
+                        # cleanup than to silently corrupt state.
+                        with_context(logger).warning(
+                            "position_manager.stale_db_position.no_id",
+                            symbol=symbol,
+                        )
+                    else:
+                        session = await self._session_factory()
+                        try:
+                            await self._position_repo.delete(session, existing.id)
+                            await session.commit()
+                        finally:
+                            await session.close()
                 else:
                     raise PyramidViolationError(
                         f"Already holding {symbol} (side={existing.side}, "
