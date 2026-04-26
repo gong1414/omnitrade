@@ -21,7 +21,8 @@ Validated end-to-end on 2026-04-26 against testnet:
 - AgentOS poller fires `trading-cycle` automatically at the next cron
   edge (`0 */2 * * *` for `TRADING_INTERVAL_MINUTES=120`)
 - No APScheduler `trading_cycle` job in `scheduler.add_job` calls
-- 653 backend tests passed, 2 skipped, 0 failed (after Tier A T1–T4 + T7)
+- 689 backend tests passed, 4 skipped, 0 failed (after Tier A T1–T4 + T7,
+  Tier B T5+T6 collapsed, Tier C T8 + T9 + T10)
 
 The trading cycle runs on AgentOS native scheduler, the workflow is
 registered with AgentOS, the backtest engine has been ported, and
@@ -38,7 +39,24 @@ deterministic replays go through vcrpy (`backtest/cassette.py`,
 | **T4 — OpenTelemetry tracing overlay** (`agno.tracing.setup_tracing(db=PostgresDb)` registered in lifespan; AgentOS `GET /traces` returns one span per cycle / model call / tool call; idempotent + kill-switched on `OTEL_TRACING_ENABLED`) | `1f15118` | ✅ shipped (G1 docker rebuild gate not yet walked) |
 | **T7 — `ReliabilityEval` in CI** (`tests/eval/test_reliability_cycle.py`, hermetic synthesised `RunOutput` per decision tool, dedicated CI step `Agent ReliabilityEval (Agno)`) | `dc35280` | ✅ shipped |
 
-Tier B (sequential, blocked on Tier A): **T5** dual-write `correlation_id` + `run_id` (front-runs T6) → **T6** drop `correlation_id`. Tier C (independent, ranked by ROI): **T8** `AccuracyEval` LLM-as-judge replacing G2 jq checks; **T9** HITL approvals via `requires_confirmation` on big-size opens; **T10** Knowledge / trade-journal RAG. None of T5–T10 are in flight yet.
+## Tier B (collapsed)
+
+| Task | Commit | Status |
+|------|--------|--------|
+| **T5+T6 — rename `correlation_id` → `run_id`** (Alembic `0006`, `agent_decisions` column + index, ORM, repo, API response, frontend types, e2e fixtures; collapsed because the system never deployed with `correlation_id` so the 7-day soft-migration window was busywork) | `909f3ae` | ✅ shipped |
+
+## Tier C
+
+| Task | Commit | Status |
+|------|--------|--------|
+| **T8 — `AccuracyEval` LLM-as-judge for G2** (`tests/eval/test_accuracy_g2.py`, Agno `AccuracyEval.run_with_output`, hermetic mocked judge, negative controls + cassette-gated `live` lane; replaces G2 jq-shell once user flips the gate in CLAUDE.md) | `adf4510` | ✅ shipped |
+| **T9 — HITL approvals via `requires_confirmation`** (`agents/hitl.py` predicate + `ApprovalRegistry`, `wrap_open_position_for_hitl`, `_resolve_pauses` + `_await_human_approval`, `EVENT_RUN_PAUSED`, `POST /api/v1/runs/{run_id}/{confirm,reject}`, `ApprovalBanner.tsx` + SSE handler; threshold default 10000 USD via `hitl_open_size_threshold_usd`) | `70921a2` | ✅ shipped |
+| **T10 — trade-journal RAG via Agno `Knowledge` + `PgVector`** (`agents/knowledge/trade_journal.py` factory + serialiser + ingest, post-cycle `asyncio.create_task` from `TradingLoopMonitor`, alembic `0007` `CREATE EXTENSION IF NOT EXISTS vector` (Postgres-only), `pgvector>=0.3.0` dep; graceful skip when Postgres / `OPENAI_API_KEY` is unwired) | `05e9e1d` | ✅ shipped |
+
+**T10 deployment gates** (operator-side, not in CI):
+- Image switch: `postgres:16-alpine` → `pgvector/pgvector:pg16` in `docker-compose.yml` (commented in-file but not changed; flip before turning RAG on).
+- `OPENAI_API_KEY` must be present for the embedder; without it the factory logs a warning and the cycle runs with RAG disabled.
+- 1 `requires_postgres`-marked smoke test (`tests/agents/knowledge/test_trade_journal.py`) collected, skipped without `AGNO_POSTGRES_URL`.
 
 Last updated: 2026-04-26
 
