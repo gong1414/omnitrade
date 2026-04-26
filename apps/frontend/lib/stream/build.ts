@@ -1,12 +1,16 @@
 /**
  * Adapter: turns the persisted `AgentDecision` rows into the Console-design
- * stream-event schema. We don't yet persist tool-call traces in the DB, so the
- * stream is decision-centric for now (one DecisionCard per row, optional
- * cycle markers grouped by iteration). When the Agno migration lands and the
- * AgentOS run trace is persisted, this adapter is the single seam to extend.
+ * stream-event schema. Each decision can carry an optional `trace` array
+ * (returned by the backend when the request includes ``?include=trace``)
+ * that's flattened from the matching Agno run's messages — assistant
+ * `reasoning_content` becomes `thinking` events, `tool_calls` become
+ * `tool_call` events, and tool-role messages become `tool_result` events.
+ * Decisions older than the active Agno session window or rows imported
+ * from the legacy LangGraph era come through with `trace: []` and
+ * degrade gracefully to the decision-centric stream.
  */
 
-import type { AgentDecision } from "@/lib/api/types";
+import type { AgentDecision, AgentDecisionTraceEvent } from "@/lib/api/types";
 
 export type StreamEvent =
   | (CycleMarkerEvent & { kind: "cycle_start" | "cycle_end" })
@@ -82,12 +86,78 @@ function safeParseArray<T>(raw: string | undefined | null): T[] {
   }
 }
 
+function epochToIso(seconds: number | null | undefined, fallback: string): string {
+  if (typeof seconds !== "number" || !Number.isFinite(seconds)) return fallback;
+  return new Date(seconds * 1000).toISOString();
+}
+
+function previewArgs(args: unknown): Record<string, unknown> {
+  if (args && typeof args === "object" && !Array.isArray(args)) {
+    return args as Record<string, unknown>;
+  }
+  if (typeof args === "string") return { _raw: args };
+  return {};
+}
+
+/**
+ * Project a single decision's `trace` array into the dashboard's stream
+ * event types, preserving the Agno run order (oldest → newest).
+ */
+function traceToEvents(
+  trace: AgentDecisionTraceEvent[] | null | undefined,
+  decisionId: number,
+  fallbackTs: string,
+): StreamEvent[] {
+  if (!Array.isArray(trace) || trace.length === 0) return [];
+  const out: StreamEvent[] = [];
+  trace.forEach((ev, idx) => {
+    const ts = epochToIso(ev.created_at, fallbackTs);
+    if (ev.kind === "thinking") {
+      out.push({
+        kind: "message",
+        id: `decision-${decisionId}-thinking-${idx}`,
+        ts,
+        role: "assistant",
+        thinking: true,
+        text: ev.content ?? "",
+      });
+    } else if (ev.kind === "tool_call") {
+      out.push({
+        kind: "tool_call",
+        id: `decision-${decisionId}-tool-call-${ev.id ?? idx}`,
+        ts,
+        tool: ev.tool ?? "tool",
+        args: previewArgs(ev.args),
+      });
+    } else if (ev.kind === "tool_result") {
+      const preview =
+        typeof ev.preview === "string"
+          ? ev.preview
+          : JSON.stringify(ev.preview ?? null).slice(0, 1024);
+      out.push({
+        kind: "tool_result",
+        id: `decision-${decisionId}-tool-result-${ev.id ?? idx}`,
+        ts,
+        tool: ev.tool ?? "tool",
+        preview,
+      });
+    }
+  });
+  return out;
+}
+
 /**
  * Turn a paged AgentDecision list (newest-first per backend contract) into a
  * chronological stream event list, also newest-first (so item 0 is the most
  * recent). Each decision row produces:
  *   - a `cycle_end` marker (the row's iteration boundary)
  *   - the `decision` itself (carrying all five structured fields inline)
+ *   - a flattened trace if `?include=trace` was requested (assistant
+ *     thinking + tool_call + tool_result events the LLM emitted that cycle).
+ *
+ * Within a cycle, events are ordered: `decision` first (so the card shows
+ * up top), then trace events oldest → newest (inner monologue), then the
+ * `cycle_end` marker. Across cycles the array stays newest-cycle-first.
  */
 export function buildStreamFromDecisions(decisions: AgentDecision[]): StreamEvent[] {
   const events: StreamEvent[] = [];
@@ -118,6 +188,8 @@ export function buildStreamFromDecisions(decisions: AgentDecision[]): StreamEven
       outputLanguage: d.output_language ?? null,
       legacy,
     });
+
+    events.push(...traceToEvents(d.trace, d.id, d.timestamp));
 
     events.push({
       kind: "cycle_end",

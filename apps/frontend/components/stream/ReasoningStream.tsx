@@ -51,7 +51,10 @@ interface ReasoningStreamProps {
 export function ReasoningStream({ limit = 25 }: ReasoningStreamProps) {
   const t = useTranslations();
   const { tweaks } = useTweaks();
-  const { decisions, count, isLoading } = useDecisions({ limit });
+  // include=trace pulls each decision's matched Agno run trace so the
+  // 思考 / 工具调用 tabs render real chain-of-thought + tool calls,
+  // not the empty state.
+  const { decisions, count, isLoading } = useDecisions({ limit, include: "trace" });
   const [filter, setFilter] = useState<Filter>("all");
 
   const events = useMemo(() => buildStreamFromDecisions(decisions), [decisions]);

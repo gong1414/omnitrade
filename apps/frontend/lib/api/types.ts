@@ -105,6 +105,34 @@ export interface AgentDecisionPlan {
   r_multiple_target?: number | null;
 }
 
+/**
+ * Per-cycle trace event reconstructed from the matching Agno run's
+ * messages. Surfaced by the backend when ``GET /api/v1/decisions`` is
+ * called with ``?include=trace``. Older decisions (legacy rows or runs
+ * outside the active Agno session window) come back with ``trace: []``.
+ */
+export type AgentDecisionTraceEvent =
+  | {
+      kind: "thinking";
+      role: "assistant";
+      content: string;
+      created_at: number | null;
+    }
+  | {
+      kind: "tool_call";
+      id: string | null;
+      tool: string;
+      args: unknown;
+      created_at: number | null;
+    }
+  | {
+      kind: "tool_result";
+      id: string | null;
+      tool: string;
+      preview: unknown;
+      created_at: number | null;
+    };
+
 export interface AgentDecision {
   id: number;
   timestamp: string;
@@ -125,6 +153,8 @@ export interface AgentDecision {
   // Alembic 0005: full StructuredReason.justification chain-of-thought;
   // null for legacy rows predating the audit fix.
   justification?: string | null;
+  // Populated only when the request was made with ?include=trace.
+  trace?: AgentDecisionTraceEvent[];
 }
 
 export interface DecisionsResponse {

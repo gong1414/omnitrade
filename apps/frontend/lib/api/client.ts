@@ -106,12 +106,22 @@ export function createApiClient(options: ApiClientOptions = {}) {
         opts,
       ),
 
-    fetchDecisions: ({ limit = 50, offset = 0 }: { limit?: number; offset?: number } = {}) =>
-      request<DecisionsResponse>(
-        `/api/v1/decisions?limit=${limit}&offset=${offset}`,
+    fetchDecisions: ({
+      limit = 50,
+      offset = 0,
+      include,
+    }: { limit?: number; offset?: number; include?: string } = {}) => {
+      const search = new URLSearchParams({
+        limit: String(limit),
+        offset: String(offset),
+      });
+      if (include) search.set("include", include);
+      return request<DecisionsResponse>(
+        `/api/v1/decisions?${search.toString()}`,
         { method: "GET" },
         opts,
-      ),
+      );
+    },
 
     fetchConfig: () => request<ConfigResponse>(`/api/v1/config`, { method: "GET" }, opts),
 
