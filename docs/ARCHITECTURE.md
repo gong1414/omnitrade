@@ -69,7 +69,7 @@ flowchart LR
     clock --> L5
 
     L1 -->|market gather<br/>agent decision<br/>open/close| ex[Exchange<br/>gate / okx]
-    L1 -->|agent_decisions INSERT| db[(SQLite / libsql)]
+    L1 -->|agent_decisions INSERT| db[(Postgres + pgvector / SQLite for tests)]
     L2 -->|account_history INSERT| db
     L3 -->|positions.trailing_peak_pnl_pct UPDATE| db
     L4 -->|reads stop_loss override<br/>emits close trades| db

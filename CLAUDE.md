@@ -145,106 +145,200 @@ Disagreement between sources = bug. Silence on this = missed bug.
 
 ## 📐 Project Context (quick reference)
 
-- **Stack**: Python 3.11 (FastAPI + SQLAlchemy async + APScheduler) +
-  Next.js 14 App Router + Tailwind + Recharts
-- **DB**: SQLite at `data/omnitrade.db` (migrations under
-  `apps/backend/alembic/versions/`)
-- **LLM**: DeepSeek V3.2 via LiteLLM (`settings.llm_model_name =
-  "deepseek/deepseek-chat"`); API key in `LLM_API_KEY` env var at repo
-  root `.env`
-- **Exchange**: Gate.io testnet (via ccxt); creds `GATE_API_KEY` +
-  `GATE_API_SECRET`; testnet flag default True
-- **Scheduler**: `SCHEDULER_ENABLED=true` + `TRADING_INTERVAL_MINUTES`
-  control cadence. Default OFF in `.env.example` (safety); enabled in
-  local `.env`.
-- **Manual cycle trigger**: `POST /api/v1/cycle/trigger` (60s timeout,
-  asyncio.Lock prevents concurrent triggers)
+Post-Agno-cutover state (2026-04-26). The migration spec's four
+acceptance gates are all green; T1–T10 hardening shipped on top of it.
+See `docs/AGNO_MIGRATION_TRACKER.md` for the full ledger.
+
+- **Stack**: Python 3.11 (FastAPI + SQLAlchemy async + Agno 2.x +
+  AgentOS + APScheduler) + Next.js 14 App Router + Tailwind + Recharts.
+- **Agent runtime**: single Agno Agent (`agents/trading_agent.py`) +
+  optional Team coordinate mode (`agents/experts_team.py`) for the two
+  team-eligible strategies. Agno is the *only* LLM/agent/MCP framework
+  — `rg "from langgraph|from langchain|import litellm|import mcp2py"
+  apps/backend/src/` returns 0.
+- **DB**: Postgres `pgvector/pgvector:pg16` (image swap landed in T10
+  ops commit). Alembic 0001..0007 under `apps/backend/alembic/versions/`.
+  AgentOS auto-creates `ai.*` tables (`agno_sessions`, `agno_runs`,
+  `agno_traces`, `agno_spans`, `agno_knowledge`, `trade_journal`, ...)
+  on first request. SQLite still works for unit tests via
+  `aiosqlite` — migration `0007` is dialect-gated, no-op on SQLite.
+- **LLM**: DeepSeek through Agno's `DeepSeek(id=...)` (no LiteLLM).
+  `LLM_API_KEY` + `LLM_BASE_URL=https://api.deepseek.com/v1` +
+  `AGNO_LLM_MODEL=deepseek-v4-pro` (or `-flash` / `-reasoner`).
+  DeepSeek's API only serves chat — `/v1/embeddings` is unimplemented.
+- **Embedder (T10)**: `EMBEDDER_PROVIDER=fastembed` is the default —
+  CPU-bound `BAAI/bge-small-en-v1.5` (384-dim), no API key. The OpenAI
+  protocol path stays available for operators on real OpenAI / proxies
+  (`EMBEDDER_PROVIDER=openai` reuses `LLM_API_KEY`/`LLM_BASE_URL`).
+  fastembed pulls the model from `HF_ENDPOINT=https://hf-mirror.com`
+  (huggingface.co's TLS handshake is unreliable on cn networks).
+- **Exchange**: Gate.io testnet via ccxt (`GATE_API_KEY` +
+  `GATE_API_SECRET`); OKX adapter is the alternate.
+- **Scheduler**: AgentOS native cron drives the trading-cycle Workflow
+  (15s poll). APScheduler keeps the 6 fast position-protection
+  monitors (`account_recorder` / `trailing_stop` / `stop_loss` /
+  `partial_profit` / 10s cadence) where the AgentOS poller's interval
+  is too coarse. `AGNO_SCHEDULER_DRIVES_CYCLE=true` + Postgres makes
+  this the only path; APScheduler's old `trading_cycle` job is
+  suppressed in that mode.
+- **Manual cycle trigger**: `POST /api/v1/cycle/trigger` —
+  `cycle_trigger_timeout_seconds` defaults 60s (bump to 180+ for
+  reasoner / `-pro` since they routinely take 100–200s on the
+  tribunal strategy).
 - **Structured reasoning schema**: `StructuredReason` in
-  `agents/tools/structured_reason.py` — 7 fields (market_context /
-  gates_passed / invalidation_condition / plan / confidence /
-  justification / output_language)
-- **13 prompts**: all single-source English, Alpha Arena 4-section
-  structure (IDENTITY / QUANTITATIVE FRAMEWORK / VALIDATION GATES /
-  OUTPUT SPECIFICATION). `OUTPUT_LANGUAGE` runtime param controls which
-  language the LLM replies in.
-- **Dashboard**: http://localhost:3000/dashboard — AgentReasoningFeed
-  renders structured 5-panel when new fields present, blockquote
-  fallback for legacy rows
-- **Tool management**: mcp2py loads MCP servers as Python modules with
-  zero-overhead direct calls. 4 decision tool schemas (schema-only) +
-  15 MCP tools (9 trading + 6 crypto). Adding new exchanges = add MCP
-  tools, no changes to composition.py.
-- **Agno migration scaffolded** (spec `.omc/specs/deep-interview-agno-migration.md`,
-  plan `~/.claude/plans/mossy-frolicking-hickey.md`, tracker
-  `docs/AGNO_MIGRATION_TRACKER.md`). All 6 phases land as **flag-gated
-  parallel paths** — defaults preserve legacy behavior bit-for-bit.
-  - **Phase 0**: `agno>=2.0.0`, `psycopg[binary]>=3.2.0` deps; Postgres
-    service in `docker-compose.yml`.
-  - **Phase 1** (`AGNO_LLM_ENABLED`): `infrastructure/llm/factory.py` +
-    `agno_llm_adapter.py` swap LiteLLM for Agno's
-    `DeepSeek(id="deepseek-reasoner")` (spec exception E2).
-  - **Phase 2** (`AGNO_AGENT_ENABLED`): `agents/trading_agent_agno.py` +
-    `agents/tools/decision_schemas.py` + `agents/tools/mcp_bridge_agno.py`
-    replace the LangGraph think loop with an Agno Agent + MultiMCPTools.
-    `composition._build_base_think_fn` branches on the flag.
-  - **Phase 3** (`AGNO_WORKFLOW_ENABLED`): `application/trading_workflow_agno.py`
-    + `agents/experts_team_agno.py` provide a 6-step Agno `Workflow` and
-    a `Team` (coordinate mode) for AGGRESSIVE_TEAM / MULTI_AGENT_CONSENSUS.
-  - **Phase 4** (`AGNO_AGENT_OS_ENABLED`): `api/agent_os_app.py::wrap_with_agent_os`
-    overlays AgentOS on the existing FastAPI app
-    (`on_route_conflict='preserve_base_app'`). +92 routes when on; legacy
-    routes survive intact.
-  - **Phase 5**: `apps/frontend/lib/sse/client.ts` mirrors WS client
-    surface so the dashboard hook can flip transports by env flag.
-  - **Phase 6**: `infrastructure/persistence/database.py` routes Postgres
-    URLs through `psycopg3` (single driver, sync + async). Existing 5
-    Alembic revisions auto-upgrade on Postgres.
-  - **Tracker**: `docs/AGNO_MIGRATION_TRACKER.md` enumerates legacy files
-    slated for deletion and tests slated for rewrite, gated on user
-    sign-off of G1–G6 against the AgentOS path.
+  `agents/tools/structured_reason.py` (7 fields: market_context,
+  gates_passed, invalidation_condition, plan, confidence,
+  justification, output_language). API surface: GET
+  `/api/v1/decisions` serialises all of them plus `run_id` (T5+T6 —
+  `correlation_id` was renamed; the only remaining `correlation_id`
+  refs are the HTTP-request-trace ContextVar layer, intentional).
+- **Decision tools (4)**: `open_position` / `close_position` /
+  `partial_close` / `hold_tool` in `agents/tools/decision_schemas.py`.
+  T9 wraps `open_position` with `requires_confirmation` so opens with
+  USD notional > `hitl_open_size_threshold_usd` (default 10000) pause
+  for operator approval via `EVENT_RUN_PAUSED` SSE +
+  `POST /api/v1/runs/{id}/{confirm,reject}` + dashboard
+  `ApprovalBanner.tsx`.
+- **MCP tools (15)**: 9 exchange/account in
+  `infrastructure/mcp/trading_mcp_server.py` + 6 crypto-data in
+  `infrastructure/data_sources/crypto_mcp_server.py`. Loaded via
+  Agno's `MultiMCPTools` (formerly mcp2py — fully removed).
+- **Knowledge / RAG (T10)**: every cycle's `StructuredReason` is
+  serialised → ingested as a knowledge document into
+  `ai.trade_journal` (PgVector hybrid search). On the next cycle the
+  Agno Agent has `search_knowledge=True` and auto-injects the most
+  semantically relevant prior decisions into the system prompt. Hook
+  fires post-`decision_service.record` from
+  `application/monitors/trading_loop_monitor.py::_schedule_journal_ingest`
+  via `asyncio.create_task` (never blocks the cycle return).
+- **Tracing (T4)**: `observability/tracing.py::setup_tracing` calls
+  `agno.tracing.setup_tracing(db=PostgresDb)` in lifespan (idempotent;
+  killed by `OTEL_TRACING_ENABLED=false`). OpenInference's
+  `AgnoInstrumentor` emits one OTel span per Agent.arun / model call /
+  tool call. `GET /traces` (AgentOS) returns the per-cycle span tree.
+- **G5 guardrail (T3)**: `agents/guardrails/qa_phrase.py` post_hook
+  scans `RunOutput.content` for the 11 fault phrases; matches publish
+  `EVENT_ORCHESTRATOR_ERROR` so the dashboard banner auto-lights.
+- **Session memory (T2)**: `enable_session_summaries=True` +
+  `add_history_to_context=True` + `num_history_runs=5`. Persisted to
+  `ai.agno_sessions.summary` per `_TRADING_SESSION_ID =
+  "omnitrade-trading"`.
+- **13 prompts**: single-source English, Alpha Arena 4-section
+  (IDENTITY / QUANTITATIVE FRAMEWORK / VALIDATION GATES / OUTPUT
+  SPECIFICATION). `OUTPUT_LANGUAGE` controls reply language.
+- **11 strategies**: each defined in `domain/enums.py::StrategyName`.
+  `arena-tribunal` and `arena-raider-squad` are the team-eligible
+  pair; the other 9 run as a single Agno Agent. Spec Acceptance 3
+  (every strategy completes a cycle) is enforced by
+  `tests/agents/test_strategies_acceptance3.py` (12 deterministic
+  tests, no LLM).
+- **Frontend**: SSE single transport (WS removed). Dashboard at
+  `http://localhost:3000/dashboard` — `AgentReasoningFeed.tsx`
+  (5-panel structured) + `ApprovalBanner.tsx` (T9 HITL) +
+  `LogStream.tsx` + i18n via `apps/frontend/lib/i18n/`. Reads from
+  `useRealtime` hook over `/sse/*`.
+- **Backtest**: `backtest/engine.py` + `backtest/agno_think.py`
+  (injected `ThinkFn`; no MCP / no DB) + `backtest/cassette.py`
+  (vcrpy HTTP-layer record/replay; `--cassette / --cassette-mode`
+  CLI flags).
+- **Eval**: T7 ReliabilityEval (`tests/eval/test_reliability_cycle.py`)
+  + T8 AccuracyEval (`tests/eval/test_accuracy_g2.py`) — both run in
+  the dedicated `Agent ReliabilityEval (Agno)` CI step under
+  `pytest -m eval`.
 
 ## 🧭 Working directories / key files
 
 ```
 apps/backend/src/omnitrade/
   agents/
-    prompts/            — 13 prompt files (system/think/reflect + 7 experts)
+    trading_agent.py              — build_agno_think_fn (Agno Agent + MultiMCPTools
+                                     + DecisionRecorder + post_hooks + HITL pause loop
+                                     + Knowledge handle)
+    experts_team.py               — Agno Team (coordinate mode) for the two
+                                     team-eligible strategies
+    hitl.py                       — should_require_confirmation() predicate +
+                                     ApprovalRegistry (asyncio.Future store) (T9)
+    guardrails/qa_phrase.py       — G5 fault-phrase post_hook (T3)
+    knowledge/trade_journal.py    — Knowledge factory + serialiser + ingest (T10)
+    prompts/                      — 13 prompt files (system / think / reflect +
+                                     7 experts + multi_agent variants)
     tools/
-      structured_reason.py  — StructuredReason schema (DB column mapping at bottom)
-      trade_execution.py    — 4 decision tool schemas (open/close/partial/hold)
-      mcp_tool_bridge.py    — mcp2py loader, registers MCP tools in ToolRegistry
-    think_node.py       — LangGraph compile + dual-path parser
+      decision_schemas.py         — 4 decision tools + wrap_open_position_for_hitl
+      mcp_bridge.py               — AgnoMCPBridge / MultiMCPTools wiring
+      structured_reason.py        — StructuredReason pydantic + DB column mapping
   application/
-    composition.py      — build_trading_monitor (THE wire-it-all-together fn)
-    trading_loop.py     — 6-step cycle orchestrator (observe→news→think→risk→execute→reflect)
+    composition.py                — build_trading_monitor (THE wire-everything fn)
+    trading_workflow.py           — Agno Workflow registered with AgentOS
     monitors/
-      trading_loop_monitor.py  — scheduler tick wrapper
+      trading_loop_monitor.py     — scheduler tick wrapper + post-cycle ingest hook
+      trailing_stop_monitor.py    — } the 6 fast position-protection monitors
+      stop_loss_monitor.py        —   (10s cadence on APScheduler)
+      partial_profit_monitor.py   — } three-way state UPDATE happens here
+      account_recorder_monitor.py
+      ...
+    decision_service.py           — persists Decision row → run_id
+    risk_service.py               — DailyLossLimiter
+    events/bus.py                 — EVENT_RUN_PAUSED / ORCHESTRATOR_ERROR / ...
   api/
-    main.py             — lifespan with APScheduler start/stop
+    main.py                       — lifespan: configure_structlog → setup_tracing
+                                     → ApiContainer → AgentOS overlay → schedules
+    agent_os_app.py               — wrap_with_agent_os (FastAPI + AgentOS overlay,
+                                     +88 AgentOS routes)
     routes/
-      cycle.py          — POST /api/v1/cycle/trigger
-      decisions.py      — GET /api/v1/decisions (serialize all 6 structured cols)
+      cycle.py                    — POST /api/v1/cycle/trigger
+      decisions.py                — GET /api/v1/decisions (with run_id, all 7
+                                     StructuredReason fields)
+      runs.py                     — POST /api/v1/runs/{id}/{confirm,reject} (T9)
+      positions.py / account.py / prices.py / ...
+    sse/stream.py                 — EVENT_* fan-out SSE
   infrastructure/
-    mcp/
-      trading_mcp_server.py    — 9 exchange/market/account MCP tools (FastMCP stdio)
-    data_sources/
-      crypto_mcp_server.py     — 6 crypto data MCP tools (CoinGecko, Fear&Greed, etc.)
-    exchange/
-      ccxt_exchange.py  — Gate/OKX adapter; phantom-positions bug fixed
-                          (line 142-147: use `contracts` only, not
-                          `contractSize` — per this file's CRITICAL rule)
+    llm/agno_llm_adapter.py       — the only LLMClient (Agno's DeepSeek)
+    mcp/trading_mcp_server.py     — 9 trading tools (FastMCP stdio)
+    data_sources/crypto_mcp_server.py  — 6 crypto-data tools
+    exchange/ccxt_exchange.py     — Gate/OKX adapter (phantom-positions fix in
+                                     fetch_positions: use `contracts` only, never
+                                     `contractSize`)
+    persistence/
+      database.py                 — psycopg3 routing (single driver sync+async)
+      models.py                   — ORM (`agent_decisions.run_id` post T5+T6)
+      repositories/
+    scheduling/scheduler.py       — APScheduler for the 6 fast monitors only
+    market_data/indicators.py     — EMA / RSI / MACD / ATR / volume_ratio
+  observability/
+    tracing.py                    — setup_tracing (T4 OTel overlay, idempotent)
+    trace_context.py              — HTTP-request `correlation_id` ContextVar
+                                     (orthogonal to OTel; do NOT rename — it's
+                                     not the per-cycle run_id)
+  backtest/
+    engine.py                     — injected ThinkFn, no MCP / no DB
+    agno_think.py                 — Agno Agent → think_fn factory for CLI runs
+    cassette.py                   — vcrpy HTTP record/replay
+  config.py                       — Settings (pydantic-settings) — all knobs
+  main.py                         — entry point
 
 apps/frontend/
+  app/dashboard/page.tsx          — Console layout
   components/
-    AgentReasoningFeed.tsx        — conditional 5-panel vs legacy blockquote
-    reasoning/                     — 5 panel components
+    AgentReasoningFeed.tsx        — 5-panel structured + blockquote fallback
+    ApprovalBanner.tsx            — T9 HITL approve/reject UI
+    LogStream.tsx                 — SSE-driven log feed
+    reasoning/                    — 5 panel components (MarketContext / Gates /
+                                     Invalidation / Plan / ConfidenceGauge)
   lib/
-    i18n/{messages.ts,context.tsx} — zh/en lightweight i18n
+    sse/{client,singleton}.ts     — SSE single transport (WS deleted)
+    api/{client,types}.ts         — API DTOs (run_id, paused-run payload, ...)
+    i18n/{messages.ts,context.tsx}— zh/en lightweight i18n
+  hooks/useRealtime.ts            — single source of truth for live state
+
+docs/
+  AGNO_MIGRATION_TRACKER.md       — current ledger (T1–T10, A1–A4)
+  ARCHITECTURE.md / ARCHITECTURE_ZH.md  — DDD layers + scheduler topology +
+                                          three-way state invariant
 
 .omc/
-  specs/                — deep-interview output (acceptance criteria source)
-  plans/                — ralplan consensus output
-  autopilot/            — phase reports + probe logs
+  specs/                          — deep-interview output
+  plans/                          — ralplan consensus output
+  autopilot/                      — phase reports + probe logs
 ```
 
 ## 🏷 Git commit style

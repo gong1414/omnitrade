@@ -69,7 +69,7 @@ flowchart LR
     clock --> L5
 
     L1 -->|行情采集<br/>Agent 决策<br/>开/平仓| ex[Exchange<br/>gate / okx]
-    L1 -->|agent_decisions INSERT| db[(SQLite / libsql)]
+    L1 -->|agent_decisions INSERT| db[(Postgres + pgvector / SQLite for tests)]
     L2 -->|account_history INSERT| db
     L3 -->|positions.trailing_peak_pnl_pct UPDATE| db
     L4 -->|读 stop_loss 覆盖<br/>发出 close trades| db

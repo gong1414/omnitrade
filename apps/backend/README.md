@@ -15,8 +15,8 @@ Python 3.11 backend for the [OmniTrade](../../README.md) LLM-driven crypto-futur
 |---|---|
 | `src/omnitrade/domain/` | Pure entities, value objects, protocols, classifier |
 | `src/omnitrade/application/` | Services, 5 monitors, multi-agent orchestrator |
-| `src/omnitrade/infrastructure/` | Exchange (ccxt), LLM (LiteLLM), MCP servers (mcp2py), persistence, WebSocket |
-| `src/omnitrade/agents/` | LangGraph think-node + prompts + MCP tool bridge (the only module that imports `langgraph`) |
+| `src/omnitrade/infrastructure/` | Exchange (ccxt), LLM (Agno DeepSeek adapter), MCP servers (FastMCP stdio), persistence (psycopg3 over Postgres + pgvector), AgentOS scheduler |
+| `src/omnitrade/agents/` | Agno trading agent + experts team + HITL + Knowledge/RAG + 13 prompts (the only module that imports `agno`) |
 | `src/omnitrade/api/` | FastAPI routers + middleware + DI container |
 | `src/omnitrade/observability/` | Structlog, correlation-id middleware, trace context |
 

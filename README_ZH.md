@@ -248,7 +248,7 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    L1[trading_loop<br/>cron */TRADING_INTERVAL] --> DB[(SQLite)]
+    L1[trading_loop<br/>AgentOS scheduler */TRADING_INTERVAL] --> DB[(Postgres + pgvector)]
     L2[account_recorder<br/>cron */ACCOUNT_INTERVAL] --> DB
     L3[trailing_stop<br/>10 秒] --> DB
     L4[stop_loss<br/>10 秒] --> DB
@@ -326,8 +326,8 @@ llmtrading/
 
 欢迎 Issue 与 PR。请遵循：
 
-1. 在 `apps/backend` 内跑 `uv run pytest`——**642 个测试必须保持全绿**，22 份固化 fixture 重放通过率 ≥ 0.95。
-2. 守 **LangGraph 作用域约束**——只有 `agents/think_node.py` 允许 `import langgraph`。
+1. 在 `apps/backend` 内跑 `uv run pytest`——**702 个测试必须保持全绿**，22 份固化 fixture 重放通过率 ≥ 0.95。
+2. 守 **Agno-only 约束**——`rg "from langgraph|from langchain|import litellm|import mcp2py" apps/backend/src/` 必须为 0。Agno 是这个 codebase 唯一允许的 LLM/Agent/MCP 框架。
 3. 守 **三位一体原子性**——任何写入 `cumulative_close_pct` / `stop_loss` / `trailing_peak_pnl_pct` 的路径都必须走 `PositionRepository.apply_three_way_state`。
 4. 新增依赖须在白名单内（MIT / Apache-2.0 / BSD / ISC / MPL-2.0）。参见 [docs/LICENSE_INVENTORY.md](./docs/LICENSE_INVENTORY.md)。
 

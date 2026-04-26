@@ -19,7 +19,7 @@
   <img src="https://img.shields.io/badge/Strategies-11-FF6B6B" alt="Strategies">
   <img src="https://img.shields.io/badge/Close_Paths-4%2B1-4ECDC4" alt="Close Paths">
   <img src="https://img.shields.io/badge/Frozen_Fixtures-22%2F22-FFD93D" alt="Fixtures">
-  <img src="https://img.shields.io/badge/Tests-642_green-2BB673" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-702_green-2BB673" alt="Tests">
   <img src="https://img.shields.io/badge/Exchanges-Gate%20%2B%20OKX-F6465D" alt="Exchanges">
 </p>
 
@@ -249,7 +249,7 @@ Five async loops, all driven by a single injected `Clock` protocol:
 
 ```mermaid
 flowchart LR
-    L1[trading_loop<br/>cron */TRADING_INTERVAL] --> DB[(SQLite)]
+    L1[trading_loop<br/>AgentOS scheduler */TRADING_INTERVAL] --> DB[(Postgres + pgvector)]
     L2[account_recorder<br/>cron */ACCOUNT_INTERVAL] --> DB
     L3[trailing_stop<br/>10 s] --> DB
     L4[stop_loss<br/>10 s] --> DB
