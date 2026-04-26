@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="omni-mono-title omni-mono-desc" fill="currentColor">
+  <title id="omni-mono-title">OmniTrade (monochrome)</title>
+  <desc id="omni-mono-desc">Monochrome variant of the OmniTrade mark using currentColor — adapts to surrounding text color in light or dark contexts.</desc>
+
+  <circle cx="128" cy="128" r="100" fill="none" stroke="currentColor" stroke-width="14"/>
+
+  <g stroke="currentColor" stroke-width="7" stroke-linecap="round" fill="none" opacity="0.85">
+    <line x1="128" y1="44" x2="128" y2="86" transform="rotate(0 128 128)"/>
+    <line x1="128" y1="44" x2="128" y2="86" transform="rotate(32.7273 128 128)"/>
+    <line x1="128" y1="44" x2="128" y2="86" transform="rotate(65.4545 128 128)"/>
+    <line x1="128" y1="44" x2="128" y2="86" transform="rotate(98.1818 128 128)"/>
+    <line x1="128" y1="44" x2="128" y2="86" transform="rotate(130.9091 128 128)"/>
+    <line x1="128" y1="44" x2="128" y2="86" transform="rotate(163.6364 128 128)"/>
+    <line x1="128" y1="44" x2="128" y2="86" transform="rotate(196.3636 128 128)"/>
+    <line x1="128" y1="44" x2="128" y2="86" transform="rotate(229.0909 128 128)"/>
+    <line x1="128" y1="44" x2="128" y2="86" transform="rotate(261.8182 128 128)"/>
+    <line x1="128" y1="44" x2="128" y2="86" transform="rotate(294.5455 128 128)"/>
+    <line x1="128" y1="44" x2="128" y2="86" transform="rotate(327.2727 128 128)"/>
+  </g>
+
+  <circle cx="128" cy="128" r="22" fill="currentColor"/>
+  <circle cx="128" cy="128" r="9" fill="#FFFFFF"/>
+</svg>

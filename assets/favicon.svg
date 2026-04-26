@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-labelledby="omni-fav-title">
+  <title id="omni-fav-title">OmniTrade favicon</title>
+
+  <defs>
+    <linearGradient id="omni-fav-ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8A2BE2"/>
+      <stop offset="100%" stop-color="#4ECDC4"/>
+    </linearGradient>
+    <radialGradient id="omni-fav-core" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#FFD93D"/>
+      <stop offset="100%" stop-color="#FF8A3D"/>
+    </radialGradient>
+  </defs>
+
+  <circle cx="16" cy="16" r="13" fill="none" stroke="url(#omni-fav-ring)" stroke-width="3.2"/>
+  <line x1="16" y1="6.5" x2="16" y2="11" stroke="#FF6B6B" stroke-width="2.4" stroke-linecap="round" transform="rotate(65.4545 16 16)"/>
+  <circle cx="16" cy="16" r="5.2" fill="#1F1147"/>
+  <circle cx="16" cy="16" r="3.6" fill="url(#omni-fav-core)"/>
+</svg>

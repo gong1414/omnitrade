@@ -2,6 +2,9 @@
   <b>English</b> | <a href="README_ZH.md">简体中文</a>
 </p>
 
+<p align="center">
+  <a href="https://github.com/gong1414/omnitrade"><img src="assets/logo-horizontal.svg" alt="OmniTrade" width="520"></a>
+</p>
 
 <h1 align="center">OmniTrade: LLM-Driven Crypto Futures Arena</h1>
 

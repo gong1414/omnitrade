@@ -2,6 +2,10 @@
   <a href="README.md">English</a> | <b>简体中文</b>
 </p>
 
+<p align="center">
+  <a href="https://github.com/gong1414/omnitrade"><img src="assets/logo-horizontal.svg" alt="OmniTrade" width="520"></a>
+</p>
+
 <h1 align="center">OmniTrade：大模型驱动的合约竞技场</h1>
 
 <p align="center">

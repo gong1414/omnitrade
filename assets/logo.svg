@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="omni-title omni-desc">
+  <title id="omni-title">OmniTrade</title>
+  <desc id="omni-desc">An eleven-spoke compass mark inside a gradient ring, with one spoke highlighted in coral as the active strategy and a layered central dot representing the agent core.</desc>
+
+  <defs>
+    <linearGradient id="omni-ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8A2BE2"/>
+      <stop offset="55%" stop-color="#5C6BE2"/>
+      <stop offset="100%" stop-color="#4ECDC4"/>
+    </linearGradient>
+    <radialGradient id="omni-core" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#FFD93D"/>
+      <stop offset="100%" stop-color="#FF8A3D"/>
+    </radialGradient>
+  </defs>
+
+  <circle cx="128" cy="128" r="100" fill="none" stroke="url(#omni-ring)" stroke-width="14"/>
+
+  <g stroke="#8A2BE2" stroke-width="7" stroke-linecap="round" fill="none">
+    <line x1="128" y1="44" x2="128" y2="86" transform="rotate(0 128 128)"/>
+    <line x1="128" y1="44" x2="128" y2="86" transform="rotate(32.7273 128 128)"/>
+    <line x1="128" y1="44" x2="128" y2="86" transform="rotate(98.1818 128 128)"/>
+    <line x1="128" y1="44" x2="128" y2="86" transform="rotate(130.9091 128 128)"/>
+    <line x1="128" y1="44" x2="128" y2="86" transform="rotate(163.6364 128 128)"/>
+    <line x1="128" y1="44" x2="128" y2="86" transform="rotate(196.3636 128 128)"/>
+    <line x1="128" y1="44" x2="128" y2="86" transform="rotate(229.0909 128 128)"/>
+    <line x1="128" y1="44" x2="128" y2="86" transform="rotate(261.8182 128 128)"/>
+    <line x1="128" y1="44" x2="128" y2="86" transform="rotate(294.5455 128 128)"/>
+    <line x1="128" y1="44" x2="128" y2="86" transform="rotate(327.2727 128 128)"/>
+  </g>
+
+  <line x1="128" y1="42" x2="128" y2="88" stroke="#FF6B6B" stroke-width="9" stroke-linecap="round" transform="rotate(65.4545 128 128)"/>
+
+  <circle cx="128" cy="128" r="24" fill="#1F1147"/>
+  <circle cx="128" cy="128" r="18" fill="url(#omni-core)"/>
+  <circle cx="128" cy="128" r="6" fill="#1F1147"/>
+</svg>
