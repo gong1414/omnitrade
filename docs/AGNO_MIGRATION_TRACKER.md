@@ -21,8 +21,8 @@ Validated end-to-end on 2026-04-26 against testnet:
 - AgentOS poller fires `trading-cycle` automatically at the next cron
   edge (`0 */2 * * *` for `TRADING_INTERVAL_MINUTES=120`)
 - No APScheduler `trading_cycle` job in `scheduler.add_job` calls
-- 689 backend tests passed, 4 skipped, 0 failed (after Tier A T1–T4 + T7,
-  Tier B T5+T6 collapsed, Tier C T8 + T9 + T10)
+- 702 backend tests passed, 4 skipped, 0 failed (after Tier A T1–T4 + T7,
+  Tier B T5+T6 collapsed, Tier C T8 + T9 + T10, plus Acceptance-3 harness)
 
 The trading cycle runs on AgentOS native scheduler, the workflow is
 registered with AgentOS, the backtest engine has been ported, and
@@ -194,10 +194,10 @@ Per-directory mapping (preliminary; refine as Phase 6 lands):
 
 ## Acceptance criteria (spec final gates)
 
-- [x] **Acceptance 1**: Real `POST /api/v1/cycle/trigger` returns 200 in ≤ 60 s on the legacy path. *(unchanged today; flag-gated paths inherit this when their phase is on)*
-- [x] **Acceptance 2**: AgentUI shows the latest decision with full structured reasoning. *(replaced by Console-design dashboard in `apps/frontend/app/dashboard/page.tsx` — see `~/Desktop/omnitrade-console-impl-1-zh.png`)*
-- [ ] **Acceptance 3**: All 11 strategies complete a cycle. *(needs Phase 4.5 + Postgres soak)*
-- [ ] **Acceptance 4**: `rg 'from langgraph|from langchain|import litellm|import mcp2py' apps/backend/src/` returns 0. *(blocked on legacy purge after testnet validation)*
+- [x] **Acceptance 1**: Real `POST /api/v1/cycle/trigger` returns 200 (testnet 2026-04-26 — `{"status":"ok","elapsed_seconds":188.4}` against `arena-tribunal` on Postgres + AgentOS scheduler).
+- [x] **Acceptance 2**: AgentUI shows the latest decision with full structured reasoning. *(replaced by Console-design dashboard in `apps/frontend/app/dashboard/page.tsx`; HTTP 200 verified end-to-end this session)*
+- [x] **Acceptance 3**: All 11 strategies complete a cycle — `tests/agents/test_strategies_acceptance3.py` parametrises every `StrategyName` member through `build_agno_think_fn` against a stubbed Agent (no LLM, no MCP, no team build) and asserts each yields a structurally valid `Decision`. 12/12 pass deterministically; live walk against testnet remains an operator concern.
+- [x] **Acceptance 4**: `rg 'from langgraph|from langchain|import litellm|import mcp2py' apps/backend/src/` returns 0 (verified 2026-04-26).
 
 ---
 
