@@ -166,11 +166,11 @@ async def _run_async(args: argparse.Namespace) -> int:
     report_path = out_dir / f"backtest-{'-'.join(symbols)}-{stamp}.md"
     report_path.write_text(result.to_markdown(), encoding="utf-8")
 
-    print(f"Report written to: {report_path}")  # noqa: T201 — intentional CLI surface
-    print(f"Total return: {result.metrics.get('total_return_pct', 0.0):+.2f}%")  # noqa: T201
-    print(f"Sharpe:       {result.metrics.get('sharpe_ratio_annualised', 0.0):.2f}")  # noqa: T201
-    print(f"Max DD:       {result.metrics.get('max_drawdown_pct', 0.0):.2f}%")  # noqa: T201
-    print(f"Trades:       {result.metrics.get('trade_count', 0)}")  # noqa: T201
+    print(f"Report written to: {report_path}")
+    print(f"Total return: {result.metrics.get('total_return_pct', 0.0):+.2f}%")
+    print(f"Sharpe:       {result.metrics.get('sharpe_ratio_annualised', 0.0):.2f}")
+    print(f"Max DD:       {result.metrics.get('max_drawdown_pct', 0.0):.2f}%")
+    print(f"Trades:       {result.metrics.get('trade_count', 0)}")
     return 0
 
 

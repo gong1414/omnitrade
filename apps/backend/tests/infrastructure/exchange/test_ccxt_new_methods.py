@@ -79,9 +79,7 @@ async def test_fetch_open_interest_prefers_amount() -> None:
 @pytest.mark.asyncio
 async def test_fetch_open_interest_falls_back_to_value() -> None:
     ex = _make_exchange()
-    ex._exchange.fetch_open_interest = AsyncMock(
-        return_value={"openInterestValue": 999.0}
-    )
+    ex._exchange.fetch_open_interest = AsyncMock(return_value={"openInterestValue": 999.0})
     oi = await ex.fetch_open_interest(Symbol(value="BTC_USDT"))
     assert oi == Decimal("999.0")
     await ex.close()
@@ -133,9 +131,7 @@ async def test_fetch_order_returns_none_on_error() -> None:
 @pytest.mark.asyncio
 async def test_fetch_order_maps_closed_to_filled() -> None:
     ex = _make_exchange()
-    ex._exchange.fetch_order = AsyncMock(
-        return_value=_ccxt_order(status="closed", remaining=0.0)
-    )
+    ex._exchange.fetch_order = AsyncMock(return_value=_ccxt_order(status="closed", remaining=0.0))
     order = await ex.fetch_order("o-123", Symbol(value="BTC_USDT"))
     assert order is not None
     assert order.status == "filled"

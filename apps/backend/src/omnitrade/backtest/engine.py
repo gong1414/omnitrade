@@ -61,6 +61,7 @@ class OHLCVDataSource(Protocol):
 
     async def close(self) -> None: ...
 
+
 logger = structlog.get_logger(__name__)
 
 
@@ -188,9 +189,7 @@ class BacktestEngine:
                 if extra_tf == self._timeframe:
                     continue
                 try:
-                    extra_candles = await self._data_source.load(
-                        sym, extra_tf, start_ms, end_ms
-                    )
+                    extra_candles = await self._data_source.load(sym, extra_tf, start_ms, end_ms)
                 except Exception as exc:  # extra TFs are best-effort
                     logger.warning(
                         "backtest_engine.prefetch_extra_tf_failed",

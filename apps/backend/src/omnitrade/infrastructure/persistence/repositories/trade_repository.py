@@ -77,9 +77,7 @@ class TradeRepository:
         await session.refresh(row)
         return _orm_to_domain(row)
 
-    async def realized_pnl_since(
-        self, session: AsyncSession, since_utc: datetime
-    ) -> Decimal:
+    async def realized_pnl_since(self, session: AsyncSession, since_utc: datetime) -> Decimal:
         """Sum realized ``pnl`` of closed trades with ``timestamp >= since_utc``.
 
         Realized PnL lives on the ``trades`` table's ``pnl`` column and is

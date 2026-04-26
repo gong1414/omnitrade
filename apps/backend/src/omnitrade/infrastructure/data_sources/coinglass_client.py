@@ -11,8 +11,6 @@ from typing import Any
 import httpx
 import structlog
 
-from omnitrade.observability.trace_context import with_context
-
 logger = structlog.get_logger(__name__)
 
 _BASE_URL = "https://open-api.coinglass.com"
@@ -39,12 +37,14 @@ class CoinglassClient:
 
         rates = []
         for item in data.get("data", []):
-            rates.append({
-                "exchange": item.get("exchange"),
-                "symbol": item.get("symbol"),
-                "rate": item.get("rate"),
-                "next_funding_time": item.get("nextFundingTime"),
-            })
+            rates.append(
+                {
+                    "exchange": item.get("exchange"),
+                    "symbol": item.get("symbol"),
+                    "rate": item.get("rate"),
+                    "next_funding_time": item.get("nextFundingTime"),
+                }
+            )
         return {"timestamp": datetime.now(tz=UTC).isoformat(), "funding_rates": rates}
 
     async def get_open_interest(self, symbol: str = "BTC") -> dict[str, Any]:
@@ -60,12 +60,14 @@ class CoinglassClient:
 
         oi_list = []
         for item in data.get("data", []):
-            oi_list.append({
-                "exchange": item.get("exchange"),
-                "symbol": item.get("symbol"),
-                "open_interest": item.get("openInterest"),
-                "change_pct": item.get("change"),
-            })
+            oi_list.append(
+                {
+                    "exchange": item.get("exchange"),
+                    "symbol": item.get("symbol"),
+                    "open_interest": item.get("openInterest"),
+                    "change_pct": item.get("change"),
+                }
+            )
         return {"timestamp": datetime.now(tz=UTC).isoformat(), "open_interest": oi_list}
 
     async def get_long_short_ratio(self, symbol: str = "BTC") -> dict[str, Any]:
@@ -81,12 +83,14 @@ class CoinglassClient:
 
         ratios = []
         for item in data.get("data", []):
-            ratios.append({
-                "exchange": item.get("exchange"),
-                "long_pct": item.get("longRatio"),
-                "short_pct": item.get("shortRatio"),
-                "long_short_ratio": item.get("longShortRatio"),
-            })
+            ratios.append(
+                {
+                    "exchange": item.get("exchange"),
+                    "long_pct": item.get("longRatio"),
+                    "short_pct": item.get("shortRatio"),
+                    "long_short_ratio": item.get("longShortRatio"),
+                }
+            )
         return {"timestamp": datetime.now(tz=UTC).isoformat(), "long_short_ratios": ratios}
 
     async def get_derivatives_overview(self, symbol: str = "BTC") -> dict[str, Any]:

@@ -151,9 +151,7 @@ def atr(
     low = np.asarray(lows, dtype=np.float64)
     c = np.asarray(closes, dtype=np.float64)
     prev_close = np.concatenate(([c[0]], c[:-1]))
-    tr = np.maximum.reduce(
-        [h - low, np.abs(h - prev_close), np.abs(low - prev_close)]
-    )
+    tr = np.maximum.reduce([h - low, np.abs(h - prev_close), np.abs(low - prev_close)])
     # First-bar TR has no prior close; convention uses high-low only.
     tr[0] = h[0] - low[0]
     avg = float(tr[1 : period + 1].mean())

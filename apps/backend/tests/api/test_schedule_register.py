@@ -118,12 +118,15 @@ async def test_register_schedule_closes_owned_db() -> None:
     fake_manager.acreate = AsyncMock(return_value=fake_schedule)
     fake_manager.aenable = AsyncMock(return_value=fake_schedule)
 
-    with patch(
-        "agno.db.postgres.PostgresDb",
-        return_value=own_db,
-    ), patch(
-        "agno.scheduler.manager.ScheduleManager",
-        return_value=fake_manager,
+    with (
+        patch(
+            "agno.db.postgres.PostgresDb",
+            return_value=own_db,
+        ),
+        patch(
+            "agno.scheduler.manager.ScheduleManager",
+            return_value=fake_manager,
+        ),
     ):
         await _register_agentos_trading_schedule(settings, shared_db=None)
 

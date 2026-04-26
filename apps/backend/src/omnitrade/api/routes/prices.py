@@ -39,9 +39,7 @@ def _parse_symbols(raw: str) -> list[str]:
     return out
 
 
-async def _fetch_ticker_cached(
-    exchange: ExchangeClient, symbol: str, now: float
-) -> dict[str, Any]:
+async def _fetch_ticker_cached(exchange: ExchangeClient, symbol: str, now: float) -> dict[str, Any]:
     """Return cached ticker or fetch fresh; always a small ``{last,bid,ask}`` dict."""
     async with _CACHE_LOCK:
         hit = _CACHE.get(symbol)
@@ -85,9 +83,7 @@ async def get_prices(
 
     now = time.monotonic()
     # Fan out in parallel — one gather call keeps p95 tight for 10 symbols.
-    tickers = await asyncio.gather(
-        *[_fetch_ticker_cached(exchange, s, now) for s in parsed]
-    )
+    tickers = await asyncio.gather(*[_fetch_ticker_cached(exchange, s, now) for s in parsed])
     return dict(zip(parsed, tickers, strict=True))
 
 

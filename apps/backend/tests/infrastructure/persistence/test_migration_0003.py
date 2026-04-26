@@ -80,9 +80,7 @@ def _fetch_decision_row(db_path: Path, rowid: int) -> dict:
     conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row
     try:
-        row = conn.execute(
-            "SELECT * FROM agent_decisions WHERE id = ?", (rowid,)
-        ).fetchone()
+        row = conn.execute("SELECT * FROM agent_decisions WHERE id = ?", (rowid,)).fetchone()
         return dict(row) if row else {}
     finally:
         conn.close()

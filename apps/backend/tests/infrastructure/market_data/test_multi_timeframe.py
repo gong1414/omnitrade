@@ -119,9 +119,7 @@ async def test_semaphore_limits_concurrency() -> None:
 
     # 20 unique (symbol, tf) pairs to force concurrent fan-out.
     symbols = [Symbol(value=f"SYM{i}_USDT") for i in range(20)]
-    await asyncio.gather(
-        *(fetcher.fetch(sym, ["5m"]) for sym in symbols)
-    )
+    await asyncio.gather(*(fetcher.fetch(sym, ["5m"]) for sym in symbols))
     assert exchange.max_in_flight <= 8
 
 
@@ -195,9 +193,7 @@ async def test_fetch_ohlcv_multi_tf_swallows_symbol_failure() -> None:
     cache: InMemoryTTLCache[list[list[float]]] = InMemoryTTLCache()
     fetcher = MultiTimeframeFetcher(exchange=exchange, cache=cache)  # type: ignore[arg-type]
 
-    result = await fetcher.fetch_ohlcv_multi_tf(
-        ["BTC_USDT", "BAD_SYM"], timeframes=["15m"]
-    )
+    result = await fetcher.fetch_ohlcv_multi_tf(["BTC_USDT", "BAD_SYM"], timeframes=["15m"])
     # Both symbols present; BAD_SYM downgraded to empty lists per-TF.
     assert set(result.keys()) == {"BTC_USDT", "BAD_SYM"}
     assert result["BAD_SYM"]["15m"] == []
@@ -212,7 +208,5 @@ async def test_fetch_ohlcv_multi_tf_skips_invalid_symbol_strings() -> None:
 
     # Empty string is rejected by ``Symbol`` — it should be skipped, not
     # raise, so the rest of the batch still runs.
-    result = await fetcher.fetch_ohlcv_multi_tf(
-        ["BTC_USDT", ""], timeframes=["15m"]
-    )
+    result = await fetcher.fetch_ohlcv_multi_tf(["BTC_USDT", ""], timeframes=["15m"])
     assert list(result.keys()) == ["BTC_USDT"]

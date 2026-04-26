@@ -85,9 +85,7 @@ class BacktestExchange:
 
     # ── engine-facing helpers ───────────────────────────────────────── #
 
-    def set_history(
-        self, symbol: str, timeframe: str, candles: list[list[float]]
-    ) -> None:
+    def set_history(self, symbol: str, timeframe: str, candles: list[list[float]]) -> None:
         """Pre-load warm-up + forward candles for a symbol/TF.
 
         Called by the engine during ``BacktestEngine.run`` setup — it
@@ -130,18 +128,14 @@ class BacktestExchange:
 
     @property
     def total_equity(self) -> Decimal:
-        upnl_sum = sum(
-            (p.unrealized_pnl for p in self._positions.values()), start=Decimal(0)
-        )
+        upnl_sum = sum((p.unrealized_pnl for p in self._positions.values()), start=Decimal(0))
         return self._cash + upnl_sum
 
     # ── ExchangeClient protocol ────────────────────────────────────── #
 
     async def fetch_balance(self) -> AccountSnapshot:
         total = self.total_equity
-        upnl_sum = sum(
-            (p.unrealized_pnl for p in self._positions.values()), start=Decimal(0)
-        )
+        upnl_sum = sum((p.unrealized_pnl for p in self._positions.values()), start=Decimal(0))
         return_pct = Decimal(0)
         if self._initial_balance > Decimal(0):
             return_pct = (total - self._initial_balance) / self._initial_balance * Decimal(100)
@@ -157,9 +151,7 @@ class BacktestExchange:
     async def fetch_positions(self) -> list[Position]:
         return list(self._positions.values())
 
-    async def fetch_tickers(
-        self, symbols: list[str] | None = None
-    ) -> dict[str, dict[str, Any]]:
+    async def fetch_tickers(self, symbols: list[str] | None = None) -> dict[str, dict[str, Any]]:
         tickers: dict[str, dict[str, Any]] = {}
         keys = list(self._current_bars.keys()) if symbols is None else symbols
         for sym in keys:
@@ -229,7 +221,7 @@ class BacktestExchange:
         # realised pnl on close).
         self._cash -= fee
         order_id = f"bt-{key}-{int(bar[0])}"
-        lev_int = int(leverage) if isinstance(leverage, Leverage) else int(leverage)
+        lev_int = int(leverage)
         trade = Trade(
             order_id=order_id,
             symbol=key,
@@ -285,9 +277,7 @@ class BacktestExchange:
             raise ValueError(f"BacktestExchange.close_position: no position for {key!r}")
         bar = self._current_bars.get(key)
         if not bar:
-            raise ValueError(
-                f"BacktestExchange.close_position: no current bar for {key!r}"
-            )
+            raise ValueError(f"BacktestExchange.close_position: no current bar for {key!r}")
         fraction = Decimal(str(percentage.as_fraction()))
         close_size = pos.quantity * fraction
         price = Decimal(str(bar[4]))
@@ -337,9 +327,7 @@ class BacktestExchange:
     async def fetch_funding_rate(self, symbol: Symbol) -> Decimal:
         return Decimal(0)
 
-    async def fetch_order_book(
-        self, symbol: Symbol, depth: int = 20
-    ) -> dict[str, Any]:
+    async def fetch_order_book(self, symbol: Symbol, depth: int = 20) -> dict[str, Any]:
         key = str(symbol)
         bar = self._current_bars.get(key)
         last = float(bar[4]) if bar else 0.0
@@ -353,14 +341,10 @@ class BacktestExchange:
     async def fetch_open_interest(self, symbol: Symbol) -> Decimal:
         return Decimal(0)
 
-    async def fetch_open_orders(
-        self, symbol: Symbol | None = None
-    ) -> list[Order]:
+    async def fetch_open_orders(self, symbol: Symbol | None = None) -> list[Order]:
         return []
 
-    async def fetch_order(
-        self, order_id: str, symbol: Symbol
-    ) -> Order | None:
+    async def fetch_order(self, order_id: str, symbol: Symbol) -> Order | None:
         return None
 
     async def cancel_order(self, order_id: str, symbol: Symbol) -> bool:

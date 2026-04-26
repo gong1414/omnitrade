@@ -31,7 +31,6 @@ from omnitrade.infrastructure.persistence.repositories.account_history_repositor
 from omnitrade.infrastructure.persistence.repositories.position_repository import (
     PositionRepository,
 )
-from omnitrade.infrastructure.persistence.repositories.trade_repository import TradeRepository
 from omnitrade.observability.trace_context import with_context
 
 logger = structlog.get_logger(__name__)
@@ -142,8 +141,9 @@ class AccountService:
             # annualised) so the AccountCard reads consistent with
             # ``/api/stats.sharpe``.
             recent = await self._history_repo.list_recent(session, limit=self._peak_lookback)
-            total_value_series = list(reversed([r.total_value for r in recent])) + [
-                balance.total_value
+            total_value_series = [
+                *reversed([r.total_value for r in recent]),
+                balance.total_value,
             ]
             sharpe = self._compute_sharpe(total_value_series)
 

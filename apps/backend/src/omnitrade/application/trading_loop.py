@@ -287,13 +287,9 @@ async def run_cycle(
                 ohlcv_per_symbol[sym] = chosen
         if ohlcv_per_symbol:
             try:
-                await signal_service.record_batch(
-                    ohlcv_per_symbol, market_snapshot.timestamp
-                )
+                await signal_service.record_batch(ohlcv_per_symbol, market_snapshot.timestamp)
             except Exception as exc:
-                with_context(logger).warning(
-                    "trading_loop.signal_record_failed", error=str(exc)
-                )
+                with_context(logger).warning("trading_loop.signal_record_failed", error=str(exc))
 
     t0 = time.perf_counter()
     decision = await think(think_fn, market_snapshot, news_items)

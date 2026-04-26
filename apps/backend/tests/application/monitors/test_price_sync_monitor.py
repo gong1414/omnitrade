@@ -100,8 +100,9 @@ async def test_sync_updates_current_price_and_upnl(session: AsyncSession) -> Non
 async def test_sync_reconciles_positions_not_on_exchange(session: AsyncSession) -> None:
     """Positions absent from the exchange response are soft-closed (cum=100)."""
     repo = PositionRepository()
-    eth = _make_position(symbol="ETH_USDT", entry_price=Decimal("3000"),
-                         current_price=Decimal("3000"))
+    eth = _make_position(
+        symbol="ETH_USDT", entry_price=Decimal("3000"), current_price=Decimal("3000")
+    )
     await repo.create(session, eth)
     await session.commit()
 

@@ -108,7 +108,20 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S", "ANN", "C408", "RUF001", "RUF002", "RUF003"]
+# Test files: long fixture strings + stub classes with mutable defaults
+# + intentional broad pytest.raises are all part of normal test idiom.
+"tests/**" = [
+    "S",         # bandit security checks (asserts, weak crypto in fixtures, …)
+    "ANN",       # type annotations not required on test fns
+    "C408",      # dict() literal is fine in tests
+    "RUF001",    # ambiguous unicode in test strings
+    "RUF002",
+    "RUF003",
+    "E501",      # long fixture strings (verbatim model output, justifications)
+    "RUF012",    # mutable defaults in stub classes (intentional, single-test scope)
+    "B017",      # broad pytest.raises is OK with a `match=` filter
+    "PT011",     # ditto — broad pytest.raises is allowed in tests
+]
 "alembic/**" = ["ANN", "N999"]
 # FastAPI Depends(...) in defaults is the framework-idiomatic pattern.
 "src/omnitrade/api/deps.py" = ["B008"]
@@ -117,6 +130,21 @@ ignore = [
 # Prompt files carry verbatim Chinese system-prompt text; full-width CJK
 # punctuation + long CJK template lines are intentional.
 "src/omnitrade/agents/prompts/**" = ["E501", "RUF001", "RUF002", "RUF003"]
+# FastMCP tool decorators bind the symbol typevar at function scope as
+# `Symbol = ...` for tooling readability; this trips N806 (variable
+# should be lowercase). The current shape mirrors FastMCP's reference
+# tool layout and we'd rather match upstream than fight the lint.
+"src/omnitrade/infrastructure/mcp/trading_mcp_server.py" = ["N806", "E501"]
+# `try / except / pass` is the correct shape for best-effort fallback
+# code in the exchange and backtest layers (e.g. the contractSize
+# probe, ws subscription cleanup) — the failure path is "use the
+# default value", which is exactly what `pass` does. Logging would
+# add noise without changing behaviour.
+"src/omnitrade/infrastructure/exchange/ccxt_exchange.py" = ["S110"]
+"src/omnitrade/backtest/data_source.py" = ["S110"]
+# pydantic Field(description=...) lines exceed 100 chars by a few
+# tokens for tools the LLM reads; splitting hurts readability.
+"src/omnitrade/agents/tools/decision_schemas.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.11"

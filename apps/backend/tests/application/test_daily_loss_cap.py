@@ -94,9 +94,7 @@ async def test_hold_always_passes_through() -> None:
 @pytest.mark.asyncio
 async def test_limiter_exception_is_non_fatal() -> None:
     container = MagicMock()
-    container.trade_repo.realized_pnl_since = AsyncMock(
-        side_effect=RuntimeError("db offline")
-    )
+    container.trade_repo.realized_pnl_since = AsyncMock(side_effect=RuntimeError("db offline"))
     session = MagicMock()
     session.close = AsyncMock()
     container.open_session = AsyncMock(return_value=session)

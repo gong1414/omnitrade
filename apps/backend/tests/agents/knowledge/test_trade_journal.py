@@ -135,9 +135,7 @@ def test_build_returns_none_when_embedder_key_missing(capsys: Any) -> None:
     combined = captured.out + captured.err
     assert out is None
     assert "trade_journal.build.skip" in combined
-    assert (
-        "embedder_api_key" in combined or "llm_api_key" in combined
-    )
+    assert "embedder_api_key" in combined or "llm_api_key" in combined
 
 
 def test_build_handles_import_error_gracefully() -> None:
@@ -251,7 +249,9 @@ def test_serialise_truncates_oversize_content() -> None:
     ts = datetime(2026, 4, 26, 12, 0, 0, tzinfo=UTC)
 
     content, _meta = serialise_decision_for_journal(
-        sr, run_id="r1", timestamp=ts,
+        sr,
+        run_id="r1",
+        timestamp=ts,
     )
 
     assert len(content) <= 4_000
@@ -397,9 +397,5 @@ async def test_record_then_search_round_trips_against_live_postgres() -> None:
     assert len(results) >= 1
     # Top hit should mention BTC + EMA per our seeded docs.
     top = results[0]
-    body = (
-        getattr(top, "content", None)
-        or getattr(top, "text", None)
-        or str(top)
-    )
+    body = getattr(top, "content", None) or getattr(top, "text", None) or str(top)
     assert "BTC" in body or "EMA" in body

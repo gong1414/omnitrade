@@ -45,9 +45,7 @@ async def test_decisions_query_bounds(api_client) -> None:  # type: ignore[no-un
 
 
 @pytest.mark.asyncio
-async def test_decisions_serialize_justification_and_run_id(
-    api_app, api_client
-) -> None:  # type: ignore[no-untyped-def]
+async def test_decisions_serialize_justification_and_run_id(api_app, api_client) -> None:  # type: ignore[no-untyped-def]
     """Regression for alembic 0005/0006 — justification + run_id reach the UI."""
     svc = api_app.state.api_container.decision_service
     long_cot = "Full chain-of-thought. " * 60

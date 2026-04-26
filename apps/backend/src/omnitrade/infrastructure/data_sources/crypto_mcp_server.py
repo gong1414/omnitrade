@@ -9,10 +9,8 @@ queries to them automatically through Smart Tool RAG.
 
 from __future__ import annotations
 
-import asyncio
 import json
 import os
-from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 

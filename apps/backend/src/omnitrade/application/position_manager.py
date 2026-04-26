@@ -123,8 +123,7 @@ class PositionManager:
             try:
                 exchange_positions = await self._exchange.fetch_positions()
                 on_exchange = any(
-                    p.symbol == symbol and p.quantity > Decimal(0)
-                    for p in exchange_positions
+                    p.symbol == symbol and p.quantity > Decimal(0) for p in exchange_positions
                 )
                 if not on_exchange:
                     with_context(logger).warning(

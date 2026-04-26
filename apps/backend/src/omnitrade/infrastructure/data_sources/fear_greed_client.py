@@ -11,8 +11,6 @@ from typing import Any
 import httpx
 import structlog
 
-from omnitrade.observability.trace_context import with_context
-
 logger = structlog.get_logger(__name__)
 
 _API_URL = "https://api.alternative.me/fng/"
@@ -36,11 +34,13 @@ class FearGreedClient:
         entries = []
         for item in data.get("data", []):
             ts = int(item.get("timestamp", 0))
-            entries.append({
-                "value": int(item.get("value", 0)),
-                "classification": item.get("value_classification"),
-                "timestamp": datetime.fromtimestamp(ts, tz=UTC).isoformat(),
-            })
+            entries.append(
+                {
+                    "value": int(item.get("value", 0)),
+                    "classification": item.get("value_classification"),
+                    "timestamp": datetime.fromtimestamp(ts, tz=UTC).isoformat(),
+                }
+            )
 
         return {
             "timestamp": datetime.now(tz=UTC).isoformat(),

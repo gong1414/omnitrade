@@ -31,8 +31,6 @@ from typing import Any, Literal
 
 import structlog
 
-from omnitrade.observability.trace_context import with_context
-
 logger = structlog.get_logger(__name__)
 
 

@@ -330,9 +330,7 @@ class CCXTExchange:
         if close_amount < 1.0 and contracts > Decimal(0):
             escalated = float(contracts)
             try:
-                escalated = float(
-                    self._exchange.amount_to_precision(ccxt_symbol, escalated)
-                )
+                escalated = float(self._exchange.amount_to_precision(ccxt_symbol, escalated))
             except Exception:
                 pass
             with_context(logger).warning(
@@ -361,7 +359,7 @@ class CCXTExchange:
         # contracts (e.g. 1 contract on Gate BTC_USDT perp = 0.001 BTC)
         # while ``place_order`` stores ``quantity`` in base-asset units.
         # Multiplying raw contract count into fee/pnl inflated those
-        # columns by 1/contractSize (roughly 1000×) which made the
+        # columns by 1/contractSize (roughly 1000x) which made the
         # dashboard show plausible-but-nonsense numbers. Resolve
         # contractSize from the market metadata so we can record both the
         # executed contract count (for audit) and the base-asset amount
@@ -562,9 +560,7 @@ class CCXTExchange:
 
         ccxt_sym_str = str(raw.get("symbol", ""))
         internal_sym = (
-            self._from_ccxt_symbol(ccxt_sym_str)
-            if ccxt_sym_str
-            else str(raw.get("symbol", ""))
+            self._from_ccxt_symbol(ccxt_sym_str) if ccxt_sym_str else str(raw.get("symbol", ""))
         )
 
         return Order(

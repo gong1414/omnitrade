@@ -140,9 +140,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         try:
             await _register_agentos_trading_schedule(settings, shared_db=shared_db)
         except Exception as exc:  # bootstrap is best-effort
-            await logger.aerror(
-                "omnitrade.agentos_schedule_register_failed", error=str(exc)
-            )
+            await logger.aerror("omnitrade.agentos_schedule_register_failed", error=str(exc))
 
     yield
 
@@ -162,9 +160,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         try:
             await bridge.close()
         except Exception as exc:  # pragma: no cover — best-effort teardown
-            await logger.awarning(
-                "omnitrade.agno_mcp_bridge_close_failed", error=str(exc)
-            )
+            await logger.awarning("omnitrade.agno_mcp_bridge_close_failed", error=str(exc))
 
     await logger.ainfo("omnitrade.shutdown")
 

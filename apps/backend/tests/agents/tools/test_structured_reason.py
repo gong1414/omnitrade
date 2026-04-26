@@ -23,7 +23,6 @@ from omnitrade.agents.tools.structured_reason import (
     StructuredReason,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures / helpers
 # ---------------------------------------------------------------------------
@@ -79,6 +78,7 @@ _VALID_OPEN_PAYLOAD: dict = {
 # 1. Minimal valid payload — hold scenario (plan=None)
 # ---------------------------------------------------------------------------
 
+
 def test_hold_payload_parses_successfully() -> None:
     reason = StructuredReason.model_validate(_VALID_HOLD_PAYLOAD)
     assert reason.plan is None
@@ -89,6 +89,7 @@ def test_hold_payload_parses_successfully() -> None:
 # ---------------------------------------------------------------------------
 # 2. Minimal valid payload — non-hold scenario (plan populated)
 # ---------------------------------------------------------------------------
+
 
 def test_open_payload_parses_successfully() -> None:
     reason = StructuredReason.model_validate(_VALID_OPEN_PAYLOAD)
@@ -106,6 +107,7 @@ def test_open_payload_parses_successfully() -> None:
 # 3. Missing market_context → ValidationError
 # ---------------------------------------------------------------------------
 
+
 def test_missing_market_context_raises() -> None:
     payload = {**_VALID_HOLD_PAYLOAD}
     del payload["market_context"]
@@ -119,6 +121,7 @@ def test_missing_market_context_raises() -> None:
 # ---------------------------------------------------------------------------
 # 4. Missing invalidation_condition → ValidationError
 # ---------------------------------------------------------------------------
+
 
 def test_missing_invalidation_condition_raises() -> None:
     payload = {**_VALID_HOLD_PAYLOAD}
@@ -134,6 +137,7 @@ def test_missing_invalidation_condition_raises() -> None:
 # 5. Missing justification → ValidationError
 # ---------------------------------------------------------------------------
 
+
 def test_missing_justification_raises() -> None:
     payload = {**_VALID_HOLD_PAYLOAD}
     del payload["justification"]
@@ -147,6 +151,7 @@ def test_missing_justification_raises() -> None:
 # ---------------------------------------------------------------------------
 # 6. confidence out of [0, 1] → ValidationError
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize("bad_confidence", [-0.01, 1.01, 2.0, -1.0])
 def test_confidence_out_of_range_raises(bad_confidence: float) -> None:
@@ -162,6 +167,7 @@ def test_confidence_out_of_range_raises(bad_confidence: float) -> None:
 # 7. gates_passed is a string instead of list → ValidationError
 # ---------------------------------------------------------------------------
 
+
 def test_gates_passed_string_raises() -> None:
     payload = {**_VALID_HOLD_PAYLOAD, "gates_passed": "EMA alignment gate passed"}
     with pytest.raises(ValidationError) as exc_info:
@@ -174,6 +180,7 @@ def test_gates_passed_string_raises() -> None:
 # ---------------------------------------------------------------------------
 # 8. output_language not in {"zh", "en"} → ValidationError
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize("bad_lang", ["cn", "english", "zh-CN", "", "ZH", "EN"])
 def test_output_language_invalid_raises(bad_lang: str) -> None:
@@ -188,6 +195,7 @@ def test_output_language_invalid_raises(bad_lang: str) -> None:
 # ---------------------------------------------------------------------------
 # 9. JSON roundtrip — dumps → loads → model_validate preserves fidelity
 # ---------------------------------------------------------------------------
+
 
 def test_json_roundtrip_hold() -> None:
     original = StructuredReason.model_validate(_VALID_HOLD_PAYLOAD)
@@ -220,6 +228,7 @@ def test_json_roundtrip_via_stdlib_json() -> None:
 # 10. STRUCTURED_REASON_JSON_SCHEMA is a non-empty dict with expected keys
 # ---------------------------------------------------------------------------
 
+
 def test_schema_constant_is_populated() -> None:
     assert isinstance(STRUCTURED_REASON_JSON_SCHEMA, dict)
     assert "properties" in STRUCTURED_REASON_JSON_SCHEMA
@@ -240,6 +249,7 @@ def test_schema_constant_is_populated() -> None:
 # 11. Default output_language is "zh" when field is omitted
 # ---------------------------------------------------------------------------
 
+
 def test_output_language_defaults_to_zh() -> None:
     payload = {k: v for k, v in _VALID_HOLD_PAYLOAD.items() if k != "output_language"}
     reason = StructuredReason.model_validate(payload)
@@ -249,6 +259,7 @@ def test_output_language_defaults_to_zh() -> None:
 # ---------------------------------------------------------------------------
 # 12. PlanBlock — all fields optional, empty PlanBlock validates
 # ---------------------------------------------------------------------------
+
 
 def test_plan_block_all_optional() -> None:
     plan = PlanBlock.model_validate({})

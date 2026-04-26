@@ -29,7 +29,7 @@ _lock = asyncio.Lock()
 async def trigger_cycle(request: Request) -> dict[str, Any]:
     """Force one cycle right now. Timeout configurable via
     ``CYCLE_TRIGGER_TIMEOUT_SECONDS`` (default 60). Slower reasoning
-    models (e.g. deepseek-v4-pro / -reasoner) often need 90–180s."""
+    models (e.g. deepseek-v4-pro / -reasoner) often need 90-180s."""
     monitor = getattr(request.app.state, "trading_monitor", None)
     if monitor is None:
         raise HTTPException(

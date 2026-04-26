@@ -62,9 +62,7 @@ class PositionORM(Base):
     confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     risk_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
     trailing_peak_pnl_pct: Mapped[float] = mapped_column(Float, nullable=False, server_default="0")
-    cumulative_close_pct: Mapped[float] = mapped_column(
-        Float, nullable=False, server_default="0"
-    )
+    cumulative_close_pct: Mapped[float] = mapped_column(Float, nullable=False, server_default="0")
 
 
 class AccountHistoryORM(Base):
@@ -131,9 +129,7 @@ class AgentDecisionORM(Base):
     # Alembic 0005 — close FE/BE contract audit gaps.
     # Alembic 0006 — renamed correlation_id → run_id (Agno alignment).
     justification: Mapped[str | None] = mapped_column(Text, nullable=True)
-    run_id: Mapped[str] = mapped_column(
-        Text, nullable=False, server_default=""
-    )
+    run_id: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
 
 
 class TradingLessonORM(Base):

@@ -295,9 +295,7 @@ def _render_account_block(market: MarketSnapshot) -> str:
 def _render_news_block(news: list[NewsItem]) -> str:
     if not news:
         return _SAFE_BLOCK_EN
-    return "\n".join(
-        f"- [{item.source}] {item.headline}" for item in news
-    )
+    return "\n".join(f"- [{item.source}] {item.headline}" for item in news)
 
 
 def _render_think_messages(
@@ -530,15 +528,11 @@ async def _render_recent_trades_block(container: ApiContainer) -> str:
     try:
         session = await container.open_session()
         try:
-            recent = await container.decision_repo.list_recent_for_feedback(
-                session, limit=5
-            )
+            recent = await container.decision_repo.list_recent_for_feedback(session, limit=5)
         finally:
             await session.close()
     except Exception as exc:
-        with_context(logger).warning(
-            "composition.recent_trades_block_failed", error=str(exc)
-        )
+        with_context(logger).warning("composition.recent_trades_block_failed", error=str(exc))
         return "Recent cycles: (feedback unavailable this cycle)"
 
     if not recent:
@@ -551,11 +545,7 @@ async def _render_recent_trades_block(container: ApiContainer) -> str:
         if ts.tzinfo is None:
             ts = ts.replace(tzinfo=UTC)
         age_min = max(0, int((now - ts).total_seconds() / 60))
-        conf = (
-            f"{d.structured_confidence:.2f}"
-            if d.structured_confidence is not None
-            else "—"
-        )
+        conf = f"{d.structured_confidence:.2f}" if d.structured_confidence is not None else "—"
         brief = (d.market_context or "").strip().replace("\n", " ")
         if len(brief) > 160:
             brief = brief[:157] + "..."
@@ -594,9 +584,7 @@ def _build_risk_check_fn(
         try:
             breached = await limiter.check()
         except Exception as exc:
-            with_context(logger).warning(
-                "composition.risk.daily_loss_check_failed", error=str(exc)
-            )
+            with_context(logger).warning("composition.risk.daily_loss_check_failed", error=str(exc))
             return decision
         if breached:
             with_context(logger).warning(

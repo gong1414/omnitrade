@@ -85,7 +85,7 @@ def _structured_from_arg(reason: Any) -> StructuredReason | None:
     if isinstance(reason, dict):
         try:
             return StructuredReason.model_validate(reason)
-        except Exception:  # noqa: BLE001 — defensive; non-fatal in Phase 2
+        except Exception:
             return None
     return None
 
@@ -95,7 +95,7 @@ def _decimal_or_none(v: Any) -> Decimal | None:
         return None
     try:
         return Decimal(str(v))
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
 
 
@@ -142,7 +142,9 @@ def build_decision_tools(recorder: DecisionRecorder) -> list[DecisionTool]:
             stop_loss=_decimal_or_none(stop_loss),
             take_profit=_decimal_or_none(take_profit),
             confidence=(
-                Decimal(str(structured.confidence)) if structured and structured.confidence is not None else None
+                Decimal(str(structured.confidence))
+                if structured and structured.confidence is not None
+                else None
             ),
             reasoning=(structured.justification if structured else "open_position"),
             market_context=structured.market_context if structured else None,
@@ -202,7 +204,12 @@ def build_decision_tools(recorder: DecisionRecorder) -> list[DecisionTool]:
             justification=structured.justification if structured else None,
         )
         recorder._record(decision, "partial_close")
-        return {"recorded": True, "action": "partial_close", "symbol": symbol, "percentage": float(pct)}
+        return {
+            "recorded": True,
+            "action": "partial_close",
+            "symbol": symbol,
+            "percentage": float(pct),
+        }
 
     async def hold_tool(
         reason: dict[str, Any] | StructuredReason,

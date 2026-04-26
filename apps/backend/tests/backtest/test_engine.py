@@ -53,9 +53,7 @@ class _StubThink:
     def __init__(self) -> None:
         self.calls = 0
 
-    async def __call__(
-        self, market: MarketSnapshot, news: list[NewsItem]
-    ) -> Decision:
+    async def __call__(self, market: MarketSnapshot, news: list[NewsItem]) -> Decision:
         self.calls += 1
         if self.calls == 1:
             return Decision(
@@ -68,9 +66,7 @@ class _StubThink:
                 confidence=Decimal("0.8"),
             )
         if self.calls == 5:
-            return Decision(
-                action="close", symbol="BTC_USDT", reasoning="stub-close"
-            )
+            return Decision(action="close", symbol="BTC_USDT", reasoning="stub-close")
         return Decision(action="hold", reasoning="stub-hold")
 
 
@@ -124,7 +120,7 @@ async def test_backtest_engine_rejects_zero_window() -> None:
     async def _hold(_m: Any, _n: Any) -> Decision:
         return Decision(action="hold")
 
-    with pytest.raises(ValueError, match="end .* must be after start"):
+    with pytest.raises(ValueError, match=r"end .* must be after start"):
         BacktestEngine(
             exchange=exchange,
             clock=clock,

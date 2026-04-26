@@ -276,9 +276,7 @@ async def _await_human_approval(
         "run_id": run_id,
         "tool_name": tool_name,
         "tool_args": tool_args,
-        "requires_confirmation_reason": (
-            f"open exceeds HITL threshold of {threshold_usd:.0f} USD"
-        ),
+        "requires_confirmation_reason": (f"open exceeds HITL threshold of {threshold_usd:.0f} USD"),
     }
     try:
         await event_bus.publish(EVENT_RUN_PAUSED, payload)
@@ -351,9 +349,7 @@ def build_agno_think_fn(
     # first cycle (and cached in closure) so a misconfigured team never
     # crashes startup; subsequent failures fall through to the warn path
     # in the per-cycle handler below.
-    team_advisory_enabled = (
-        settings.multi_agent_enabled and strategy in _TEAM_ELIGIBLE_STRATEGIES
-    )
+    team_advisory_enabled = settings.multi_agent_enabled and strategy in _TEAM_ELIGIBLE_STRATEGIES
     team_holder: dict[str, Any] = {"team": None, "build_failed": False}
 
     async def _ensure_mcp_connected() -> None:
@@ -475,8 +471,7 @@ def build_agno_think_fn(
                 user_prompt = (
                     "[Team advisory — informational only; you remain the "
                     "sole decision-maker and MUST still call exactly one "
-                    f"decision tool]\n{advisory}\n\n[Situation report]\n"
-                    + user_prompt
+                    f"decision tool]\n{advisory}\n\n[Situation report]\n" + user_prompt
                 )
 
         # Tools: MCP toolkit (info tools) first, decision recorders last

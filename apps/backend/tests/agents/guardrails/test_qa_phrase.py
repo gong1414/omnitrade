@@ -95,8 +95,7 @@ async def test_every_g5_phrase_publishes_orchestrator_error(
     await hook(run_output=_run_output(text))
 
     assert len(bus.published) == 1, (
-        f"expected exactly one publish for text {text!r}; "
-        f"got {bus.published!r}"
+        f"expected exactly one publish for text {text!r}; got {bus.published!r}"
     )
     event_name, payload = bus.published[0]
     assert event_name == EVENT_ORCHESTRATOR_ERROR
@@ -127,9 +126,7 @@ async def test_clean_text_does_not_publish() -> None:
     for text in clean_samples:
         await hook(run_output=_run_output(text))
 
-    assert bus.published == [], (
-        f"clean text should never publish; got {bus.published!r}"
-    )
+    assert bus.published == [], f"clean text should never publish; got {bus.published!r}"
 
 
 @pytest.mark.asyncio
@@ -160,10 +157,7 @@ async def test_multiple_phrases_dedup_to_single_publish() -> None:
     # Three different fault phrases in one block of reasoning. The hook
     # must publish ONE event (the earliest hit) — the dashboard banner
     # should never stutter on a single cycle.
-    text = (
-        "数据异常: phantom positions detected and the feed is "
-        "inconsistent — all balances are 0"
-    )
+    text = "数据异常: phantom positions detected and the feed is inconsistent — all balances are 0"
     await hook(run_output=_run_output(text))
 
     assert len(bus.published) == 1
@@ -238,9 +232,7 @@ async def test_build_agno_think_fn_wires_post_hooks_when_event_bus_supplied(
     async def _noop_connect(self: Any) -> None:
         return None
 
-    monkeypatch.setattr(
-        trading_agent.AgnoMCPBridge, "connect", _noop_connect, raising=False
-    )
+    monkeypatch.setattr(trading_agent.AgnoMCPBridge, "connect", _noop_connect, raising=False)
 
     settings = Settings(
         llm_api_key=SecretStr("test-key"),

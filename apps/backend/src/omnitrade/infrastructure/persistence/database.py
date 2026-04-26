@@ -39,7 +39,7 @@ def _make_async_url(url: str) -> str:
         return url.replace("sqlite:///", "sqlite+aiosqlite:///", 1)
     # Normalize legacy `postgres://` (Heroku-style) → `postgresql://` first.
     if url.startswith("postgres://"):
-        url = "postgresql://" + url[len("postgres://"):]
+        url = "postgresql://" + url[len("postgres://") :]
     if url.startswith("postgresql://"):
         return url.replace("postgresql://", "postgresql+psycopg://", 1)
     return url
@@ -50,7 +50,7 @@ def _make_sync_url(url: str) -> str:
     use the sync engine, which for Postgres also goes through psycopg3
     so we don't pull a second driver (psycopg2) into the runtime."""
     if url.startswith("postgres://"):
-        url = "postgresql://" + url[len("postgres://"):]
+        url = "postgresql://" + url[len("postgres://") :]
     if url.startswith("postgresql://"):
         return url.replace("postgresql://", "postgresql+psycopg://", 1)
     return url

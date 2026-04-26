@@ -111,9 +111,9 @@ async def test_workflow_tick_propagates_failure_when_monitor_missing() -> None:
     assert all(not sr.success for sr in step_results), (
         "workflow steps must all be marked as failures when monitor is missing"
     )
-    assert any(
-        "monitor not initialized" in (sr.error or "") for sr in step_results
-    ), "step error message must point at the unbound-monitor cause"
+    assert any("monitor not initialized" in (sr.error or "") for sr in step_results), (
+        "step error message must point at the unbound-monitor cause"
+    )
 
 
 def test_workflow_id_matches_agentos_schedule_endpoint() -> None:

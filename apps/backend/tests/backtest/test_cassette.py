@@ -14,9 +14,9 @@ import http.server
 import os
 import socket
 import threading
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator
 
 import httpx
 import pytest
@@ -54,7 +54,7 @@ def _local_http_server() -> Iterator[tuple[str, http.server.HTTPServer, list[int
     hit_counter: list[int] = [0]
 
     class _Handler(http.server.BaseHTTPRequestHandler):
-        def do_GET(self) -> None:  # noqa: N802 — http.server convention
+        def do_GET(self) -> None:
             hit_counter[0] += 1
             body = b'{"hello": "cassette"}'
             self.send_response(200)
@@ -63,7 +63,7 @@ def _local_http_server() -> Iterator[tuple[str, http.server.HTTPServer, list[int
             self.end_headers()
             self.wfile.write(body)
 
-        def log_message(self, *_args: object, **_kwargs: object) -> None:  # noqa: D401
+        def log_message(self, *_args: object, **_kwargs: object) -> None:
             return None
 
     sock = socket.socket()
@@ -109,7 +109,11 @@ def test_cassette_strict_replay_misses_raise(tmp_path: Path) -> None:
     cassette_path = tmp_path / "missing.yaml"
     cassette_path.write_text("interactions: []\nversion: 1\n", encoding="utf-8")
 
-    with pytest.raises(Exception):  # vcrpy raises CannotOverwriteExistingCassetteException
+    # vcrpy raises CannotOverwriteExistingCassetteException when no
+    # matching interaction exists in `none` mode. We assert via the
+    # message substring rather than the exception class so this test
+    # stays insulated from vcrpy's internal exception hierarchy.
+    with pytest.raises(Exception, match=r"(?i)cassette|cannot overwrite|no.*match"):
         with cassette_context(cassette_path, mode="none"):
             with _local_http_server() as (base_url, _server, _hits):
                 httpx.get(f"{base_url}/missing", timeout=2)

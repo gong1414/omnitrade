@@ -94,8 +94,7 @@ G2_GUIDELINES: list[str] = [
     "justification must be a substantive chain-of-thought (>= 200 chars) — "
     "explain why the setup qualifies, which indicators contributed, and why "
     "alternatives were rejected.",
-    "output_language must be either 'zh' or 'en' and must match the requested "
-    "language.",
+    "output_language must be either 'zh' or 'en' and must match the requested language.",
     "If the agent's reasoning text contains '异常', '错误', 'system issue', "
     "or similar fault-strings, that is a BUG REPORT — score it as a quality "
     "failure even if the structural fields are populated.",
@@ -450,7 +449,7 @@ _CASSETTE_PATH = _CASSETTE_DIR / "live_judge_g2.yaml"
     not _CASSETTE_PATH.exists(),
     reason=(
         "Live AccuracyEval cassette not recorded yet; record with "
-        "`LLM_API_KEY=... uv run pytest tests/eval/ -v -m \"eval and live\" "
+        '`LLM_API_KEY=... uv run pytest tests/eval/ -v -m "eval and live" '
         "--record-mode=once`. See test docstring for details."
     ),
 )

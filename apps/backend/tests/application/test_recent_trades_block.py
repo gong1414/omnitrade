@@ -93,9 +93,7 @@ async def test_block_with_5_decisions_renders_5_lines() -> None:
 async def test_block_respects_limit_parameter_passthrough() -> None:
     # Limit enforcement lives in DecisionRepository, but the renderer must
     # pass limit=5 into list_recent_for_feedback exactly.
-    decisions = [
-        _make_decision(id_=i, iteration=i, ts_minutes_ago=i) for i in range(5, 0, -1)
-    ]
+    decisions = [_make_decision(id_=i, iteration=i, ts_minutes_ago=i) for i in range(5, 0, -1)]
     container = _fake_container(decisions)
     await _render_recent_trades_block(container)
     container.decision_repo.list_recent_for_feedback.assert_awaited_once()

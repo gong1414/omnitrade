@@ -95,14 +95,8 @@ class DecisionRepository:
         and a distinct debug log tag — kept separate so caller-site grep
         makes the self-reflection path explicit.
         """
-        with_context(logger).debug(
-            "decision_repository.list_recent_for_feedback", limit=limit
-        )
-        stmt = (
-            select(AgentDecisionORM)
-            .order_by(AgentDecisionORM.timestamp.desc())
-            .limit(limit)
-        )
+        with_context(logger).debug("decision_repository.list_recent_for_feedback", limit=limit)
+        stmt = select(AgentDecisionORM).order_by(AgentDecisionORM.timestamp.desc()).limit(limit)
         result = await session.execute(stmt)
         return [_orm_to_domain(r) for r in result.scalars().all()]
 

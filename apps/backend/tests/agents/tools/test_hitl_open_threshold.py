@@ -36,7 +36,6 @@ from omnitrade.agents.tools.decision_schemas import (
     wrap_open_position_for_hitl,
 )
 
-
 # ---------------------------------------------------------------------- #
 # Predicate                                                                #
 # ---------------------------------------------------------------------- #
@@ -81,10 +80,13 @@ def test_predicate_false_for_malformed_args() -> None:
     """Missing size or price ⇒ notional 0 ⇒ no pause (fail-closed)."""
     assert should_require_confirmation({}, threshold_usd=THRESHOLD) is False
     assert should_require_confirmation({"size": 1.0}, threshold_usd=THRESHOLD) is False
-    assert should_require_confirmation(
-        {"size": 1.0, "entry_price": "not-a-number"},
-        threshold_usd=THRESHOLD,
-    ) is False
+    assert (
+        should_require_confirmation(
+            {"size": 1.0, "entry_price": "not-a-number"},
+            threshold_usd=THRESHOLD,
+        )
+        is False
+    )
     assert should_require_confirmation(None, threshold_usd=THRESHOLD) is False
 
 
@@ -131,11 +133,7 @@ def test_open_position_tool_carries_requires_confirmation() -> None:
     tools = wrap_open_position_for_hitl(build_decision_tools(recorder))
 
     open_tool = next(
-        (
-            t
-            for t in tools
-            if isinstance(t, Function) and t.name == HITL_OPEN_TOOL_NAME
-        ),
+        (t for t in tools if isinstance(t, Function) and t.name == HITL_OPEN_TOOL_NAME),
         None,
     )
     assert open_tool is not None, (

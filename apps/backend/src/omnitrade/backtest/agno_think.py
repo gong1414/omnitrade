@@ -99,12 +99,8 @@ def build_backtest_think_fn(
             market_data_block=market_block,
             recent_trades_block=recent_trades_block,
         )
-        system_prompt = next(
-            (m["content"] for m in messages if m.get("role") == "system"), ""
-        )
-        user_prompt = next(
-            (m["content"] for m in messages if m.get("role") == "user"), ""
-        )
+        system_prompt = next((m["content"] for m in messages if m.get("role") == "system"), "")
+        user_prompt = next((m["content"] for m in messages if m.get("role") == "user"), "")
 
         recorder = DecisionRecorder()
         decision_tools = build_decision_tools(recorder)
@@ -118,7 +114,7 @@ def build_backtest_think_fn(
 
         try:
             run_result = await agent.arun(user_prompt)
-        except Exception as exc:  # noqa: BLE001 — backtest must keep going
+        except Exception as exc:
             logger.error("backtest_think.run_failed", error=str(exc))
             return Decision(
                 action="hold",

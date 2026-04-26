@@ -146,8 +146,10 @@ class HistoricalOHLCV:
             "ORDER BY ts_ms ASC",
             (symbol, timeframe, start_ts, end_ts),
         )
-        return [[float(r[0]), float(r[1]), float(r[2]), float(r[3]), float(r[4]), float(r[5])]
-                for r in cur.fetchall()]
+        return [
+            [float(r[0]), float(r[1]), float(r[2]), float(r[3]), float(r[4]), float(r[5])]
+            for r in cur.fetchall()
+        ]
 
     def _insert_rows(self, symbol: str, timeframe: str, rows: list[list[float]]) -> None:
         if not rows:
@@ -227,8 +229,9 @@ class HistoricalOHLCV:
                 break
             rows: list[list[float]] = [[float(x) for x in row] for row in raw]
             # Filter to window + only rows not already cached.
-            new_rows = [r for r in rows if start_ts <= int(r[0]) <= end_ts
-                        and int(r[0]) not in cached_ts]
+            new_rows = [
+                r for r in rows if start_ts <= int(r[0]) <= end_ts and int(r[0]) not in cached_ts
+            ]
             self._insert_rows(symbol, timeframe, new_rows)
             cached_ts.update(int(r[0]) for r in new_rows)
             fetched_total.extend(new_rows)

@@ -113,9 +113,7 @@ class SignalService:
                 "signals.write.latency_ms",
                 latency_ms=round(write_latency_ms, 3),
                 rows=written,
-                total_latency_ms=round(
-                    (time.perf_counter() - compute_started) * 1000.0, 3
-                ),
+                total_latency_ms=round((time.perf_counter() - compute_started) * 1000.0, 3),
             )
 
         return written

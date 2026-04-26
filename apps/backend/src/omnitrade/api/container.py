@@ -10,7 +10,6 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -29,6 +28,8 @@ from omnitrade.infrastructure.market_data.multi_timeframe import MultiTimeframeF
 from omnitrade.infrastructure.market_data.okx_ws import OKXWebSocketClient
 from omnitrade.infrastructure.market_data.tf_cache import InMemoryTTLCache
 from omnitrade.infrastructure.market_data.ws_client import WSClient
+from omnitrade.infrastructure.mcp.quality_tracker import ToolQualityTracker
+from omnitrade.infrastructure.mcp.registry import MCPRegistry
 from omnitrade.infrastructure.persistence.repositories.account_history_repository import (
     AccountHistoryRepository,
 )
@@ -44,10 +45,6 @@ from omnitrade.infrastructure.persistence.repositories.lesson_repository import 
 from omnitrade.infrastructure.persistence.repositories.outcome_repository import (
     OutcomeRepository,
 )
-from omnitrade.infrastructure.mcp.client import MCPClient
-from omnitrade.infrastructure.mcp.quality_tracker import ToolQualityTracker
-from omnitrade.infrastructure.mcp.registry import MCPRegistry
-from omnitrade.infrastructure.vector_store.sqlite_vec_store import SQLiteVecStore
 from omnitrade.infrastructure.persistence.repositories.position_repository import (
     PositionRepository,
 )
@@ -55,6 +52,7 @@ from omnitrade.infrastructure.persistence.repositories.signal_repository import 
     SignalRepository,
 )
 from omnitrade.infrastructure.persistence.repositories.trade_repository import TradeRepository
+from omnitrade.infrastructure.vector_store.sqlite_vec_store import SQLiteVecStore
 from omnitrade.observability.log_store import LogBuffer
 
 

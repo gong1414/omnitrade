@@ -206,9 +206,7 @@ async def test_output_language_roundtrip(lang: str | None, session: AsyncSession
 
 
 @pytest.mark.parametrize("conf", [0.0, 0.5, 0.75, 1.0, None])
-async def test_structured_confidence_roundtrip(
-    conf: float | None, session: AsyncSession
-) -> None:
+async def test_structured_confidence_roundtrip(conf: float | None, session: AsyncSession) -> None:
     """structured_confidence maps to DB column ``confidence`` and back."""
     repo = DecisionRepository()
     dec = _make_structured_decision(structured_confidence=conf)

@@ -77,9 +77,7 @@ class _StubLLM:
             raise self._raise
         if not self._responses:
             return {
-                "choices": [
-                    {"message": {"content": '{"triggered": false, "reason": "default"}'}}
-                ]
+                "choices": [{"message": {"content": '{"triggered": false, "reason": "default"}'}}]
             }
         nxt = self._responses.pop(0)
         if isinstance(nxt, Exception):
@@ -103,9 +101,7 @@ class _ShortOhlcvExchange:
     ) -> list[list[float]]:
         self.fetch_ohlcv_calls.append((str(symbol), timeframe, limit))
         # 10 candles << 50 minimum in ``snapshot_from_ohlcv``.
-        return [
-            [float(i * 60_000), 100.0, 101.0, 99.0, 100.0 + i, 10.0] for i in range(10)
-        ]
+        return [[float(i * 60_000), 100.0, 101.0, 99.0, 100.0 + i, 10.0] for i in range(10)]
 
 
 # ---------------------------------------------------------------------------
@@ -229,11 +225,7 @@ async def test_invalidation_triggers_close() -> None:
         responses=[
             {
                 "choices": [
-                    {
-                        "message": {
-                            "content": '{"triggered": true, "reason": "15m closed under 90"}'
-                        }
-                    }
+                    {"message": {"content": '{"triggered": true, "reason": "15m closed under 90"}'}}
                 ]
             }
         ]
@@ -274,11 +266,7 @@ async def test_invalidation_no_trigger() -> None:
         responses=[
             {
                 "choices": [
-                    {
-                        "message": {
-                            "content": '{"triggered": false, "reason": "still above 50"}'
-                        }
-                    }
+                    {"message": {"content": '{"triggered": false, "reason": "still above 50"}'}}
                 ]
             }
         ]
@@ -361,15 +349,7 @@ async def test_llm_failure_non_fatal() -> None:
     llm = _StubLLM(
         responses=[
             RuntimeError("boom — rate limited"),
-            {
-                "choices": [
-                    {
-                        "message": {
-                            "content": '{"triggered": false, "reason": "fine"}'
-                        }
-                    }
-                ]
-            },
+            {"choices": [{"message": {"content": '{"triggered": false, "reason": "fine"}'}}]},
         ]
     )
     mon, position_exchange = _build_monitor(

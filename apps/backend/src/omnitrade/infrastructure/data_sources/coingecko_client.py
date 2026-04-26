@@ -12,8 +12,6 @@ from typing import Any
 import httpx
 import structlog
 
-from omnitrade.observability.trace_context import with_context
-
 logger = structlog.get_logger(__name__)
 
 _BASE_URL = "https://api.coingecko.com/api/v3"

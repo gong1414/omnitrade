@@ -96,9 +96,7 @@ def _build_embedder(settings: Settings, provider: str) -> Any | None:
     if provider == "openai":
         embedder_key_secret = settings.embedder_api_key or settings.llm_api_key
         api_key = (
-            embedder_key_secret.get_secret_value()
-            if embedder_key_secret is not None
-            else None
+            embedder_key_secret.get_secret_value() if embedder_key_secret is not None else None
         )
         if not api_key:
             logger.warning(
@@ -176,10 +174,7 @@ def build_trade_journal_knowledge(settings: Settings) -> Any | None:
         logger.warning(
             "trade_journal.build.import_failed",
             error=str(exc),
-            hint=(
-                "install `pgvector` (Python client) — pinned in "
-                "apps/backend/pyproject.toml"
-            ),
+            hint=("install `pgvector` (Python client) — pinned in apps/backend/pyproject.toml"),
         )
         return None
 
@@ -238,9 +233,7 @@ def serialise_decision_for_journal(
     / ``plan`` / ``confidence`` / ``justification``).
     """
     market_context = (getattr(structured_reason, "market_context", None) or "").strip()
-    invalidation = (
-        getattr(structured_reason, "invalidation_condition", None) or ""
-    ).strip()
+    invalidation = (getattr(structured_reason, "invalidation_condition", None) or "").strip()
     gates: list[str] = list(getattr(structured_reason, "gates_passed", None) or [])
     justification = (getattr(structured_reason, "justification", None) or "").strip()
 

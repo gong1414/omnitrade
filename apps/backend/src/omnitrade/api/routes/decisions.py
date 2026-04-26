@@ -140,9 +140,7 @@ async def _fetch_runs(container: ApiContainer) -> list[dict[str, Any]]:
     session = container.session_factory()
     try:
         result = await session.execute(
-            text(
-                "SELECT runs FROM ai.agno_sessions WHERE session_id = :sid"
-            ),
+            text("SELECT runs FROM ai.agno_sessions WHERE session_id = :sid"),
             {"sid": _AGNO_SESSION_ID},
         )
         row = result.first()

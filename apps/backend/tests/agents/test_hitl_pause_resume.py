@@ -30,7 +30,6 @@ from omnitrade.agents.hitl import ApprovalRegistry
 from omnitrade.agents.trading_agent import _resolve_pauses
 from omnitrade.application.events.bus import EVENT_RUN_PAUSED, EventBus
 
-
 # ---------------------------------------------------------------------- #
 # Fakes                                                                    #
 # ---------------------------------------------------------------------- #

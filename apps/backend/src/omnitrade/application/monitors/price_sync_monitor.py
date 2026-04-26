@@ -111,8 +111,11 @@ class PriceSyncMonitor:
                     reconciled += 1
                     continue
                 new_price = fresh.current_price
-                new_upnl = self._compute_upnl(pos.side, pos.entry_price, new_price, pos.quantity) \
-                    if fresh.unrealized_pnl == Decimal(0) else fresh.unrealized_pnl
+                new_upnl = (
+                    self._compute_upnl(pos.side, pos.entry_price, new_price, pos.quantity)
+                    if fresh.unrealized_pnl == Decimal(0)
+                    else fresh.unrealized_pnl
+                )
                 # Skip no-op writes to keep the row version stable.
                 if new_price == pos.current_price and new_upnl == pos.unrealized_pnl:
                     continue

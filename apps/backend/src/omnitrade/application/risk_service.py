@@ -129,9 +129,7 @@ class DailyLossCap:
 
     def __post_init__(self) -> None:
         if self.cap_usdt <= Decimal(0):
-            raise ValueError(
-                f"DailyLossCap.cap_usdt must be positive, got {self.cap_usdt}"
-            )
+            raise ValueError(f"DailyLossCap.cap_usdt must be positive, got {self.cap_usdt}")
 
 
 class DailyLossLimiter:
@@ -162,9 +160,7 @@ class DailyLossLimiter:
 
     async def check(self) -> bool:
         """Return True when today's realized loss exceeds the cap."""
-        today_start = datetime.now(tz=UTC).replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
+        today_start = datetime.now(tz=UTC).replace(hour=0, minute=0, second=0, microsecond=0)
         session = await self._session_factory()
         try:
             pnl = await self._trade_repo.realized_pnl_since(session, today_start)

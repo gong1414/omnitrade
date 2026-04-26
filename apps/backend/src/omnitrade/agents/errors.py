@@ -22,9 +22,7 @@ class StructuredOutputContractError(Exception):
     """
 
     def __init__(self, tool_name: str, validation_error: str) -> None:
-        super().__init__(
-            f"Tool {tool_name!r} reason dict failed schema: {validation_error}"
-        )
+        super().__init__(f"Tool {tool_name!r} reason dict failed schema: {validation_error}")
         self.tool_name = tool_name
         self.validation_error = validation_error
 

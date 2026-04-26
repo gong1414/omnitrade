@@ -80,9 +80,7 @@ def stub_agno(monkeypatch: pytest.MonkeyPatch) -> type[_StubAgent]:
     def _team_unavailable(*_args: Any, **_kwargs: Any) -> Any:
         raise RuntimeError("team build short-circuited for acceptance-3 harness")
 
-    monkeypatch.setattr(
-        "omnitrade.agents.experts_team.build_agno_team", _team_unavailable
-    )
+    monkeypatch.setattr("omnitrade.agents.experts_team.build_agno_team", _team_unavailable)
 
     _StubAgent.last_kwargs = {}
     _StubAgent.last_prompt = ""
@@ -192,9 +190,7 @@ async def test_strategy_completes_a_cycle(
 
     decision = await think_fn(_make_market(), [])
 
-    assert isinstance(decision, Decision), (
-        f"strategy {strategy.value} did not produce a Decision"
-    )
+    assert isinstance(decision, Decision), f"strategy {strategy.value} did not produce a Decision"
     # Defensive-hold path is the expected outcome with a stub Agent.
     assert decision.action in {"hold", "open", "close", "partial_close"}, (
         f"strategy {strategy.value} produced unknown action: {decision.action!r}"

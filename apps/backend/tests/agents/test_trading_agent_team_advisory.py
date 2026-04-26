@@ -30,7 +30,6 @@ from omnitrade.config import Settings
 from omnitrade.domain.entities import MarketSnapshot
 from omnitrade.domain.enums import StrategyName
 
-
 # ---------------------------------------------------------------------------
 # Test fixtures: stub model + agent + bridge so no network call is issued.
 # ---------------------------------------------------------------------------
@@ -116,9 +115,7 @@ async def test_team_not_invoked_when_flag_disabled(
         calls["build"] += 1
         return SimpleNamespace()
 
-    monkeypatch.setattr(
-        "omnitrade.agents.experts_team.build_agno_team", _fake_build
-    )
+    monkeypatch.setattr("omnitrade.agents.experts_team.build_agno_team", _fake_build)
 
     settings = _make_settings(
         multi_agent_enabled=False,
@@ -153,9 +150,7 @@ async def test_team_not_invoked_for_non_team_strategy(
         calls["build"] += 1
         return SimpleNamespace()
 
-    monkeypatch.setattr(
-        "omnitrade.agents.experts_team.build_agno_team", _fake_build
-    )
+    monkeypatch.setattr("omnitrade.agents.experts_team.build_agno_team", _fake_build)
 
     settings = _make_settings(
         multi_agent_enabled=True,
@@ -198,9 +193,7 @@ async def test_team_advisory_prepended_to_user_prompt(
         build_calls.append(strat)
         return _StubTeam()
 
-    monkeypatch.setattr(
-        "omnitrade.agents.experts_team.build_agno_team", _fake_build
-    )
+    monkeypatch.setattr("omnitrade.agents.experts_team.build_agno_team", _fake_build)
 
     settings = _make_settings(multi_agent_enabled=True, strategy=strategy)
     think = ta_mod.build_agno_think_fn(
@@ -268,9 +261,7 @@ async def test_team_build_failure_skips_advisory_subsequent_cycles(
         build_calls.append(1)
         raise RuntimeError("bad team config")
 
-    monkeypatch.setattr(
-        "omnitrade.agents.experts_team.build_agno_team", _fake_build
-    )
+    monkeypatch.setattr("omnitrade.agents.experts_team.build_agno_team", _fake_build)
 
     settings = _make_settings(
         multi_agent_enabled=True,

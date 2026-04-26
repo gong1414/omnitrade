@@ -35,11 +35,7 @@ async def list_logs(
             "level": evt.get("level", "info"),
             "timestamp": evt.get("timestamp"),
             "message": evt.get("event"),
-            "context": {
-                k: v
-                for k, v in evt.items()
-                if k not in {"level", "timestamp", "event"}
-            },
+            "context": {k: v for k, v in evt.items() if k not in {"level", "timestamp", "event"}},
         }
         for evt in rows
     ]

@@ -134,16 +134,12 @@ class InvalidationMonitor:
         finally:
             await session.close()
         if not invalidation_text:
-            with_context(logger).debug(
-                "invalidation_monitor.skip_no_text", symbol=symbol
-            )
+            with_context(logger).debug("invalidation_monitor.skip_no_text", symbol=symbol)
             return
 
         # Fresh 15m snapshot. Reuse the composition path — this hits the
         # shared TTL cache when the trading loop already fetched 15m.
-        ohlcv_map = await self._multi_tf_fetcher.fetch_ohlcv_multi_tf(
-            [symbol], timeframes=["15m"]
-        )
+        ohlcv_map = await self._multi_tf_fetcher.fetch_ohlcv_multi_tf([symbol], timeframes=["15m"])
         ohlcv_15m = ohlcv_map.get(symbol, {}).get("15m", [])
         if len(ohlcv_15m) < _MIN_CANDLES:
             with_context(logger).info(
@@ -201,13 +197,11 @@ class InvalidationMonitor:
         the safe default is "do NOT auto-close" when we cannot confirm.
         """
         ema200_str = (
-            f"{snapshot.get('ema200'):.2f}"
-            if snapshot.get("ema200") is not None
-            else "n/a"
+            f"{snapshot.get('ema200'):.2f}" if snapshot.get("ema200") is not None else "n/a"
         )
         prompt = (
             f"Position: {symbol} {side} opened at {entry}.\n"
-            f"Invalidation condition: \"{invalidation_text}\"\n"
+            f'Invalidation condition: "{invalidation_text}"\n'
             f"Current 15m snapshot: price={snapshot['price']:.2f}, "
             f"EMA20={snapshot['ema20']:.2f}, EMA50={snapshot['ema50']:.2f}, "
             f"EMA200={ema200_str}, RSI14={snapshot['rsi14']:.1f}, "

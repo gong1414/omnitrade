@@ -92,10 +92,7 @@ async def get_stats(
     settings: Settings = Depends(get_settings),
 ) -> dict[str, Any]:
     """Portfolio summary statistics for the dashboard header row."""
-    history_stmt = (
-        select(AccountHistoryORM.total_value)
-        .order_by(AccountHistoryORM.timestamp.asc())
-    )
+    history_stmt = select(AccountHistoryORM.total_value).order_by(AccountHistoryORM.timestamp.asc())
     history_rows = (await session.execute(history_stmt)).scalars().all()
     values = [float(v) for v in history_rows]
 

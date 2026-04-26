@@ -101,7 +101,7 @@ class AgnoMCPBridge:
             return
         try:
             await self._toolset.close()
-        except Exception as exc:  # noqa: BLE001 — best-effort cleanup
+        except Exception as exc:
             with_context(logger).warning(
                 "mcp_bridge.close_failed",
                 error=str(exc),

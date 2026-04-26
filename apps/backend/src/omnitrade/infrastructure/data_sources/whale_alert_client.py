@@ -50,18 +50,18 @@ class WhaleAlertClient:
 
         txs = []
         for tx in data.get("transactions", []):
-            txs.append({
-                "hash": tx.get("hash"),
-                "blockchain": tx.get("blockchain"),
-                "symbol": tx.get("symbol", "").upper(),
-                "amount": tx.get("amount"),
-                "amount_usd": tx.get("amount_usd"),
-                "from_type": tx.get("from", {}).get("owner_type"),
-                "to_type": tx.get("to", {}).get("owner_type"),
-                "timestamp": datetime.fromtimestamp(
-                    tx.get("timestamp", 0), tz=UTC
-                ).isoformat(),
-            })
+            txs.append(
+                {
+                    "hash": tx.get("hash"),
+                    "blockchain": tx.get("blockchain"),
+                    "symbol": tx.get("symbol", "").upper(),
+                    "amount": tx.get("amount"),
+                    "amount_usd": tx.get("amount_usd"),
+                    "from_type": tx.get("from", {}).get("owner_type"),
+                    "to_type": tx.get("to", {}).get("owner_type"),
+                    "timestamp": datetime.fromtimestamp(tx.get("timestamp", 0), tz=UTC).isoformat(),
+                }
+            )
 
         return {
             "timestamp": datetime.now(tz=UTC).isoformat(),

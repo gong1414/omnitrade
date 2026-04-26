@@ -103,9 +103,7 @@ async def test_record_batch_swallows_repo_failure_returns_zero() -> None:
         repo=repo,  # type: ignore[arg-type]
         session_factory=lambda: _session_factory(session),
     )
-    written = await service.record_batch(
-        {"BTC_USDT": _make_ohlcv(60)}, datetime.now(tz=UTC)
-    )
+    written = await service.record_batch({"BTC_USDT": _make_ohlcv(60)}, datetime.now(tz=UTC))
     # Plan v3 MF-6: failure is swallowed, return 0; cycle must continue.
     assert written == 0
     # Session is still closed by the outer finally (exception path).
@@ -120,9 +118,7 @@ async def test_record_batch_signal_shape() -> None:
         repo=repo,  # type: ignore[arg-type]
         session_factory=lambda: _session_factory(session),
     )
-    await service.record_batch(
-        {"BTC_USDT": _make_ohlcv(60)}, datetime.now(tz=UTC)
-    )
+    await service.record_batch({"BTC_USDT": _make_ohlcv(60)}, datetime.now(tz=UTC))
     assert len(repo.calls) == 1
     sig = repo.calls[0]
     assert sig.symbol == "BTC_USDT"

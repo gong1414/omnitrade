@@ -66,6 +66,7 @@ The `reason` field MUST be a complete StructuredReason JSON object with all 7 ke
 Reply reasoning (market_context / gates_passed / invalidation_condition / justification fields) in {output_language}. Use the section headers "Market Context" / "Gates Passed" / "Invalidation" / "Plan" / "Confidence" in that language where applicable.
 """
 
+
 def _format_v1_market_block(tickers: Iterable[tuple[str, str]]) -> str:
     """Pre-8.1 market block: ``"SYMBOL: price / ..."`` summary.
 
