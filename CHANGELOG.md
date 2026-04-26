@@ -11,21 +11,57 @@ bumps until 1.0.0.
 
 ## [Unreleased]
 
+Post-v0.1.0 OSS-hardening pass. Future bumps will be cut by
+release-please from conventional commits.
+
 ### Added
-- **Open-source release prep**: `CONTRIBUTING.md`, `SECURITY.md`,
-  `CODE_OF_CONDUCT.md`, GitHub issue & PR templates,
-  `[project.urls]` in `apps/backend/pyproject.toml`,
-  ⚠️ risk disclaimer in `README.md` / `README_ZH.md`.
+- **OSS quality / safety stack**:
+  - CodeQL code scanning (advanced setup, weekly cron + push)
+  - Copilot Autofix (built-in, free for public repos)
+  - Dependabot vulnerability alerts + security updates
+  - Dependabot grouped version-update PRs (majors blocked, minors+patches grouped)
+  - Secret scanning + push protection
+  - OpenSSF Scorecard workflow + badge (supply-chain score)
+  - dependency-review-action (PR-time CVE/license gate, fail on moderate+)
+  - Codecov coverage upload + badge
+  - markdown-link-check (weekly cron + per-PR)
+  - PR auto-labeler with 9 path-based rules
+  - Auto-format-on-PR workflow (`ruff format` + `ruff check --fix-only`,
+    same-repo PRs only)
+  - release-please for changelog + tag automation
+- **Open-source release prep**: `CONTRIBUTING.md` (+ ZH), `SECURITY.md`
+  (+ ZH), `CODE_OF_CONDUCT.md` (+ ZH), `TRADEMARKS.md` (+ ZH),
+  `DEVELOPMENT.md` (+ ZH), `docs/QUICKSTART.md` (+ ZH),
+  `docs/FAQ.md` (+ ZH), `docs/adr/` directory with first two
+  Architecture Decision Records, GitHub issue forms (YAML) + PR
+  template, `[project.urls]` in `apps/backend/pyproject.toml`,
+  ⚠️ risk disclaimer in both READMEs.
 - **Refreshed `.env.example`** (root + `apps/backend/`) covering all
   knobs introduced by T1–T10: `HF_ENDPOINT`, `EMBEDDER_PROVIDER`,
   `EMBEDDER_API_KEY`, `EMBEDDER_BASE_URL`, `EMBEDDER_MODEL_ID`,
   `HITL_OPEN_SIZE_THRESHOLD_USD`, `HITL_APPROVAL_WAIT_SECONDS`,
   `OTEL_TRACING_ENABLED`, `AGNO_LLM_MODEL`, `AGNO_POSTGRES_URL`,
   `AGNO_SCHEDULER_DRIVES_CYCLE`.
+- **Sponsorship surface**: `.github/FUNDING.yml` + USDT-TRC20 address
+  with QR in README.
+- **Brand assets**: hand-authored `assets/{logo,logo-horizontal,
+  favicon,logo-mono,sponsor-usdt-trc20}.svg` and `social-preview.png`.
 
 ### Changed
 - `docker-compose.prod.yml` header comment no longer mentions SQLite —
   the prod path is Postgres + pgvector, same as dev.
+- README slimmed via `<details>` collapsibles (visible length
+  ~280 lines vs original ~590) and front-loaded with News / Try in 2
+  Min / Use Cases / vs Hand-rolled sections.
+
+### Fixed
+- 86 CodeQL code-scanning findings closed (13 real fixes + 59
+  documented false-positive dismissals + 14 auto-resolved by code
+  edits).
+- `Money.__add__/__sub__` now raise `ArithmeticError` instead of
+  `ValueError` (matches the special-method contract).
+- `leverage_bands.get_leverage_band` refactored from `match-case` to
+  dict lookup so static-analysis sees a single return profile.
 
 ## [Agno cutover + T1–T10 hardening] — 2026-04-26
 
