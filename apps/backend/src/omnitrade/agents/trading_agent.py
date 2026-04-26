@@ -46,11 +46,13 @@ if TYPE_CHECKING:
 from agno.agent import Agent
 from agno.models.deepseek import DeepSeek
 
+from omnitrade.agents.guardrails.qa_phrase import build_qa_phrase_post_hook
 from omnitrade.agents.tools.decision_schemas import (
     DecisionRecorder,
     build_decision_tools,
 )
 from omnitrade.agents.tools.mcp_bridge import AgnoMCPBridge
+from omnitrade.application.events.bus import EventBus
 from omnitrade.domain.entities import Decision, MarketSnapshot, NewsItem
 from omnitrade.domain.enums import StrategyName
 from omnitrade.observability.trace_context import with_context
@@ -139,6 +141,7 @@ def build_agno_think_fn(
     strategy: StrategyName,
     market_block_builder: Callable[[Any, MarketSnapshot], Awaitable[str]],
     recent_trades_block_builder: Callable[[Any], Awaitable[str]],
+    event_bus: EventBus | None = None,
 ) -> ThinkFn:
     """Return a `think_fn` backed by Agno's Agent.
 
@@ -150,6 +153,12 @@ def build_agno_think_fn(
     The returned callable exposes ``mcp_bridge`` as an attribute so the
     FastAPI lifespan can shut down the spawned MCP subprocesses cleanly
     on application teardown.
+
+    ``event_bus`` is optional so unit tests that build the think-fn with
+    stub renderers don't have to spin up a full bus. Production wiring
+    (``composition._build_base_think_fn``) always passes
+    ``container.event_bus`` so the G5 QA-phrase guardrail can publish
+    ``EVENT_ORCHESTRATOR_ERROR`` events to the dashboard banner.
     """
     bridge = AgnoMCPBridge()
     bridge_lock = asyncio.Lock()
@@ -305,6 +314,16 @@ def build_agno_think_fn(
             "retries": _AGENT_RETRIES,
             "exponential_backoff": True,
         }
+        # T3: G5 QA-phrase guardrail. When the LLM's reasoning text
+        # contains any of the CLAUDE.md fault phrases ("phantom
+        # positions", "数据同步故障", …) the post_hook publishes an
+        # ``EVENT_ORCHESTRATOR_ERROR`` so the dashboard banner lights
+        # up automatically — turning the previously-manual G5 eyeball
+        # check into a runtime guardrail. Only wired when the caller
+        # supplied an event_bus (production composition does; unit
+        # tests with stub renderers may omit it).
+        if event_bus is not None:
+            agent_kwargs["post_hooks"] = [build_qa_phrase_post_hook(event_bus)]
         if session_db is not None:
             # Persist this cycle as a run inside the shared trading session
             # and surface the last N runs back into the Agent's context so

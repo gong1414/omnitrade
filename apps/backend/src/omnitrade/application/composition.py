@@ -389,6 +389,10 @@ def _build_base_think_fn(
         strategy=strategy,
         market_block_builder=_build_market_block,
         recent_trades_block_builder=_render_recent_trades_block,
+        # T3: forward the event bus so the G5 QA-phrase post_hook can
+        # publish ``EVENT_ORCHESTRATOR_ERROR`` when the LLM reports a
+        # data-quality fault (auto-lights the dashboard banner).
+        event_bus=container.event_bus,
     )
 
 
