@@ -33,14 +33,15 @@
 </p>
 
 <p align="center">
+  <a href="#-news">News</a> &nbsp;&middot;&nbsp;
+  <a href="#-try-in-2-minutes">Try in 2 Min</a> &nbsp;&middot;&nbsp;
   <a href="#-key-features">Features</a> &nbsp;&middot;&nbsp;
-  <a href="#-what-is-omnitrade">What Is It</a> &nbsp;&middot;&nbsp;
   <a href="#-strategies">Strategies</a> &nbsp;&middot;&nbsp;
+  <a href="#-omnitrade-vs-hand-rolled-setups">vs Hand-rolled</a> &nbsp;&middot;&nbsp;
   <a href="#-get-started">Get Started</a> &nbsp;&middot;&nbsp;
   <a href="#-architecture">Architecture</a> &nbsp;&middot;&nbsp;
-  <a href="#-environment">Env</a> &nbsp;&middot;&nbsp;
   <a href="#-api-reference">API</a> &nbsp;&middot;&nbsp;
-  <a href="#-roadmap">Roadmap</a> &nbsp;&middot;&nbsp;
+  <a href="#-sponsorship--support-the-project">Sponsor</a> &nbsp;&middot;&nbsp;
   <a href="#-license">License</a>
 </p>
 
@@ -95,6 +96,36 @@ If you can't accept those terms, stop here.
 
 ---
 
+## 📰 News
+
+- **2026-04-26** 🎉 **Open-source release `v0.1.0`** — Agno cutover (Stages A–E) + T1–T10 hardening all green. Full release notes at [v0.1.0](https://github.com/gong1414/omnitrade/releases/tag/v0.1.0).
+- **2026-04-26** 🛡️ **OSS quality batch** — Dependabot + CodeQL security scanning, branch protection on main, GitHub Pages live at [docs](https://gong1414.github.io/omnitrade/), full ADR collection under [`docs/adr/`](docs/adr/).
+- **2026-04-26** 📚 **Quickstart + FAQ** — `git clone → first cycle in <5 min` walkthrough at [`docs/QUICKSTART.md`](docs/QUICKSTART.md), 11 common errors covered in [`docs/FAQ.md`](docs/FAQ.md).
+- **2026-04-26** 🤖 **T10 — Trade-journal RAG** — every cycle's structured reasoning is now ingested into `ai.trade_journal` (PgVector hybrid search) and auto-injected as context into subsequent cycles. Default embedder is local `BAAI/bge-small-en-v1.5` (no API key needed).
+- **2026-04-26** 🛑 **T9 — HITL large-open gate** — opens above `HITL_OPEN_SIZE_THRESHOLD_USD` (default $10 000) pause via SSE and require operator approval through the dashboard banner.
+- **2026-04-26** 🔭 **T4 — OpenTelemetry tracing** — every Agno run / model call / tool call emits a span via OpenInference's `AgnoInstrumentor`; visit `GET /traces` for the per-cycle span tree.
+
+---
+
+## ⚡ Try in 2 Minutes
+
+The shortest path from `git clone` to "the agent is trading on Gate.io
+testnet", in one paste-able block:
+
+```bash
+git clone https://github.com/gong1414/omnitrade.git && cd omnitrade && \
+  cp apps/backend/.env.example .env && \
+  echo "Edit .env now: set LLM_API_KEY (DeepSeek), GATE_API_KEY, GATE_API_SECRET" && \
+  docker compose up -d && \
+  curl -X POST http://localhost:8000/api/v1/cycle/trigger
+```
+
+Then open `http://localhost:3000/dashboard`. Full walkthrough at
+[`docs/QUICKSTART.md`](docs/QUICKSTART.md); common errors at
+[`docs/FAQ.md`](docs/FAQ.md).
+
+---
+
 ## 💡 What Is OmniTrade?
 
 OmniTrade is an autonomous **crypto-futures trading arena** where 11 LLM-driven strategies compete for PnL on Gate.io or OKX perpetuals. Point it at a testnet, pick a strategy, and watch the agent reason about markets, size positions, and manage risk — with every decision verifiable via a structured output contract test suite.
@@ -107,6 +138,38 @@ OmniTrade is an autonomous **crypto-futures trading arena** where 11 LLM-driven 
 - **Testnet by default** — `GATE_USE_TESTNET=true` / `OKX_USE_TESTNET=true` out of the box; live trading requires explicit override
 - **Characterization gate** — 22 frozen fixtures replay deterministically at ≥ 0.95 Decision-equivalent pass rate
 - **Real-time dashboard** — Next.js 14 App Router + SWR + Server-Sent Events (EventSource) with exponential-backoff reconnect
+
+---
+
+## 🎯 Who It Is For
+
+- **LLM agent researchers** who want a non-toy benchmark — real exchange API, structured tool-calling under cost pressure, multi-agent coordination on a single PnL-driven loop.
+- **Quant tinkerers** who treat "AI manages crypto futures" as a hobby project and want a complete stack to play with rather than building from scratch.
+- **Operators on testnet** who want to study how an LLM behaves on real market data over weeks, before considering any mainnet exposure.
+- **Tooling/MCP authors** who want a working example of `MultiMCPTools` driving 15 tools (9 trading + 6 crypto-data) under Agno.
+
+OmniTrade is **not** for: people who want a turnkey money printer, traders looking for a copy-trade signal service, or anyone who can't afford to lose every dollar in the account.
+
+## 🔬 Use Cases
+
+- **Paper-trade an LLM** for weeks on Gate.io / OKX testnet, then read every cycle's reasoning to develop intuition for what the model actually understands.
+- **Compare strategies** — run the same market window through `arena-guardian` vs `arena-raider` vs `arena-tribunal` and see how different prompt branches handle the same setup.
+- **Test new MCP tools** — drop a new FastMCP server in `infrastructure/mcp/`, register it via `MultiMCPTools`, and watch the agent discover and call it.
+- **Stress-test agent reliability** — the `T7 ReliabilityEval` lane and `T8 AccuracyEval` lane catch regressions in tool-calling fidelity (the "did the agent actually use its tools or fabricate the answer?" axis).
+- **Run a personal account on mainnet** — only after weeks of testnet plus your own conviction. Treat it as a colleague who needs supervision, not an autopilot.
+
+## ⚖️ OmniTrade vs Hand-rolled Setups
+
+| Typical hand-rolled setup | OmniTrade |
+|---|---|
+| LLM in one Jupyter notebook + ccxt in another + a Postgres dump for trade history | Single-process FastAPI + AgentOS scheduler + Postgres + pgvector + 6 fast monitors, all in `docker compose up` |
+| Mocked tests pass, prod migrations break | 22 frozen-fixture replays at ≥ 0.95 + integration tests that hit real SQLite/Postgres (no mocked DB) |
+| LLM hallucinates positions; you only notice on the next bill | G6 cross-source consistency check + G5 fault-phrase guardrail; phantom positions trip the build, not the wallet |
+| Stop-loss and partial-close races corrupt position state | Three-way state atomic write contract — `cumulative_close_pct` / `stop_loss` / `trailing_peak_pnl_pct` land in one SQL `UPDATE` |
+| Large unintended opens slip through unattended | T9 HITL gate pauses opens > `HITL_OPEN_SIZE_THRESHOLD_USD` (default $10 000) via SSE — operator approves on the dashboard |
+| LLM reasoning is forgotten between sessions | T10 trade-journal RAG ingests every decision into PgVector; subsequent cycles see semantically relevant prior decisions in their system prompt |
+| No visibility into "did the agent really use its tools?" | OpenTelemetry traces (T4) — one span per Agent.arun / model call / tool call, served via AgentOS `GET /traces` |
+| Multi-framework drift (LangChain + LiteLLM + LangGraph + mcp2py) | One framework — Agno 2.x. CI's Acceptance 4 enforces zero legacy imports |
 
 ---
 

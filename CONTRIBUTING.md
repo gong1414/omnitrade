@@ -5,6 +5,11 @@ trading project — getting it wrong can cost real money on mainnet, so we
 hold the bar high on testing, observability, and reproducibility. Read this
 file end-to-end before sending a PR.
 
+> 🛠 If you want the **deep-dive setup + debugging recipes** (multiple
+> dev paths, profiling, debugging recipes, release workflow), see
+> [DEVELOPMENT.md](DEVELOPMENT.md). This file is the contract; that file
+> is the inner loop.
+
 ## TL;DR
 
 ```bash
