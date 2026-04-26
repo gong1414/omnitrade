@@ -41,6 +41,11 @@ dependencies = [
     "agno[scheduler]>=2.0.0",
     # Agno's DeepSeek model class lazy-imports `openai` (sync + async).
     "openai>=1.40.0",
+    # T10: trade-journal RAG via Agno's `Knowledge` + `PgVector`. The
+    # `pgvector` Python client provides the SQLAlchemy `Vector` column
+    # type Agno's PgVector vectordb uses to persist embeddings. Pinned
+    # at the same minor floor as Agno's own optional extra.
+    "pgvector>=0.3.0",
     "psycopg[binary]>=3.2.0",
 ]
 
@@ -134,6 +139,7 @@ markers = [
     "manual_qa: opt-in tests requiring live LLM + human verification (excluded from default CI run)",
     "eval: agent-reliability evals (Agno ReliabilityEval) — runs in a dedicated CI step under tests/eval/",
     "live: cassette-gated evals that exercise a real LLM judge call — skipped when no cassette is present",
+    "requires_postgres: opt-in tests needing a live Postgres + pgvector via AGNO_POSTGRES_URL (T10 trade-journal integration smoke)",
 ]
 
 [tool.coverage.run]

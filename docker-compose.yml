@@ -11,6 +11,15 @@
 services:
   # ── postgres: AgentOS sessions + business data (Agno migration Phase 0) ─
   # Lives alongside the SQLite mount; flip via DATABASE_URL when ready.
+  #
+  # T10 NOTE (trade-journal RAG): the stock `postgres:16-alpine` image
+  # does NOT bundle the pgvector extension. Alembic revision 0006 runs
+  # `CREATE EXTENSION IF NOT EXISTS vector`; on this image the
+  # statement raises `ERROR: could not open extension control file`.
+  # To enable T10 end-to-end, switch this image to
+  # `pgvector/pgvector:pg16` (or layer the extension into a custom
+  # build). Left untouched here per task-T10 instruction — flag in
+  # final report so the operator can choose the rollout window.
   postgres:
     image: postgres:16-alpine
     environment:

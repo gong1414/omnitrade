@@ -366,6 +366,7 @@ def _build_base_think_fn(
     The Agno Agent owns its DeepSeek model + MultiMCPTools toolkit, so no
     separate ``LLMClient`` is needed at this seam.
     """
+    from omnitrade.agents.knowledge import build_trade_journal_knowledge
     from omnitrade.agents.trading_agent import build_agno_think_fn
 
     try:
@@ -377,12 +378,19 @@ def _build_base_think_fn(
         )
         strategy = StrategyName.AI_AUTONOMOUS
 
+    # T10: build the trade-journal RAG handle once at composition time.
+    # Returns ``None`` (with an info-level skip log) when Postgres is
+    # unwired or the embedder credentials are missing — the Agent then
+    # runs without RAG memory rather than failing the cycle.
+    knowledge = build_trade_journal_knowledge(settings)
+
     with_context(logger).info(
         "composition.think_fn_built",
         strategy=str(strategy),
         model=settings.agno_llm_model,
+        knowledge_enabled=knowledge is not None,
     )
-    return build_agno_think_fn(
+    think_fn = build_agno_think_fn(
         container,
         settings,
         render_messages=_render_think_messages,
@@ -397,7 +405,15 @@ def _build_base_think_fn(
         # can pause large opens for operator approval via the dashboard
         # banner. ``None`` paths in tests fall through to auto-reject.
         approval_registry=getattr(container, "approval_registry", None),
+        # T10: pass the optional Knowledge handle so Agno can auto-inject
+        # relevant prior cycles into the system prompt.
+        knowledge=knowledge,
     )
+    # Surface the knowledge handle on the think-fn so the monitor can
+    # ingest decisions back into the same instance (single source of
+    # truth: the Agent reads + writes through the same handle).
+    think_fn.knowledge = knowledge  # type: ignore[attr-defined]
+    return think_fn
 
 
 # ---------------------------------------------------------------------------
@@ -638,6 +654,13 @@ def build_trading_monitor(
     execute = _build_execute_fn(container, settings)
     risk_check = _build_risk_check_fn(container, settings)
 
+    # T10: surface the trade-journal Knowledge handle (if any) on the
+    # monitor so the post-cycle ingest hook lands rows in the same
+    # PgVector-backed table the Agent searches against. ``getattr``
+    # with default keeps non-Agno think-fn paths (e.g. legacy stubs in
+    # tests that build the monitor directly) compatible.
+    knowledge_handle = getattr(base_think, "knowledge", None)
+
     return TradingLoopMonitor(
         interval_minutes=settings.trading_interval_minutes,
         exchange_observe=observe,
@@ -650,6 +673,7 @@ def build_trading_monitor(
         ws_client=container.ws_client,
         use_ws_market_data=settings.use_ws_market_data,
         cassette_mode=settings.cassette_mode,
+        knowledge=knowledge_handle,
     )
 
 

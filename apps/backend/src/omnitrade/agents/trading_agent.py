@@ -313,6 +313,7 @@ def build_agno_think_fn(
     recent_trades_block_builder: Callable[[Any], Awaitable[str]],
     event_bus: EventBus | None = None,
     approval_registry: ApprovalRegistry | None = None,
+    knowledge: Any | None = None,
 ) -> ThinkFn:
     """Return a `think_fn` backed by Agno's Agent.
 
@@ -330,6 +331,14 @@ def build_agno_think_fn(
     (``composition._build_base_think_fn``) always passes
     ``container.event_bus`` so the G5 QA-phrase guardrail can publish
     ``EVENT_ORCHESTRATOR_ERROR`` events to the dashboard banner.
+
+    ``knowledge`` is the optional T10 trade-journal RAG handle (Agno
+    :class:`Knowledge` over PgVector). When supplied, the Agent is
+    constructed with ``knowledge=knowledge, search_knowledge=True`` so
+    Agno auto-injects relevant prior cycles into the system prompt. The
+    factory in :mod:`omnitrade.agents.knowledge.trade_journal` returns
+    ``None`` whenever Postgres / OPENAI_API_KEY is unwired, in which
+    case this kwarg is ``None`` and the Agent runs without RAG memory.
     """
     bridge = AgnoMCPBridge()
     bridge_lock = asyncio.Lock()
@@ -516,6 +525,16 @@ def build_agno_think_fn(
             # narrative summary stretching further back).
             agent_kwargs["enable_session_summaries"] = True
 
+        # T10: trade-journal RAG. When the Knowledge factory returned a
+        # live PgVector-backed instance, Agno auto-injects the most
+        # semantically relevant prior cycles into the system prompt at
+        # run time (``search_knowledge=True``). The factory returns
+        # ``None`` when Postgres / OPENAI_API_KEY is unwired, in which
+        # case we omit both kwargs entirely so the Agent runs unchanged.
+        if knowledge is not None:
+            agent_kwargs["knowledge"] = knowledge
+            agent_kwargs["search_knowledge"] = True
+
         agent = Agent(**agent_kwargs)
 
         with_context(logger).info(
@@ -524,6 +543,7 @@ def build_agno_think_fn(
             n_tools=len(tools_for_agent),
             mcp_connected=bridge._toolset is not None,
             history_runs=_NUM_HISTORY_RUNS if session_db is not None else 0,
+            knowledge_enabled=knowledge is not None,
         )
 
         try:

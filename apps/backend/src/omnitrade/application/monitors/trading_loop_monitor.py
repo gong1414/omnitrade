@@ -14,9 +14,11 @@ documented in detail in ``application/trading_loop.observe_market``.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import uuid
 from decimal import Decimal
+from typing import Any
 
 import structlog
 
@@ -67,6 +69,7 @@ class TradingLoopMonitor:
         ws_client: WSClient | None = None,
         use_ws_market_data: bool = False,
         cassette_mode: bool = False,
+        knowledge: Any | None = None,
     ) -> None:
         # CRITICAL-1: refuse to start with both flags simultaneously true.
         # The assertion lives here (monitor) rather than in
@@ -91,6 +94,14 @@ class TradingLoopMonitor:
         self._hydrated_iteration = False
         self._ws_client: WSClient | None = ws_client if use_ws_market_data else None
         self._cassette_mode = cassette_mode
+        # T10: optional trade-journal RAG handle. When wired (Postgres
+        # present + OPENAI_API_KEY set) we kick off a fire-and-forget
+        # ingest after each cycle so future runs can semantically recall
+        # prior decisions. ``None`` short-circuits the ingest path.
+        self._knowledge: Any | None = knowledge
+        # Strong refs for outstanding journal-ingest tasks so they don't
+        # get GC'd mid-flight (RUF006). Cleared on task completion.
+        self._journal_tasks: set[asyncio.Task[Any]] = set()
 
     async def _hydrate_iteration(self) -> None:
         """Pull the last-seen iteration from DB so restarts keep numbering
@@ -167,6 +178,7 @@ class TradingLoopMonitor:
             outcome.market.account.total_value if outcome.market.account is not None else Decimal(0)
         )
         decision = outcome.decision
+        persisted_ts = self._clock.now()
         await self._decision_service.record(
             iteration=self._iteration,
             decision_text=decision.action,
@@ -174,7 +186,7 @@ class TradingLoopMonitor:
             actions_taken=actions_json,
             account_value=account_value,
             positions_count=len(outcome.market.positions),
-            timestamp=self._clock.now(),
+            timestamp=persisted_ts,
             symbol=decision.symbol,
             side=decision.side,
             # PR-B1/B2 — propagate StructuredReason fields so
@@ -193,6 +205,51 @@ class TradingLoopMonitor:
             justification=decision.justification,
             ws_extras={"stage_timings": outcome.stage_ms} if outcome.stage_ms else None,
         )
+
+        # T10: fire-and-forget knowledge ingest. The cycle return path
+        # never awaits the embedder round-trip — failures are logged +
+        # swallowed inside ``record_decision_to_knowledge``. Skipped
+        # silently when the knowledge handle is None (Postgres unwired
+        # or OPENAI_API_KEY missing).
+        if self._knowledge is not None:
+            run_id = correlation_id.get() or str(uuid.uuid4())
+            self._schedule_journal_ingest(decision, run_id=run_id, timestamp=persisted_ts)
+
+    def _schedule_journal_ingest(
+        self,
+        decision: Any,
+        *,
+        run_id: str,
+        timestamp: Any,
+    ) -> None:
+        """Kick off a background task to ingest ``decision`` into the journal.
+
+        Wrapped in a try/except so a failed ``create_task`` (e.g. event
+        loop closed during shutdown) cannot blow up the cycle return.
+        The ingest helper itself is already log-and-swallow, so the task
+        never raises out into the loop.
+        """
+        try:
+            from omnitrade.agents.knowledge import record_decision_to_knowledge
+
+            task = asyncio.create_task(
+                record_decision_to_knowledge(
+                    self._knowledge,
+                    decision,
+                    run_id=run_id,
+                    timestamp=timestamp,
+                )
+            )
+            # Hold a strong ref until the task finishes so the event
+            # loop's weak-ref-only registry doesn't GC it mid-flight.
+            self._journal_tasks.add(task)
+            task.add_done_callback(self._journal_tasks.discard)
+        except Exception as exc:  # pragma: no cover — defensive
+            with_context(logger).warning(
+                "trading_loop_monitor.journal_ingest_schedule_failed",
+                error=str(exc),
+                run_id=run_id,
+            )
 
 
 __all__ = ["TradingLoopMonitor"]
