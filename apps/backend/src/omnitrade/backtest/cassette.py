@@ -15,15 +15,40 @@ granularity to make replays byte-exact.
 
 Determinism contract
 --------------------
-* Set ``record_mode='once'`` (default) for the typical "warm cache,
-  then replay" pattern.
-* Set ``record_mode='none'`` to refuse network access — the run errors
-  out if the cassette is missing.
-* Set ``record_mode='all'`` to force re-recording (e.g. after the
-  remote API contract changes).
+* ``record_mode='once'`` (default) — record on first run, replay on
+  subsequent runs. New (unseen) requests during replay raise.
+* ``record_mode='none'`` — strict replay. Cache misses raise
+  ``CannotOverwriteExistingCassetteException`` immediately.
+* ``record_mode='all'`` — force re-recording (e.g. after the remote
+  API contract changes).
+* ``record_mode='new_episodes'`` — replay matched, record unmatched.
 
-The cassette key bundles the request method + scheme + host + path +
-query + body, so identical decision contexts hash to the same entry.
+Match key & prompt drift
+------------------------
+The cassette key is built from ``(method, scheme, host, port, path,
+query, body)``. ``body`` matters: prompt rendering in production
+includes timestamp-bearing fragments (``Recent cycles (most-recent
+first)``, ``current_time={iso}``), so two backtests over the **same
+candle window** can hash to **different** cache keys even if every
+other input is byte-identical. Concretely:
+
+* The first run populates the cassette with whatever prompt the
+  engine rendered at that wall clock.
+* The second run, ten minutes later, renders a slightly different
+  prompt → cache miss → either re-record (``once``/``all``) or raise
+  (``none``).
+
+If perfect replay is required, freeze the prompt-relevant timestamps
+upstream — for example, run with a fixed :class:`BacktestClock` start
+and have ``recent_trades_block`` compute "X cycles ago" only against
+that frozen clock. The cassette layer itself does not normalise
+prompt content; doing so would risk replaying stale decisions onto
+fresh market data.
+
+Authorization headers (and the per-process ``user-agent``) are
+filtered out of the cassette payload via ``filter_headers`` so API
+keys never end up in git, and re-running with a different key still
+hits the same cache entries.
 """
 
 from __future__ import annotations

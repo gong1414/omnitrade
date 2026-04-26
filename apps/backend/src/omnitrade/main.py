@@ -87,20 +87,42 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     holder = getattr(app.state, "agent_os_monitor_holder", None)
     monitor = getattr(app.state, "trading_monitor", None)
     if holder is not None and monitor is not None:
-        holder.monitor = monitor
+        holder.set_monitor(monitor)
         logger.info("omnitrade.agent_os_workflow_monitor_bound")
+
+    # Cron / cycle-timeout sanity check (review #7). When the per-cycle
+    # timeout exceeds half the schedule interval, two consecutive cycles
+    # can overlap and the second one will be rejected by the schedule
+    # lock; warn loudly so misconfigurations surface in startup logs.
+    if settings.agno_scheduler_drives_cycle:
+        interval_s = settings.trading_interval_minutes * 60
+        if settings.cycle_trigger_timeout_seconds > interval_s / 2:
+            await logger.awarning(
+                "omnitrade.cycle_timeout_vs_interval_misconfig",
+                cycle_timeout_s=settings.cycle_trigger_timeout_seconds,
+                trading_interval_s=interval_s,
+                msg=(
+                    "cycle_trigger_timeout_seconds > trading_interval/2 — "
+                    "consecutive cycles may overlap. Either lengthen "
+                    "TRADING_INTERVAL_MINUTES or lower CYCLE_TRIGGER_TIMEOUT_SECONDS."
+                ),
+            )
 
     # Phase 4.5 step 2: when AgentOS is configured to drive the trading
     # cycle, register (idempotently) a cron schedule pointing at the
-    # `/workflows/trading-cycle/runs` endpoint. The AgentOS scheduler
-    # poller picks it up on its next tick and starts firing.
+    # `/workflows/trading-cycle/runs` endpoint. **Last** thing in lifespan
+    # startup (review #2 — race ordering): only fire after monitor is
+    # bound + holder.set_monitor has unblocked any waiting scheduler ticks.
+    # Reuse the same `PostgresDb` agent_os_app already opened so we don't
+    # leak a parallel connection (review #1).
+    shared_db = getattr(app.state, "agent_os_postgres_db", None)
     if (
         settings.agno_postgres_url
         and settings.agno_scheduler_drives_cycle
         and post_container is not None
     ):
         try:
-            await _register_agentos_trading_schedule(settings)
+            await _register_agentos_trading_schedule(settings, shared_db=shared_db)
         except Exception as exc:  # bootstrap is best-effort
             await logger.aerror(
                 "omnitrade.agentos_schedule_register_failed", error=str(exc)
@@ -286,68 +308,106 @@ def _start_trading_scheduler(
     )
 
 
-async def _register_agentos_trading_schedule(settings: Settings) -> None:
+def _cron_for_interval(minutes: int) -> str:
+    """Return a cron expression matching the requested cadence.
+
+    * 1..59 minutes → ``*/N * * * *``
+    * Whole hours (60, 120, 180, ..., 1380) → ``0 */h * * *``
+    * 24 h (1440) → ``0 0 * * *`` (midnight UTC)
+    * Anything else (e.g. 90 min) → clamp DOWN to the nearest hour and
+      log a warning — the schedule fires later than configured rather
+      than earlier, which is the safer side of "wrong".
+    """
+    if minutes <= 0:
+        logger.warning(
+            "omnitrade.agentos_schedule_invalid_cadence",
+            trading_interval_minutes=minutes,
+            fallback="*/20 * * * *",
+        )
+        return "*/20 * * * *"
+    if minutes < 60:
+        return f"*/{minutes} * * * *"
+    if minutes % 60 == 0:
+        hours = minutes // 60
+        return f"0 */{hours} * * *" if hours < 24 else "0 0 * * *"
+    hours = max(1, minutes // 60)
+    logger.warning(
+        "omnitrade.agentos_schedule_clamped_cadence",
+        trading_interval_minutes=minutes,
+        cron_hours=hours,
+    )
+    return f"0 */{hours} * * *"
+
+
+async def _register_agentos_trading_schedule(
+    settings: Settings,
+    *,
+    shared_db: Any | None = None,
+) -> None:
     """Idempotently register the AgentOS cron schedule for the trading
     workflow. The scheduler poller running inside AgentOS picks up the
     row on its next tick and fires the schedule.
 
-    Cron is `*/N * * * *` where N = ``trading_interval_minutes``. Falls
-    back to every 20 minutes when N is invalid for the standard cron
-    minute field (only N ∈ {1..59} is safe; for >=60 minutes use cron
-    hours instead). Schedules persist in Postgres, so re-running the
-    bootstrap with `if_exists='update'` keeps the cron in sync with
-    config drift across restarts.
+    Args:
+        settings: The active :class:`Settings`.
+        shared_db: Optional pre-built :class:`agno.db.postgres.PostgresDb`
+            from :mod:`agent_os_app`. When supplied, the manager reuses
+            it — no duplicate Postgres connection is opened. When None
+            (defensive path), we open + close our own.
+
+    Schedules persist in Postgres, so re-running the bootstrap with
+    ``if_exists='update'`` keeps the cron in sync with config drift
+    across restarts.
     """
-    from agno.db.postgres import PostgresDb
     from agno.scheduler.manager import ScheduleManager
 
-    n = settings.trading_interval_minutes
-    if n <= 0:
-        logger.warning(
-            "omnitrade.agentos_schedule_invalid_cadence",
-            trading_interval_minutes=n,
-            fallback="*/20 * * * *",
-        )
-        cron = "*/20 * * * *"
-    elif n < 60:
-        cron = f"*/{n} * * * *"
-    elif n % 60 == 0:
-        # Whole-hour cadence — collapse to `0 */h * * *`.
-        hours = n // 60
-        cron = f"0 */{hours} * * *" if hours < 24 else "0 0 * * *"
-    else:
-        # Awkward cadence like 90 minutes — clamp to the nearest hour.
-        hours = max(1, n // 60)
-        logger.warning(
-            "omnitrade.agentos_schedule_clamped_cadence",
-            trading_interval_minutes=n,
-            cron_hours=hours,
-        )
-        cron = f"0 */{hours} * * *"
+    cron = _cron_for_interval(settings.trading_interval_minutes)
 
-    db = PostgresDb(db_url=settings.agno_postgres_url)
+    own_db = None
+    db = shared_db
+    if db is None:
+        from agno.db.postgres import PostgresDb
+
+        own_db = PostgresDb(db_url=settings.agno_postgres_url)
+        db = own_db
+
     manager = ScheduleManager(db=db)
+    try:
+        schedule = await manager.acreate(
+            name="trading-cycle",
+            cron=cron,
+            endpoint="/workflows/trading-cycle/runs",
+            method="POST",
+            description="Trigger the OmniTrade trading cycle on a fixed cadence.",
+            payload={"message": "scheduled"},
+            timeout_seconds=int(settings.cycle_trigger_timeout_seconds * 4),
+            max_retries=0,
+            if_exists="update",
+        )
+        if not schedule.enabled:
+            await manager.aenable(schedule.id)
 
-    schedule = await manager.acreate(
-        name="trading-cycle",
-        cron=cron,
-        endpoint="/workflows/trading-cycle/runs",
-        method="POST",
-        description="Trigger the OmniTrade trading cycle on a fixed cadence.",
-        payload={"message": "scheduled"},
-        timeout_seconds=int(settings.cycle_trigger_timeout_seconds * 4),
-        max_retries=0,
-        if_exists="update",
-    )
-    if not schedule.enabled:
-        await manager.aenable(schedule.id)
-
-    logger.info(
-        "omnitrade.agentos_schedule_registered",
-        schedule_id=schedule.id,
-        cron=cron,
-        endpoint="/workflows/trading-cycle/runs",
-    )
+        logger.info(
+            "omnitrade.agentos_schedule_registered",
+            schedule_id=schedule.id,
+            cron=cron,
+            endpoint="/workflows/trading-cycle/runs",
+        )
+    finally:
+        # Only close the DB if we opened it. The shared one belongs to
+        # AgentOS; AgentOS closes it on app shutdown.
+        if own_db is not None:
+            close = getattr(own_db, "close", None)
+            if callable(close):
+                try:
+                    result = close()
+                    if hasattr(result, "__await__"):
+                        await result
+                except Exception as exc:  # pragma: no cover — best-effort teardown
+                    logger.warning(
+                        "omnitrade.agentos_schedule_db_close_failed",
+                        error=str(exc),
+                    )
 
 
 def _install_log_buffer_sidecar(log_buffer: Any) -> None:

@@ -21,7 +21,6 @@ agent is a nice surface to keep around.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import structlog
@@ -35,19 +34,81 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-@dataclass
 class MonitorHolder:
     """Late-bound reference to the trading monitor.
 
-    AgentOS captures the trading workflow object at ``create_app`` time,
-    but the monitor is only constructed inside the FastAPI lifespan
-    handler (after the ``ApiContainer`` is built). The holder closes the
-    gap: the workflow's step closures resolve ``holder.monitor`` on
-    every cycle, so populating it from the lifespan is enough to make
-    the workflow runnable.
+    AgentOS captures the trading workflow object at :func:`create_app`
+    time, but the monitor is only constructed inside the FastAPI
+    lifespan handler (after the ``ApiContainer`` is built). The holder
+    closes the gap: the workflow's step closures resolve
+    :meth:`get_monitor` on every cycle, so populating it from the
+    lifespan is enough to make the workflow runnable.
+
+    Threading model
+    ---------------
+    Write-once at lifespan startup, read many times during request
+    handling. Both write (``set_monitor``) and read (``get_monitor``)
+    are guarded with an :class:`asyncio.Event` so an early schedule
+    fire that beats lifespan startup waits politely instead of seeing
+    ``None``.
     """
 
-    monitor: TradingLoopMonitor | None = None
+    def __init__(self) -> None:
+        self._monitor: TradingLoopMonitor | None = None
+        # Event is created lazily — :class:`MonitorHolder` is constructed
+        # inside ``create_app`` which may run on a thread that doesn't
+        # own the eventual asyncio loop yet. The event is only ever
+        # touched from inside the loop later (lifespan + request paths),
+        # so deferring construction is safe.
+        self._ready_event: Any | None = None
+
+    def _event(self) -> Any:
+        if self._ready_event is None:
+            import asyncio
+
+            self._ready_event = asyncio.Event()
+        return self._ready_event
+
+    def set_monitor(self, monitor: TradingLoopMonitor) -> None:
+        """Bind the live monitor. Must be called once, from the lifespan."""
+        if self._monitor is not None:
+            logger.warning(
+                "monitor_holder.rebind_attempt",
+                msg="set_monitor called twice; ignoring later call.",
+            )
+            return
+        self._monitor = monitor
+        self._event().set()
+
+    def get_monitor(self) -> TradingLoopMonitor:
+        """Return the bound monitor or raise ``RuntimeError``.
+
+        Synchronous accessor used inside the workflow's tick step —
+        lifespan startup must complete before the AgentOS scheduler
+        can fire (the scheduler poller runs on the same loop, and
+        FastAPI doesn't accept requests until lifespan finishes).
+        """
+        if self._monitor is None:
+            raise RuntimeError(
+                "monitor_holder: trading monitor not yet bound — "
+                "FastAPI lifespan startup hasn't completed"
+            )
+        return self._monitor
+
+    async def aget_monitor(self, timeout: float = 30.0) -> TradingLoopMonitor:
+        """Async variant: waits up to ``timeout`` for the monitor to bind."""
+        if self._monitor is not None:
+            return self._monitor
+        import asyncio
+
+        try:
+            await asyncio.wait_for(self._event().wait(), timeout=timeout)
+        except TimeoutError as exc:
+            raise RuntimeError(
+                f"monitor_holder: monitor not bound after {timeout}s "
+                "— lifespan startup may have failed"
+            ) from exc
+        return self.get_monitor()
 
 
 def _build_status_agent(settings: Settings) -> Any:
@@ -122,6 +183,10 @@ def wrap_with_agent_os(
             "agent_os_app.postgres_db_attached",
             url_host=settings.agno_postgres_url.split("@", 1)[-1].split("/", 1)[0],
         )
+        # Stash the same DB on the FastAPI app so the lifespan handler can
+        # reuse it for schedule registration without opening a second
+        # Postgres connection (review issue #1: connection leak).
+        app.state.agent_os_postgres_db = db
 
     status_agent = _build_status_agent(settings)
     workflow = build_agno_trading_workflow(

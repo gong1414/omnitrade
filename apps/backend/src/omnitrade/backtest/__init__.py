@@ -16,7 +16,12 @@ from omnitrade.backtest.agno_think import build_backtest_think_fn
 from omnitrade.backtest.cassette import CassetteMode, cassette_context
 from omnitrade.backtest.clock import BacktestClock
 from omnitrade.backtest.data_source import HistoricalOHLCV
-from omnitrade.backtest.engine import BacktestEngine, BacktestResult, ThinkFn
+from omnitrade.backtest.engine import (
+    BacktestEngine,
+    BacktestResult,
+    OHLCVDataSource,
+    ThinkFn,
+)
 from omnitrade.backtest.exchange import BacktestExchange
 from omnitrade.backtest.metrics import compute_metrics
 
@@ -27,6 +32,7 @@ __all__ = [
     "BacktestResult",
     "CassetteMode",
     "HistoricalOHLCV",
+    "OHLCVDataSource",
     "ThinkFn",
     "build_backtest_think_fn",
     "cassette_context",

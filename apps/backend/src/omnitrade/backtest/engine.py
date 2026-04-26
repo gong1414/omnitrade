@@ -29,12 +29,11 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Protocol, runtime_checkable
 
 import structlog
 
 from omnitrade.backtest.clock import BacktestClock
-from omnitrade.backtest.data_source import HistoricalOHLCV
 from omnitrade.backtest.exchange import BacktestExchange
 from omnitrade.backtest.metrics import compute_metrics
 from omnitrade.config import Settings
@@ -45,6 +44,22 @@ from omnitrade.domain.entities import (
     Trade,
 )
 from omnitrade.domain.value_objects import Leverage, Percentage, Symbol
+
+
+@runtime_checkable
+class OHLCVDataSource(Protocol):
+    """Minimal historical-OHLCV port the engine needs.
+
+    Defined as a Protocol so tests can satisfy it with a tiny stub
+    instead of constructing the full :class:`HistoricalOHLCV` (which
+    pulls in sqlite + ccxt). Production wires the concrete class.
+    """
+
+    async def load(
+        self, symbol: str, timeframe: str, start_ts: int, end_ts: int
+    ) -> list[list[float]]: ...
+
+    async def close(self) -> None: ...
 
 logger = structlog.get_logger(__name__)
 
@@ -126,7 +141,7 @@ class BacktestEngine:
         *,
         exchange: BacktestExchange,
         clock: BacktestClock,
-        data_source: HistoricalOHLCV,
+        data_source: OHLCVDataSource,
         think_fn: ThinkFn,
         settings: Settings,
         symbols: list[str],
@@ -269,10 +284,16 @@ class BacktestEngine:
             if action == "partial_close":
                 if decision.symbol is None or decision.close_percentage is None:
                     return []
-                pct = float(decision.close_percentage)
+                # Quantize to 4 decimal places (basis-point precision) before
+                # the Decimal→float coercion forced by Percentage's float
+                # field. Without this an LLM-emitted `Decimal('33.333...')`
+                # round-trips through float as `33.33333333300004` and the
+                # subsequent fraction math drifts vs production
+                # PositionManager.partial_close (which never leaves Decimal).
+                pct_dec = decision.close_percentage.quantize(Decimal("0.0001"))
                 trade = await self._exchange.close_position(
                     position_id=decision.symbol,
-                    percentage=Percentage(value=pct),
+                    percentage=Percentage(value=float(pct_dec)),
                 )
                 return [trade]
             return []
@@ -344,4 +365,4 @@ class BacktestEngine:
         )
 
 
-__all__ = ["BacktestEngine", "BacktestResult", "ThinkFn"]
+__all__ = ["BacktestEngine", "BacktestResult", "OHLCVDataSource", "ThinkFn"]

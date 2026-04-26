@@ -80,7 +80,7 @@ async def test_backtest_engine_smoke_open_close() -> None:
     data = _StubData(bars_per_window=10)
     exchange = BacktestExchange(
         initial_balance_usdt=Decimal("10000"),
-        data_source=data,  # type: ignore[arg-type]
+        data_source=data,
     )
     clock = BacktestClock(start=datetime(2026, 1, 1, tzinfo=UTC))
     think = _StubThink()
@@ -88,7 +88,7 @@ async def test_backtest_engine_smoke_open_close() -> None:
     engine = BacktestEngine(
         exchange=exchange,
         clock=clock,
-        data_source=data,  # type: ignore[arg-type]
+        data_source=data,
         think_fn=think,
         settings=settings,
         symbols=["BTC_USDT"],
@@ -117,7 +117,7 @@ async def test_backtest_engine_rejects_zero_window() -> None:
     data = _StubData()
     exchange = BacktestExchange(
         initial_balance_usdt=Decimal("10000"),
-        data_source=data,  # type: ignore[arg-type]
+        data_source=data,
     )
     clock = BacktestClock(start=datetime(2026, 1, 1, tzinfo=UTC))
 
@@ -128,7 +128,7 @@ async def test_backtest_engine_rejects_zero_window() -> None:
         BacktestEngine(
             exchange=exchange,
             clock=clock,
-            data_source=data,  # type: ignore[arg-type]
+            data_source=data,
             think_fn=_hold,
             settings=settings,
             symbols=["BTC_USDT"],

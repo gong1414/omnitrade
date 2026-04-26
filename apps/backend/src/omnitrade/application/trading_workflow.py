@@ -77,25 +77,22 @@ def build_agno_trading_workflow(
 
         monitor = monitor_accessor()
         if monitor is None:
-            return StepOutput(
-                content={
-                    "status": "skipped",
-                    "reason": "trading_workflow: monitor not initialized — "
-                    "FastAPI lifespan hasn't built ApiContainer yet",
-                },
-                success=False,
-                error="monitor_unavailable",
+            # Raise rather than returning success=False so that the
+            # AgentOS workflow run record is marked as a real failure
+            # (status_code 500, status="error") instead of a silent
+            # "completed" with no cycle work done. The schedule
+            # executor's retry policy then kicks in, and operators see
+            # the misconfiguration in /workflows/{id}/runs immediately.
+            raise RuntimeError(
+                "trading_workflow: monitor not initialized — "
+                "FastAPI lifespan hasn't built ApiContainer yet"
             )
 
-        try:
-            await monitor.tick()
-        except Exception as exc:  # pragma: no cover — surfaced to operator
-            logger.error("trading_workflow.tick_failed", error=str(exc))
-            return StepOutput(
-                content={"status": "error", "error": str(exc)},
-                success=False,
-                error=str(exc),
-            )
+        # Let exceptions from monitor.tick() propagate so AgentOS records
+        # the run as failed. structlog already captures the traceback at
+        # the trading_loop_monitor / trading_loop call sites, so we don't
+        # double-log here.
+        await monitor.tick()
 
         # The cycle is entirely side-effect — DecisionService records the
         # decision row, EventBus publishes the WS frames. The workflow's
