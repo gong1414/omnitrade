@@ -48,7 +48,11 @@ function resolveSseUrl(explicit?: string): string {
     typeof process !== "undefined"
       ? process.env.NEXT_PUBLIC_SSE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL
       : undefined;
-  const base = envUrl ?? "http://localhost:8000";
+  // Default to a relative URL so EventSource hits the Next same-origin
+  // proxy at `/sse/stream` (declared in `next.config.mjs`). The proxy
+  // forwards into the Docker network where the backend lives — opaque
+  // to whichever IP the browser is on.
+  const base = envUrl ?? "";
   return `${base.replace(/\/$/, "")}/sse/stream`;
 }
 

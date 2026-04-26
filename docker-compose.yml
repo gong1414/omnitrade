@@ -73,10 +73,13 @@ services:
     build:
       context: .
       dockerfile: apps/frontend/Dockerfile
+      args:
+        # Baked into the .next/standalone build — the rewrite destination
+        # in next.config.mjs is evaluated at build time. Browser-facing
+        # requests use relative URLs through this proxy.
+        NEXT_PUBLIC_API_URL: http://backend:8000
     ports:
       - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://backend:8000
     depends_on:
       backend:
         condition: service_healthy

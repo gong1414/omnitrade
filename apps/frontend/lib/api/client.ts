@@ -45,7 +45,11 @@ function resolveBaseUrl(explicit?: string): string {
   if (explicit) return explicit.replace(/\/$/, "");
   const envUrl =
     typeof process !== "undefined" ? process.env.NEXT_PUBLIC_API_BASE_URL : undefined;
-  return (envUrl ?? "http://localhost:8000").replace(/\/$/, "");
+  // Default to a relative URL so requests ride the Next same-origin
+  // rewrite proxy declared in `next.config.mjs`. Set
+  // `NEXT_PUBLIC_API_BASE_URL` only when serving the bundle from a
+  // different origin than the backend.
+  return (envUrl ?? "").replace(/\/$/, "");
 }
 
 async function request<T>(

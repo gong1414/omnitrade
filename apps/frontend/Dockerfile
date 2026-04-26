@@ -23,6 +23,17 @@ COPY --from=deps /app/apps/frontend/node_modules ./apps/frontend/node_modules
 COPY package.json package-lock.json ./
 COPY apps/frontend ./apps/frontend
 ENV NEXT_TELEMETRY_DISABLED=1
+# Same-origin proxy strategy:
+#   - Browser hits relative ``/api/*`` and ``/sse/*`` paths; the bundle's
+#     baseUrl resolver defaults to ``""`` so client requests stay on the
+#     same origin.
+#   - The Next proxy declared in ``next.config.mjs`` rewrites those
+#     requests to NEXT_PUBLIC_API_URL (the backend service inside the
+#     Docker network). The destination is baked into ``.next/standalone``
+#     at build time, so it MUST be set as a build arg here — runtime
+#     ``docker-compose environment:`` is too late.
+ARG NEXT_PUBLIC_API_URL=http://backend:8000
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 WORKDIR /app/apps/frontend
 RUN npm run build
 
