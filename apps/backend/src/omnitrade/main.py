@@ -270,6 +270,7 @@ def _start_trading_scheduler(
         exchange=container.exchange,
         position_repo=container.position_repo,
         session_factory=container.open_session,
+        event_bus=container.event_bus,
     )
 
     scheduler = AsyncIOScheduler()

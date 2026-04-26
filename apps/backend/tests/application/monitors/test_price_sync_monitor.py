@@ -9,6 +9,7 @@ from typing import Any
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from omnitrade.application.events import EVENT_POSITION_UPDATE, EventBus
 from omnitrade.application.monitors.price_sync_monitor import PriceSyncMonitor
 from omnitrade.domain.entities import Position
 from omnitrade.infrastructure.persistence.models import Base
@@ -85,6 +86,7 @@ async def test_sync_updates_current_price_and_upnl(session: AsyncSession) -> Non
         exchange=_FakeExchange([fresh]),
         position_repo=repo,
         session_factory=_session_factory_from(session),
+        event_bus=EventBus(),
     )
 
     await monitor.tick()
@@ -108,6 +110,7 @@ async def test_sync_reconciles_positions_not_on_exchange(session: AsyncSession) 
         exchange=_FakeExchange([]),  # empty — exchange shows no positions
         position_repo=repo,
         session_factory=_session_factory_from(session),
+        event_bus=EventBus(),
     )
     await monitor.tick()
 
@@ -142,6 +145,7 @@ async def test_fallback_upnl_when_exchange_returns_zero(session: AsyncSession) -
         exchange=_FakeExchange([fresh]),
         position_repo=repo,
         session_factory=_session_factory_from(session),
+        event_bus=EventBus(),
     )
     await monitor.tick()
 
@@ -149,6 +153,61 @@ async def test_fallback_upnl_when_exchange_returns_zero(session: AsyncSession) -
     assert refreshed is not None
     # (76000 - 75000) * 0.002 * 1 = 2.0
     assert refreshed.unrealized_pnl == Decimal("2.0")
+
+
+async def test_sync_publishes_position_update_event(session: AsyncSession) -> None:
+    """A successful sync emits one coalesced ``position_update`` SSE kick."""
+    repo = PositionRepository()
+    stored = _make_position()
+    await repo.create(session, stored)
+    await session.commit()
+
+    fresh = _make_position(
+        current_price=Decimal("76000"),
+        unrealized_pnl=Decimal("1.0"),
+    )
+    bus = EventBus()
+    queue = bus.subscribe_queue({EVENT_POSITION_UPDATE})
+
+    monitor = PriceSyncMonitor(
+        interval_seconds=15,
+        exchange=_FakeExchange([fresh]),
+        position_repo=repo,
+        session_factory=_session_factory_from(session),
+        event_bus=bus,
+    )
+    await monitor.tick()
+
+    event = queue.get_nowait()
+    assert event.type == EVENT_POSITION_UPDATE
+    assert event.payload == {
+        "action": "mark_sync_batch",
+        "updated": 1,
+        "reconciled": 0,
+    }
+
+
+async def test_sync_no_event_when_nothing_changed(session: AsyncSession) -> None:
+    """Idle ticks (price unchanged, no reconcile) stay quiet — no SSE noise."""
+    repo = PositionRepository()
+    stored = _make_position(current_price=Decimal("75000"), unrealized_pnl=Decimal("0"))
+    await repo.create(session, stored)
+    await session.commit()
+
+    same = _make_position(current_price=Decimal("75000"), unrealized_pnl=Decimal("0"))
+    bus = EventBus()
+    queue = bus.subscribe_queue({EVENT_POSITION_UPDATE})
+
+    monitor = PriceSyncMonitor(
+        interval_seconds=15,
+        exchange=_FakeExchange([same]),
+        position_repo=repo,
+        session_factory=_session_factory_from(session),
+        event_bus=bus,
+    )
+    await monitor.tick()
+
+    assert queue.empty()
 
 
 async def test_sync_survives_exchange_failure(session: AsyncSession) -> None:
@@ -170,6 +229,7 @@ async def test_sync_survives_exchange_failure(session: AsyncSession) -> None:
         exchange=_Boom(),
         position_repo=repo,
         session_factory=_session_factory_from(session),
+        event_bus=EventBus(),
     )
     # Should not raise.
     await monitor.tick()

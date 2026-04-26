@@ -14,6 +14,13 @@ pulls ``exchange.fetch_positions()`` once (cheaper than one ticker fetch
 per symbol), matches by symbol, and writes ``current_price`` +
 ``unrealized_pnl`` via the targeted ``apply_mark_price`` UPDATE so the
 three-way state contract stays untouched.
+
+After committing, a single ``position_update`` SSE event is published
+(``action=mark_sync_batch``) so the dashboard's existing
+``globalMutate(POSITIONS_KEY)`` handler refetches without waiting for
+the 5-second SWR poll. Without this push, browser tabs that are
+backgrounded (SWR pauses by default) display a frozen mark price even
+though the DB is fresh.
 """
 
 from __future__ import annotations
@@ -22,6 +29,7 @@ from decimal import Decimal
 
 import structlog
 
+from omnitrade.application.events import EVENT_POSITION_UPDATE, EventBus
 from omnitrade.application.monitors.clock import ClockProtocol, SystemClock
 from omnitrade.application.position_manager import SessionFactory
 from omnitrade.domain.protocols import ExchangeClient
@@ -43,12 +51,14 @@ class PriceSyncMonitor:
         exchange: ExchangeClient,
         position_repo: PositionRepository,
         session_factory: SessionFactory,
+        event_bus: EventBus,
         clock: ClockProtocol | None = None,
     ) -> None:
         self._interval_seconds = interval_seconds
         self._exchange = exchange
         self._position_repo = position_repo
         self._session_factory = session_factory
+        self._event_bus = event_bus
         self._clock = clock or SystemClock()
 
     @property
@@ -123,6 +133,18 @@ class PriceSyncMonitor:
                 "price_sync_monitor.synced",
                 updated=updated,
                 reconciled=reconciled,
+            )
+            # One coalesced SSE kick per tick; the dashboard handler
+            # refetches `/api/v1/positions` (and trades) once and picks
+            # up every changed row. Per-position events would scale
+            # linearly with the position count for no extra freshness.
+            await self._event_bus.publish(
+                EVENT_POSITION_UPDATE,
+                {
+                    "action": "mark_sync_batch",
+                    "updated": updated,
+                    "reconciled": reconciled,
+                },
             )
 
     @staticmethod
