@@ -90,6 +90,22 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         holder.monitor = monitor
         logger.info("omnitrade.agent_os_workflow_monitor_bound")
 
+    # Phase 4.5 step 2: when AgentOS is configured to drive the trading
+    # cycle, register (idempotently) a cron schedule pointing at the
+    # `/workflows/trading-cycle/runs` endpoint. The AgentOS scheduler
+    # poller picks it up on its next tick and starts firing.
+    if (
+        settings.agno_postgres_url
+        and settings.agno_scheduler_drives_cycle
+        and post_container is not None
+    ):
+        try:
+            await _register_agentos_trading_schedule(settings)
+        except Exception as exc:  # bootstrap is best-effort
+            await logger.aerror(
+                "omnitrade.agentos_schedule_register_failed", error=str(exc)
+            )
+
     yield
 
     scheduler = getattr(app.state, "scheduler", None)
@@ -181,15 +197,20 @@ def _start_trading_scheduler(
     scheduler = AsyncIOScheduler()
     import datetime as _dt
 
-    scheduler.add_job(
-        monitor.tick,
-        "interval",
-        minutes=settings.trading_interval_minutes,
-        next_run_time=_dt.datetime.now(_dt.UTC) + timedelta(seconds=10),
-        id="trading_cycle",
-        max_instances=1,  # refuse overlapping runs
-        coalesce=True,  # collapse missed ticks into one
-    )
+    # Phase 4.5: when AgentOS scheduler is configured to drive the cycle,
+    # the APScheduler trading_cycle job becomes a duplicate runner — skip
+    # it so we don't fire two cycles in lock-step. The 6 fast
+    # position-protection monitors still run on APScheduler regardless.
+    if not settings.agno_scheduler_drives_cycle:
+        scheduler.add_job(
+            monitor.tick,
+            "interval",
+            minutes=settings.trading_interval_minutes,
+            next_run_time=_dt.datetime.now(_dt.UTC) + timedelta(seconds=10),
+            id="trading_cycle",
+            max_instances=1,  # refuse overlapping runs
+            coalesce=True,  # collapse missed ticks into one
+        )
     scheduler.add_job(
         invalidation_monitor.tick,
         "interval",
@@ -262,6 +283,70 @@ def _start_trading_scheduler(
     logger.info(
         "omnitrade.scheduler_started",
         interval_minutes=settings.trading_interval_minutes,
+    )
+
+
+async def _register_agentos_trading_schedule(settings: Settings) -> None:
+    """Idempotently register the AgentOS cron schedule for the trading
+    workflow. The scheduler poller running inside AgentOS picks up the
+    row on its next tick and fires the schedule.
+
+    Cron is `*/N * * * *` where N = ``trading_interval_minutes``. Falls
+    back to every 20 minutes when N is invalid for the standard cron
+    minute field (only N ∈ {1..59} is safe; for >=60 minutes use cron
+    hours instead). Schedules persist in Postgres, so re-running the
+    bootstrap with `if_exists='update'` keeps the cron in sync with
+    config drift across restarts.
+    """
+    from agno.db.postgres import PostgresDb
+    from agno.scheduler.manager import ScheduleManager
+
+    n = settings.trading_interval_minutes
+    if n <= 0:
+        logger.warning(
+            "omnitrade.agentos_schedule_invalid_cadence",
+            trading_interval_minutes=n,
+            fallback="*/20 * * * *",
+        )
+        cron = "*/20 * * * *"
+    elif n < 60:
+        cron = f"*/{n} * * * *"
+    elif n % 60 == 0:
+        # Whole-hour cadence — collapse to `0 */h * * *`.
+        hours = n // 60
+        cron = f"0 */{hours} * * *" if hours < 24 else "0 0 * * *"
+    else:
+        # Awkward cadence like 90 minutes — clamp to the nearest hour.
+        hours = max(1, n // 60)
+        logger.warning(
+            "omnitrade.agentos_schedule_clamped_cadence",
+            trading_interval_minutes=n,
+            cron_hours=hours,
+        )
+        cron = f"0 */{hours} * * *"
+
+    db = PostgresDb(db_url=settings.agno_postgres_url)
+    manager = ScheduleManager(db=db)
+
+    schedule = await manager.acreate(
+        name="trading-cycle",
+        cron=cron,
+        endpoint="/workflows/trading-cycle/runs",
+        method="POST",
+        description="Trigger the OmniTrade trading cycle on a fixed cadence.",
+        payload={"message": "scheduled"},
+        timeout_seconds=int(settings.cycle_trigger_timeout_seconds * 4),
+        max_retries=0,
+        if_exists="update",
+    )
+    if not schedule.enabled:
+        await manager.aenable(schedule.id)
+
+    logger.info(
+        "omnitrade.agentos_schedule_registered",
+        schedule_id=schedule.id,
+        cron=cron,
+        endpoint="/workflows/trading-cycle/runs",
     )
 
 

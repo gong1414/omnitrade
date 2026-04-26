@@ -29,7 +29,9 @@ dependencies = [
     "colorama>=0.4.6",
     # Agno is the only LLM / Agent / MCP-toolkit framework after Stage A
     # of the cutover (`/Users/daoyu/.claude/plans/mossy-frolicking-hickey.md`).
-    "agno>=2.0.0",
+    # Phase 4.5 brings the `[scheduler]` extra (croniter + pytz) for the
+    # AgentOS native cron scheduler.
+    "agno[scheduler]>=2.0.0",
     # Agno's DeepSeek model class lazy-imports `openai` (sync + async).
     "openai>=1.40.0",
     "psycopg[binary]>=3.2.0",

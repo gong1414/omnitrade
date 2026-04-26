@@ -141,6 +141,28 @@ class Settings(BaseSettings):
     Format: `postgresql+psycopg://user:pass@host:5432/db` (psycopg3).
     When None, AgentOS runs DB-less (no session persistence)."""
 
+    agno_scheduler_drives_cycle: bool = False
+    """When True (and Postgres is wired), the AgentOS native scheduler
+    fires the trading-cycle workflow on a `*/{TRADING_INTERVAL_MINUTES}`
+    cron and the legacy APScheduler `trading_cycle` job is suppressed.
+    The 6 fast position-protection monitors stay on APScheduler. Default
+    False so existing deployments keep their APScheduler cadence until
+    they explicitly opt in."""
+
+    agno_scheduler_base_url: str = "http://127.0.0.1:8000"
+    """URL the AgentOS scheduler uses to fire scheduled workflows back
+    against itself. Must be reachable from inside the backend container
+    — `127.0.0.1:8000` works for single-container deployments."""
+
+    agno_scheduler_token: SecretStr | None = None
+    """Stable bearer token the AgentOS scheduler uses for self-loop
+    auth. Auto-generated per process if unset, but a stable value lets
+    schedules survive restarts. 32+ char random string."""
+
+    agno_scheduler_poll_interval: int = 15
+    """Seconds between AgentOS scheduler poll cycles. 15s default; lower
+    for tighter cron resolution at the cost of more DB queries."""
+
     # ------------------------------------------------------------------ #
     # DATASOURCE_* — external market data toggles + API keys              #
     # ------------------------------------------------------------------ #

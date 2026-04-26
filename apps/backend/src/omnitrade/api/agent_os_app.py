@@ -135,6 +135,15 @@ def wrap_with_agent_os(
     # /schedules would 500 the moment a cron tick fires.
     scheduler_enabled = db is not None
 
+    scheduler_kwargs: dict[str, Any] = {}
+    if scheduler_enabled:
+        if settings.agno_scheduler_token is not None:
+            scheduler_kwargs["internal_service_token"] = (
+                settings.agno_scheduler_token.get_secret_value()
+            )
+        scheduler_kwargs["scheduler_base_url"] = settings.agno_scheduler_base_url
+        scheduler_kwargs["scheduler_poll_interval"] = settings.agno_scheduler_poll_interval
+
     agent_os = AgentOS(
         name="OmniTrade",
         description="LLM-driven crypto-futures arena · AgentOS shell",
@@ -146,6 +155,7 @@ def wrap_with_agent_os(
         on_route_conflict="preserve_base_app",
         scheduler=scheduler_enabled,
         telemetry=False,
+        **scheduler_kwargs,
     )
 
     merged: FastAPI = agent_os.get_app()
