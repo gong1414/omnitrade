@@ -124,6 +124,27 @@ class Settings(BaseSettings):
     deepseek_api_key: SecretStr | None = None
     """Direct DeepSeek API key (alternative to llm_api_key)."""
 
+    # ── Embedder (T10 trade-journal RAG) ────────────────────────────────────
+    # The embedder is OpenAI-protocol over an OpenAI-compatible endpoint.
+    # When the operator runs against a DeepSeek/OpenRouter/proxy that
+    # supports the same /embeddings shape, the LLM key + base_url can be
+    # reused directly — no second credential needed. Each field falls back
+    # to the matching ``llm_*`` field when unset; ``embedder_model_id``
+    # has a sensible OpenAI-compatible default.
+    embedder_api_key: SecretStr | None = None
+    """Optional dedicated embedder API key. Falls back to ``llm_api_key`` /
+    ``deepseek_api_key`` when unset so the same key serves both chat and
+    embedding when the upstream is OpenAI-compatible."""
+
+    embedder_base_url: AnyHttpUrl | None = None
+    """Optional dedicated embedder base URL. Falls back to ``llm_base_url``
+    when unset so DeepSeek / proxy users don't need to repeat the host."""
+
+    embedder_model_id: str = "text-embedding-3-small"
+    """OpenAI-compatible embedding model id. Override when the upstream
+    proxy requires a different identifier (e.g. ``deepseek-embedding``,
+    ``text-embedding-3-large``)."""
+
     # ── Agno runtime (always-on after Stage A cutover) ─────────────────────
     agno_llm_model: str = "deepseek-reasoner"
     """Agno DeepSeek model id. Per spec exception E2 prefer

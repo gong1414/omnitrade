@@ -40,7 +40,6 @@ Design / failure-mode contract
 from __future__ import annotations
 
 import json
-import os
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
@@ -87,22 +86,29 @@ def build_trade_journal_knowledge(settings: Settings) -> Any | None:
         )
         return None
 
-    # Embedder credentials — Agno's default OpenAIEmbedder reads
-    # OPENAI_API_KEY from the environment via the OpenAI SDK. We pre-flight
-    # the env var so we can log a clear, single-line warning rather than
-    # let the OpenAI client raise its own error mid-ingest.
-    if not os.environ.get("OPENAI_API_KEY"):
+    # Embedder credentials — prefer the dedicated `embedder_*` setting
+    # but fall back to `llm_*` so the operator can reuse a single
+    # OpenAI-compatible key + base_url (DeepSeek / OpenRouter / proxy).
+    embedder_key_secret = settings.embedder_api_key or settings.llm_api_key
+    embedder_api_key = (
+        embedder_key_secret.get_secret_value() if embedder_key_secret is not None else None
+    )
+    if not embedder_api_key:
         logger.warning(
             "trade_journal.build.skip",
-            reason="OPENAI_API_KEY unset",
+            reason="embedder_api_key/llm_api_key unset",
             hint=(
-                "set OPENAI_API_KEY to enable trade-journal RAG; "
-                "the trading cycle still runs without it"
+                "set EMBEDDER_API_KEY or LLM_API_KEY to enable "
+                "trade-journal RAG; the trading cycle still runs without it"
             ),
         )
         return None
 
+    embedder_base_raw = settings.embedder_base_url or settings.llm_base_url
+    embedder_base_url = str(embedder_base_raw) if embedder_base_raw is not None else None
+
     try:
+        from agno.knowledge.embedder.openai import OpenAIEmbedder
         from agno.knowledge.knowledge import Knowledge
         from agno.vectordb.pgvector import PgVector
         from agno.vectordb.search import SearchType
@@ -118,10 +124,18 @@ def build_trade_journal_knowledge(settings: Settings) -> Any | None:
         return None
 
     try:
+        embedder_kwargs: dict[str, Any] = {
+            "id": settings.embedder_model_id,
+            "api_key": embedder_api_key,
+        }
+        if embedder_base_url:
+            embedder_kwargs["base_url"] = embedder_base_url
+        embedder = OpenAIEmbedder(**embedder_kwargs)
         vector_db = PgVector(
             table_name=_TABLE_NAME,
             db_url=settings.agno_postgres_url,
             search_type=SearchType.hybrid,
+            embedder=embedder,
         )
         knowledge = Knowledge(
             name="trade_journal",
