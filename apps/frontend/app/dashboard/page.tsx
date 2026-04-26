@@ -25,12 +25,12 @@ const CONFIG_KEY = "/api/v1/config";
  *   ┌─ ConsoleHeader (sticky) ───────────────────────────────┐
  *   │ ConnectionBanner (only on degraded WS)                 │
  *   ├─ KpiStrip (6 cells) ───────────────────────────────────┤
- *   │ ┌── Reasoning hero (1.35fr) ─┐ ┌── Right column ─┐     │
- *   │ │  ReasoningStream            │ │ AccountSummary  │     │
- *   │ │  (DecisionCards inline)     │ │ StrategyMini    │     │
- *   │ │                             │ │ PipelineRail    │     │
- *   │ └─────────────────────────────┘ └─────────────────┘     │
- *   ├─ ConsolePositionsTable (full width) ───────────────────┤
+ *   │ ┌── Reasoning hero (1.35fr) ─┐ ┌── Right column ─────┐ │
+ *   │ │  ReasoningStream            │ │ AccountSummary      │ │
+ *   │ │  (DecisionCards inline)     │ │ StrategyMini        │ │
+ *   │ │                             │ │ ConsolePositionsTbl │ │
+ *   │ │                             │ │ PipelineRail        │ │
+ *   │ └─────────────────────────────┘ └─────────────────────┘ │
  *   └─ TweaksPanel (floating, bottom-right) ─────────────────┘
  */
 export default function DashboardPage() {
@@ -76,14 +76,13 @@ export default function DashboardPage() {
             <div className="space-y-5">
               <AccountSummary />
               <StrategyMini />
+              <ConsolePositionsTable maxPos={config?.max_positions ?? null} />
               <PipelineRail
                 lastDecisionEvent={lastDecisionEvent}
                 iteration={latestIteration}
               />
             </div>
           </div>
-
-          <ConsolePositionsTable maxPos={config?.max_positions ?? null} />
         </div>
 
         <TweaksPanel />
