@@ -1,5 +1,7 @@
 # Security policy
 
+> English · [简体中文](SECURITY_ZH.md)
+
 OmniTrade automates real trades on cryptocurrency exchanges. Security
 issues here can cause direct financial loss, so we take them seriously
 and respond fast.

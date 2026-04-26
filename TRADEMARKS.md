@@ -1,5 +1,7 @@
 # Trademarks & brand usage
 
+> English · [简体中文](TRADEMARKS_ZH.md)
+
 ## License vs trademark
 
 The OmniTrade source code is licensed under [MIT](LICENSE) — you can

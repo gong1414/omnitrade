@@ -1,5 +1,7 @@
 # Development guide
 
+> English · [简体中文](DEVELOPMENT_ZH.md)
+
 This is the deep-dive setup guide for working on OmniTrade itself.
 Reading order:
 

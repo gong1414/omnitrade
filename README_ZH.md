@@ -216,6 +216,11 @@ OmniTrade **不适合**：想要现成印钞机的人、找跟单信号服务的
 
 每套策略都是一个具体的配置：**杠杆带 → 移动止损阶梯 → 分批止盈 stage → 止损覆盖 → 系统 Prompt 分支**。
 
+11 个策略名速览：`arena-guardian` / `arena-steward` / `arena-raider` / `arena-raider-squad` / `arena-scalper` / `arena-swingsmith` / `arena-strider` / `arena-rebate-hunter` / `arena-autopilot` / `arena-tribunal` / `arena-dual-signal`。
+
+<details>
+<summary><b>展开看 11 套策略完整对照表</b></summary>
+
 | # | 枚举值 | 定位 | Prompt 分支 | 代码级保护 | 对应 fixture |
 |---|---|---|---|---|---|
 | 1 | `arena-guardian` | 稳健保本 | 完整 | 关 | `case_06`、`case_19` |
@@ -230,7 +235,9 @@ OmniTrade **不适合**：想要现成印钞机的人、找跟单信号服务的
 | 10 | `arena-tribunal` | 3 专家陪审团 | jury | 关 | `case_21` |
 | 11 | `arena-dual-signal` | 注册表 fallback（未知策略 → dual-signal） | **minimal** | 关 | `case_15` |
 
-完整参数表：[docs/STRATEGIES.md](./docs/STRATEGIES.md)。
+</details>
+
+完整参数表：[docs/STRATEGIES_ZH.md](./docs/STRATEGIES_ZH.md)。
 
 ---
 
@@ -311,7 +318,15 @@ docker compose -f docker-compose.prod.yml up -d
 
 ## 🧠 环境变量
 
-所有配置通过环境变量注入——参考 [`apps/backend/.env.example`](./apps/backend/.env.example)（开发）和 [`.env.production.example`](./.env.production.example)（生产）。
+所有配置通过环境变量。两个必填，剩下都在文件里有内联注释：
+
+- `LLM_API_KEY` —— 你的 DeepSeek / OpenAI / OpenRouter key
+- `GATE_API_KEY` + `GATE_API_SECRET` —— 交易所凭证（默认 testnet）
+
+完整 40+ 变量参考 [`apps/backend/.env.example`](./apps/backend/.env.example)，每行都有注释。
+
+<details>
+<summary><b>展开看常问的变量（默认值）</b></summary>
 
 | 变量 | 默认 | 说明 |
 |---|---|---|
@@ -327,10 +342,14 @@ docker compose -f docker-compose.prod.yml up -d
 | `LLM_MODEL_NAME` | `deepseek/deepseek-v3.2-exp` | 任意 OpenAI 兼容模型 |
 | `MULTI_AGENT_ENABLED` | `false` | 启用 `arena-raider-squad` / `arena-tribunal` |
 | `FEE_REBATE_PERCENT` | `20` | 在 `/api/account` 显示为 `rebateAmount` |
+| `HITL_OPEN_SIZE_THRESHOLD_USD` | `10000` | T9 —— 超过此美元名义价值的开仓暂停等批准 |
+| `EMBEDDER_PROVIDER` | `fastembed` | `fastembed`（本地，默认）或 `openai` |
+| `OTEL_TRACING_ENABLED` | `true` | T4 —— OpenTelemetry span 发射 |
 
-完整列表（40+ 变量）：[`apps/backend/.env.example`](./apps/backend/.env.example)。
+</details>
 
-### 推荐模型
+<details>
+<summary><b>推荐模型选型表</b></summary>
 
 OmniTrade 是**重工具调用**的 Agent——开 / 平 / 分批的每一个决策都走 OpenAI 风格 tool call。模型选得好不好，直接决定 Agent 是**真的用工具**，还是**凭记忆编造答案**。
 
@@ -340,11 +359,18 @@ OmniTrade 是**重工具调用**的 Agent——开 / 平 / 分批的每一个决
 | **性价比首选**（默认） | `deepseek/deepseek-v3.2-exp`、`x-ai/grok-4`、`z-ai/glm-5`、`moonshotai/kimi-k2`、`qwen3-max` | 日常驱动——可靠的 tool-calling，只要 1/10 的成本 |
 | **避免** | `*-nano`、`*-flash-lite`、蒸馏小模型 | Tool-calling 不稳定，Agent 会"凭记忆编造"而不是真去查行情 |
 
+</details>
+
 ---
 
 ## 🏛️ 架构
 
-经典 DDD 4 层 + `agents/`，把 monitors 作为唯一允许同时组合 `domain/` + `infrastructure/` 的例外（原子性豁免）。
+经典 DDD 4 层（`domain` / `application` / `infrastructure` / `api`）+ 独立 `agents/` 模块（唯一允许 import Agno 的地方）。五条异步 loop 撑起整个系统：一条交易 cycle（AgentOS 调度）+ 四条 10 秒监控器（仓位保护）。
+
+完整 mermaid 图 + 调度拓扑 + 三位一体状态不变量：**[docs/ARCHITECTURE_ZH.md](./docs/ARCHITECTURE_ZH.md)**（[English](./docs/ARCHITECTURE.md)）。
+
+<details>
+<summary><b>展开看分层 + 调度图</b></summary>
 
 ```mermaid
 flowchart TD
@@ -376,11 +402,16 @@ flowchart LR
     style L5 stroke:#dc2626,stroke-width:3px
 ```
 
-深入：[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)。
+</details>
 
 ---
 
 ## 🌐 API 端点
+
+交互式 Swagger 文档：`http://localhost:8000/docs`（渲染实时 spec）。除了 `POST /api/v1/cycle/trigger`、`POST /api/v1/runs/{id}/{confirm,reject}`（T9 HITL）、`POST /api/actions/close-all`（密码保护），其他公开路由全部只读。
+
+<details>
+<summary><b>展开看完整端点表</b></summary>
 
 ```bash
 uv run uvicorn omnitrade.api.app:create_app --factory
@@ -406,17 +437,21 @@ uv run uvicorn omnitrade.api.app:create_app --factory
 | `GET` | `/sse/stream` | Server-Sent Events 流（`decision_update` / `position_update` / `run_paused` / `orchestrator_error` 等） |
 | `GET` | `/traces` | AgentOS 暴露的每周期 OTel span 树（T4） |
 
-上述路由同时挂载在 `/api/v1/*` 前缀下；不带前缀的 `/api/*` 是 Phase-8 留下
-的兼容路径，供仪表盘已有的 fetch 地址继续使用。
+上述路由同时挂载在 `/api/v1/*` 前缀下；不带前缀的 `/api/*` 是 Phase-8 留下的兼容路径，供仪表盘已有的 fetch 地址继续使用。
 
-交互式文档：`http://localhost:8000/docs`。
+</details>
 
 ---
 
 ## 🗂️ 项目结构
 
+monorepo 两个 app：`apps/backend/`（Python 3.11 / FastAPI / Agno）和 `apps/frontend/`（Next.js 14）。共享基础设施在 `docker-compose.yml`。策略 + 架构深度文档在 `docs/`。
+
+<details>
+<summary><b>展开看完整目录树</b></summary>
+
 ```
-llmtrading/
+omnitrade/
 ├── apps/
 │   ├── backend/                      # Python 3.11 + FastAPI + SQLAlchemy 2.0
 │   │   ├── src/omnitrade/
@@ -425,14 +460,17 @@ llmtrading/
 │   │   │   ├── infrastructure/       # SQLAlchemy、ccxt、Agno DeepSeek、SSE
 │   │   │   ├── agents/               # Agno Agent + MultiMCPTools、prompts
 │   │   │   └── api/                  # FastAPI router + 中间件
-│   │   ├── alembic/                  # 迁移（0001 init、0002 rename）
-│   │   └── tests/                    # 586 绿
+│   │   ├── alembic/                  # 迁移
+│   │   └── tests/                    # 702 绿
 │   └── frontend/                     # Next.js 14 + SWR + Server-Sent Events
 ├── tests/fixtures/frozen/            # 22 份手工策展决策契约
-├── docs/                             # 架构 / 策略 / 发布 / ...
+├── docs/                             # 架构 / 策略 / 发布 / ADR
+├── assets/                           # logo + social preview + sponsor QR
 ├── scripts/                          # 运维 + 行为等价 CLI
 └── docker-compose.yml                # postgres + pgvector + db-init + backend + frontend
 ```
+
+</details>
 
 ---
 
@@ -510,8 +548,10 @@ MIT，详见 [LICENSE](./LICENSE)。
 
 ## 🙏 致谢 — 站在这些开源项目的肩膀上
 
-OmniTrade 之所以能跑起来，全靠下面这些开源项目。请大家也给它们点
-Star 支持一下：
+OmniTrade 站在 ~30 个开源项目肩膀上 —— 从 agent 运行时（Agno + FastMCP + OpenInference）到后端（FastAPI + SQLAlchemy + Postgres + pgvector + ccxt）到前端（Next.js + React + Tailwind + Recharts）到工具链（uv + Ruff + pytest + Playwright）。请大家也给它们点 Star 支持一下。
+
+<details>
+<summary><b>展开看完整致谢列表</b></summary>
 
 **Agent 运行时**
 - [**Agno**](https://github.com/agno-agi/agno) —— Agent / Team / Workflow / AgentOS 全栈，每一个 cycle 都跑在它上面。Agno 切换之后是项目唯一的 LLM/Agent/MCP 框架。
@@ -550,5 +590,7 @@ Star 支持一下：
 
 **加密数据源** —— 只读，免费 / freemium：
 [CoinGecko](https://www.coingecko.com/)、[Alternative.me 恐惧贪婪指数](https://alternative.me/crypto/fear-and-greed-index/)、[Whale Alert](https://whale-alert.io/)、[Coinglass](https://www.coinglass.com/)、[LunarCrush](https://lunarcrush.com/)、[Etherscan](https://etherscan.io/)、[Gate MCP News](https://api.gatemcp.ai/mcp/news)。
+
+</details>
 
 如果我们漏掉了你的项目，请 [开个 issue][issues] 告诉我们，会立刻补上。

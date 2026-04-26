@@ -1,5 +1,7 @@
 # Contributing to OmniTrade
 
+> English · [简体中文](CONTRIBUTING_ZH.md)
+
 Thanks for thinking about contributing. This is an LLM-driven crypto-futures
 trading project — getting it wrong can cost real money on mainnet, so we
 hold the bar high on testing, observability, and reproducibility. Read this

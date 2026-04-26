@@ -1,5 +1,7 @@
 # Code of Conduct
 
+> English · [简体中文](CODE_OF_CONDUCT_ZH.md)
+
 This project adopts the [Contributor Covenant, version 2.1][cc] verbatim.
 Read the full text at the link.
 

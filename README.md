@@ -224,7 +224,10 @@ OmniTrade is **not** for: people who want a turnkey money printer, traders looki
 
 ## 🎯 Strategies
 
-11 strategies, each a concrete configuration of **leverage band → trailing ladder → partial-profit stages → stop-loss override → system-prompt branch**.
+11 strategies, each a concrete configuration of **leverage band → trailing ladder → partial-profit stages → stop-loss override → system-prompt branch**. Quick names: `arena-guardian` / `arena-steward` / `arena-raider` / `arena-raider-squad` / `arena-scalper` / `arena-swingsmith` / `arena-strider` / `arena-rebate-hunter` / `arena-autopilot` / `arena-tribunal` / `arena-dual-signal`.
+
+<details>
+<summary><b>Click to expand the full 11-strategy table</b></summary>
 
 | # | Enum value | Profile | Prompt branch | Code-level protection | Frozen fixtures |
 |---|---|---|---|---|---|
@@ -239,6 +242,8 @@ OmniTrade is **not** for: people who want a turnkey money printer, traders looki
 | 9 | `arena-autopilot` | fully autonomous LLM | **minimal** | **on** + AI override | `case_13`, `case_14` |
 | 10 | `arena-tribunal` | 3-expert jury consensus | jury | off | `case_21` |
 | 11 | `arena-dual-signal` | registry fallback (unknown → dual-signal) | **minimal** | off | `case_15` |
+
+</details>
 
 Full parameter tables: [docs/STRATEGIES.md](./docs/STRATEGIES.md).
 
@@ -321,7 +326,15 @@ Full release checklist (smoke tests, observability, rollback plan): [docs/RELEAS
 
 ## 🧠 Environment
 
-All config is env-driven — see [`apps/backend/.env.example`](./apps/backend/.env.example) (dev) and [`.env.production.example`](./.env.production.example) (prod).
+All config is env-driven. Two essentials and the rest are documented inline:
+
+- `LLM_API_KEY` — your DeepSeek / OpenAI / OpenRouter key
+- `GATE_API_KEY` + `GATE_API_SECRET` — exchange credentials (testnet default)
+
+Full reference (40+ variables) lives in [`apps/backend/.env.example`](./apps/backend/.env.example) with documenting comments per row.
+
+<details>
+<summary><b>Click for the most-asked variables (defaults shown)</b></summary>
 
 | Variable | Default | Description |
 |---|---|---|
@@ -337,10 +350,14 @@ All config is env-driven — see [`apps/backend/.env.example`](./apps/backend/.e
 | `LLM_MODEL_NAME` | `deepseek/deepseek-v3.2-exp` | any OpenAI-compatible model |
 | `MULTI_AGENT_ENABLED` | `false` | enable `arena-raider-squad` / `arena-tribunal` dispatch |
 | `FEE_REBATE_PERCENT` | `20` | shown as `rebateAmount` in `/api/account` |
+| `HITL_OPEN_SIZE_THRESHOLD_USD` | `10000` | T9 — opens above this pause for operator approval |
+| `EMBEDDER_PROVIDER` | `fastembed` | `fastembed` (local, default) or `openai` |
+| `OTEL_TRACING_ENABLED` | `true` | T4 — OpenTelemetry span emission |
 
-Full list (40+ variables): [`apps/backend/.env.example`](./apps/backend/.env.example).
+</details>
 
-### Recommended LLMs
+<details>
+<summary><b>Recommended LLMs (model-choice cheat sheet)</b></summary>
 
 OmniTrade is a **tool-calling-heavy** agent — open/close/partial decisions all flow through OpenAI-style tool calls. Model choice directly decides whether the agent *uses* its tools or fabricates decisions.
 
@@ -350,11 +367,18 @@ OmniTrade is a **tool-calling-heavy** agent — open/close/partial decisions all
 | **Sweet spot** (default) | `deepseek/deepseek-v3.2-exp`, `x-ai/grok-4`, `z-ai/glm-5`, `moonshotai/kimi-k2`, `qwen3-max` | Daily driver — reliable tool-calling at ~1/10 the cost |
 | **Avoid** | `*-nano`, `*-flash-lite`, small distilled variants | Tool-calling is unreliable; agent will "answer from memory" instead of querying markets |
 
+</details>
+
 ---
 
 ## 🏛️ Architecture
 
-Classic DDD 4-layer + `agents/`, with monitors carved out as the only layer that composes `domain/` + `infrastructure/` directly (atomicity waiver).
+Classic DDD 4-layer (`domain` / `application` / `infrastructure` / `api`) + a dedicated `agents/` module that's the only place allowed to import Agno. Five async loops drive everything: one trading cycle (AgentOS-scheduled) plus four 10-second monitors that own the position-protection paths.
+
+Deep-dive with full mermaid diagrams + scheduler topology + three-way state invariant: **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** ([中文](./docs/ARCHITECTURE_ZH.md)).
+
+<details>
+<summary><b>Click for layer + scheduler diagrams</b></summary>
 
 ```mermaid
 flowchart TD
@@ -386,11 +410,16 @@ flowchart LR
     style L5 stroke:#dc2626,stroke-width:3px
 ```
 
-Deep-dive: [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
+</details>
 
 ---
 
 ## 🌐 API Reference
+
+Interactive Swagger docs: `http://localhost:8000/docs` (renders the live spec). Every public route is read-only except `POST /api/v1/cycle/trigger`, `POST /api/v1/runs/{id}/{confirm,reject}` (T9 HITL), and `POST /api/actions/close-all` (password-gated emergency).
+
+<details>
+<summary><b>Click for the full endpoint table</b></summary>
 
 ```bash
 uv run uvicorn omnitrade.api.app:create_app --factory
@@ -416,18 +445,21 @@ uv run uvicorn omnitrade.api.app:create_app --factory
 | `GET` | `/sse/stream` | Server-Sent Events feed (`decision_update`, `position_update`, `run_paused`, `orchestrator_error`, …) |
 | `GET` | `/traces` | AgentOS-served OTel span tree per cycle (T4) |
 
-The same routes are also reachable under the `/api/v1/*` prefix; the
-unprefixed `/api/*` surface is the Phase-8 legacy mount and is kept for
-the dashboard's existing fetch URLs.
+The same routes are also reachable under the `/api/v1/*` prefix; the unprefixed `/api/*` surface is the Phase-8 legacy mount and is kept for the dashboard's existing fetch URLs.
 
-Interactive docs: `http://localhost:8000/docs`.
+</details>
 
 ---
 
 ## 🗂️ Project Structure
 
+Two apps in a monorepo: `apps/backend/` (Python 3.11 / FastAPI / Agno) and `apps/frontend/` (Next.js 14). Shared infra in `docker-compose.yml`. Strategy + architecture deep-dives under `docs/`.
+
+<details>
+<summary><b>Click for the full directory tree</b></summary>
+
 ```
-llmtrading/
+omnitrade/
 ├── apps/
 │   ├── backend/                      # Python 3.11 + FastAPI + SQLAlchemy 2.0
 │   │   ├── src/omnitrade/
@@ -436,14 +468,17 @@ llmtrading/
 │   │   │   ├── infrastructure/       # SQLAlchemy, ccxt, Agno DeepSeek, SSE
 │   │   │   ├── agents/               # Agno Agent + MultiMCPTools, prompts
 │   │   │   └── api/                  # FastAPI routers + middleware
-│   │   ├── alembic/                  # migrations (0001 init, 0002 rename)
+│   │   ├── alembic/                  # migrations
 │   │   └── tests/                    # structured output + integration tests
 │   └── frontend/                     # Next.js 14 + SWR + Server-Sent Events
 ├── tests/fixtures/frozen/            # 22 hand-curated decision contracts
-├── docs/                             # architecture, strategies, release, ...
+├── docs/                             # architecture, strategies, release, ADRs
+├── assets/                           # logo + social preview + sponsor QR
 ├── scripts/                          # ops + drift-detection probes
 └── docker-compose.yml                # postgres + pgvector + db-init + backend + frontend
 ```
+
+</details>
 
 ---
 
@@ -526,9 +561,10 @@ Testnet is the default and the recommended mode. Live trading on mainnet carries
 
 ## 🙏 Acknowledgments — built on the shoulders of these projects
 
-OmniTrade only exists because of the open-source ecosystem around it.
-Huge thanks to the maintainers of every project below — please go star
-their repos:
+OmniTrade is built on ~30 open-source projects — full stack from agent runtime (Agno + FastMCP + OpenInference) to backend (FastAPI + SQLAlchemy + Postgres + pgvector + ccxt) to frontend (Next.js + React + Tailwind + Recharts) to tooling (uv + Ruff + pytest + Playwright). Huge thanks to all the maintainers — please go star their repos.
+
+<details>
+<summary><b>Click for the full acknowledgments list</b></summary>
 
 **Agent runtime**
 - [**Agno**](https://github.com/agno-agi/agno) — the Agent / Team / Workflow / AgentOS layer that drives every cycle. Single source of truth after the cutover.
@@ -567,6 +603,8 @@ their repos:
 
 **Crypto data sources** — read-only, free or freemium:
 [CoinGecko](https://www.coingecko.com/), [Alternative.me Fear & Greed](https://alternative.me/crypto/fear-and-greed-index/), [Whale Alert](https://whale-alert.io/), [Coinglass](https://www.coinglass.com/), [LunarCrush](https://lunarcrush.com/), [Etherscan](https://etherscan.io/), [Gate MCP News](https://api.gatemcp.ai/mcp/news).
+
+</details>
 
 If we missed your project, please [open an issue][issues] and we'll add
 you in.

@@ -1,5 +1,7 @@
 # FAQ — common questions and recurring errors
 
+> English · [简体中文](FAQ_ZH.md)
+
 If you hit something that's not in here, please [open an issue][issues]
 — we'll add it.
 

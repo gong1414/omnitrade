@@ -1,5 +1,7 @@
 # Quickstart — first cycle in 5 minutes
 
+> English · [简体中文](QUICKSTART_ZH.md)
+
 This is the shortest possible path from "git clone" to "the agent is
 trading on Gate.io testnet". Every step is one command. If you hit a
 problem, jump to [docs/FAQ.md](FAQ.md) — the common errors are listed
