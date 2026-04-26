@@ -37,7 +37,7 @@ def _make_decision(
         actions_taken="[]",
         account_value=Decimal("1000"),
         positions_count=0,
-        correlation_id="",
+        run_id="",
         market_context=market_context,
         gates_passed=[],
         invalidation_condition="",

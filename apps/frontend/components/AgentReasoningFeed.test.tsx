@@ -29,7 +29,7 @@ const BASE_DECISION: AgentDecision = {
   actions_taken: "[]",
   account_value: "10000",
   positions_count: 0,
-  correlation_id: null,
+  run_id: null,
 };
 
 describe("AgentReasoningFeed", () => {

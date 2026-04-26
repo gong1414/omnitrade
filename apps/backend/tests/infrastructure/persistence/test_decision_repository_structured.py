@@ -257,7 +257,7 @@ async def test_list_recent_returns_structured_fields(session: AsyncSession) -> N
     assert legacy_row.structured_confidence is None
 
 
-# ── Alembic 0005 round-trip: justification + correlation_id ───────────────────
+# ── Alembic 0005/0006 round-trip: justification + run_id ─────────────────────
 
 
 async def test_justification_roundtrip(session: AsyncSession) -> None:
@@ -289,28 +289,28 @@ async def test_justification_none_on_legacy_row(session: AsyncSession) -> None:
     assert fetched.justification is None
 
 
-async def test_correlation_id_persists(session: AsyncSession) -> None:
-    """correlation_id written at record time is read back from DB (not lost)."""
+async def test_run_id_persists(session: AsyncSession) -> None:
+    """run_id written at record time is read back from DB (not lost)."""
     repo = DecisionRepository()
-    cid = "abc-123-trace-id"
-    dec = _make_structured_decision(correlation_id=cid)
+    rid = "abc-123-run-id"
+    dec = _make_structured_decision(run_id=rid)
 
     created = await repo.create(session, dec)
     await session.commit()
 
     fetched = await repo.get(session, created.id)
     assert fetched is not None
-    assert fetched.correlation_id == cid
+    assert fetched.run_id == rid
 
 
-async def test_correlation_id_default_empty_string(session: AsyncSession) -> None:
-    """Unset correlation_id persists as '' (NOT NULL column with empty default)."""
+async def test_run_id_default_empty_string(session: AsyncSession) -> None:
+    """Unset run_id persists as '' (NOT NULL column with empty default)."""
     repo = DecisionRepository()
-    dec = _make_legacy_decision()  # no correlation_id supplied → ""
+    dec = _make_legacy_decision()  # no run_id supplied → ""
 
     created = await repo.create(session, dec)
     await session.commit()
 
     fetched = await repo.get(session, created.id)
     assert fetched is not None
-    assert fetched.correlation_id == ""
+    assert fetched.run_id == ""

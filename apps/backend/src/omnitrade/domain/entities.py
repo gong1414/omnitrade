@@ -147,7 +147,9 @@ class TradingSignal(BaseModel):
 class AgentDecision(BaseModel):
     """AI agent decision record — mirrors the `agent_decisions` table.
 
-    correlation_id links to TraceContext for distributed tracing.
+    run_id links each row to its Agno ``RunOutput.run_id``. Seeded by
+    ``TradingLoopMonitor`` via the request-tracing ContextVar so the
+    same identifier appears in logs, the DB row, and the WS envelope.
 
     Structured reasoning fields (PR-B1 Step 5): populated when the LLM emits
     a StructuredReason-shaped ``reason`` object.  All six are nullable so that
@@ -166,7 +168,7 @@ class AgentDecision(BaseModel):
     positions_count: int
     symbol: str | None = None  # e.g. "BTC_USDT" — None for hold
     side: str | None = None  # "long" | "short" — None for hold
-    correlation_id: str = ""  # TraceContext linkage (persisted in alembic 0005)
+    run_id: str = ""  # Agno RunOutput.run_id (persisted in alembic 0006 rename)
     # StructuredReason fields — None for legacy rows
     market_context: str | None = None
     gates_passed: list[str] | None = None  # domain list; repo json.dumps/loads at DB boundary

@@ -31,7 +31,7 @@ def _orm_to_domain(row: AgentDecisionORM) -> AgentDecision:
         positions_count=row.positions_count,
         symbol=row.symbol,
         side=row.side,
-        correlation_id=row.correlation_id or "",
+        run_id=row.run_id or "",
         # StructuredReason fields — DB column ``confidence`` → domain ``structured_confidence``
         market_context=row.market_context,
         gates_passed=gates_passed,
@@ -58,7 +58,7 @@ def _domain_to_orm(dec: AgentDecision) -> AgentDecisionORM:
         positions_count=dec.positions_count,
         symbol=dec.symbol,
         side=dec.side,
-        correlation_id=dec.correlation_id,
+        run_id=dec.run_id,
         # StructuredReason fields — domain ``structured_confidence`` → DB column ``confidence``
         market_context=dec.market_context,
         gates_passed=gates_passed_json,

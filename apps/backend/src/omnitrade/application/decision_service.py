@@ -39,7 +39,7 @@ def _decision_to_dict(dec: AgentDecision) -> dict[str, Any]:
         "actions_taken": dec.actions_taken,
         "account_value": str(dec.account_value),
         "positions_count": dec.positions_count,
-        "correlation_id": dec.correlation_id,
+        "run_id": dec.run_id,
         "justification": dec.justification,
     }
 
@@ -93,7 +93,7 @@ class DecisionService:
             actions_taken=actions_taken,
             account_value=account_value,
             positions_count=positions_count,
-            correlation_id=get_correlation_id(),
+            run_id=get_correlation_id(),
             symbol=symbol,
             side=side,
             market_context=market_context,

@@ -108,7 +108,7 @@ class AgentDecisionORM(Base):
     __tablename__ = "agent_decisions"
     __table_args__ = (
         Index("idx_decisions_timestamp", "timestamp"),
-        Index("idx_decisions_correlation_id", "correlation_id"),
+        Index("idx_decisions_run_id", "run_id"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -129,8 +129,9 @@ class AgentDecisionORM(Base):
     symbol: Mapped[str | None] = mapped_column(Text, nullable=True)
     side: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Alembic 0005 — close FE/BE contract audit gaps.
+    # Alembic 0006 — renamed correlation_id → run_id (Agno alignment).
     justification: Mapped[str | None] = mapped_column(Text, nullable=True)
-    correlation_id: Mapped[str] = mapped_column(
+    run_id: Mapped[str] = mapped_column(
         Text, nullable=False, server_default=""
     )
 

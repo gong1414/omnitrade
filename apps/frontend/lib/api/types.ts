@@ -142,7 +142,7 @@ export interface AgentDecision {
   actions_taken: string;
   account_value: string;
   positions_count: number;
-  correlation_id: string | null;
+  run_id: string | null;
   // Structured reasoning fields (PR-B2 — null until backend writes them)
   market_context?: string | null;
   gates_passed?: string[] | null;
@@ -313,6 +313,6 @@ export type DecisionUpdatePayload = AgentDecision & {
 // Phase 8.5a (plan v3 G-5): multi-agent orchestrator degradation envelope.
 export interface OrchestratorErrorPayload {
   strategy: string;
-  correlation_id: string;
+  run_id: string;
   reason: string;
 }

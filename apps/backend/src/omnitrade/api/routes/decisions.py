@@ -51,7 +51,7 @@ def _decision_to_dict(d: AgentDecision) -> dict[str, Any]:
         "actions_taken": d.actions_taken,
         "account_value": str(d.account_value),
         "positions_count": d.positions_count,
-        "correlation_id": d.correlation_id,
+        "run_id": d.run_id,
         "market_context": d.market_context,
         "gates_passed": d.gates_passed,
         "invalidation_condition": d.invalidation_condition,

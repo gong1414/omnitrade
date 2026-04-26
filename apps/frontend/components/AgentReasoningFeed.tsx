@@ -247,9 +247,9 @@ export function AgentReasoningFeed() {
                         : t("moreStepsPlural", { n: extra })
                       : ""}
                   </span>
-                  {raw.correlation_id ? (
-                    <span className="truncate max-w-[16ch]" title={raw.correlation_id}>
-                      {raw.correlation_id}
+                  {raw.run_id ? (
+                    <span className="truncate max-w-[16ch]" title={raw.run_id}>
+                      {raw.run_id}
                     </span>
                   ) : null}
                 </div>

@@ -175,7 +175,7 @@ class TestTradingSignal:
 
 
 class TestAgentDecision:
-    def test_correlation_id_default_empty(self) -> None:
+    def test_run_id_default_empty(self) -> None:
         d = AgentDecision(
             timestamp=_utcnow(),
             iteration=1,
@@ -185,9 +185,9 @@ class TestAgentDecision:
             account_value=Decimal("10000"),
             positions_count=0,
         )
-        assert d.correlation_id == ""
+        assert d.run_id == ""
 
-    def test_correlation_id_set(self) -> None:
+    def test_run_id_set(self) -> None:
         d = AgentDecision(
             timestamp=_utcnow(),
             iteration=1,
@@ -196,9 +196,9 @@ class TestAgentDecision:
             actions_taken="[]",
             account_value=Decimal("10000"),
             positions_count=0,
-            correlation_id="trace-abc-123",
+            run_id="run-abc-123",
         )
-        assert d.correlation_id == "trace-abc-123"
+        assert d.run_id == "run-abc-123"
 
 
 # ── TradingLesson ─────────────────────────────────────────────────────────────── #
