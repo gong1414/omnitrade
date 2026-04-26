@@ -132,6 +132,7 @@ pythonpath = ["src"]
 addopts = "-q --tb=short"
 markers = [
     "manual_qa: opt-in tests requiring live LLM + human verification (excluded from default CI run)",
+    "eval: agent-reliability evals (Agno ReliabilityEval) — runs in a dedicated CI step under tests/eval/",
 ]
 
 [tool.coverage.run]

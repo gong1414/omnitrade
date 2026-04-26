@@ -57,6 +57,18 @@ jobs:
             --cov-report=term-missing \
             --cov-fail-under=80
 
+      # T7 — Agno ReliabilityEval gate. Runs the eval-marked tests in a
+      # dedicated step so a failing reliability assertion is visually
+      # separated from the main pytest suite in CI logs. The same tests
+      # also run as part of the suite above; this step exists to make
+      # the signal "decision tool did/didn't fire" loud and unambiguous.
+      # Live cassette cases are skipif(no cassette) — see the test
+      # docstring for the recording command.
+      - name: Agent ReliabilityEval (Agno)
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: uv run pytest tests/eval/ -v -m eval
+
   frontend:
     name: Frontend (type-check + lint + build + playwright)
     runs-on: ubuntu-22.04
