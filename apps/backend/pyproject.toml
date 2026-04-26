@@ -69,11 +69,11 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yifu/llmtrading"
-Repository = "https://github.com/yifu/llmtrading"
-Documentation = "https://github.com/yifu/llmtrading/tree/main/docs"
-Issues = "https://github.com/yifu/llmtrading/issues"
-Changelog = "https://github.com/yifu/llmtrading/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/gong1414/omnitrade"
+Repository = "https://github.com/gong1414/omnitrade"
+Documentation = "https://github.com/gong1414/omnitrade/tree/main/docs"
+Issues = "https://github.com/gong1414/omnitrade/issues"
+Changelog = "https://github.com/gong1414/omnitrade/blob/main/CHANGELOG.md"
 
 [project.scripts]
 omnitrade = "omnitrade.main:main"

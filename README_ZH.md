@@ -47,7 +47,7 @@ OmniTrade **持续开发中**。架构、API、策略都会随着实际运营反
 [SECURITY.md](SECURITY.md) 的私有上报通道。觉得项目有用的话，欢迎点
 Star 关注后续进展。
 
-[issues]: https://github.com/yifu/llmtrading/issues
+[issues]: https://github.com/gong1414/omnitrade/issues
 
 ---
 

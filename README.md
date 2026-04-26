@@ -49,7 +49,7 @@ pull request — see [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow
 and [SECURITY.md](SECURITY.md) for vulnerability reports (private
 channel only). Star the repo if you'd like to follow along.
 
-[issues]: https://github.com/yifu/llmtrading/issues
+[issues]: https://github.com/gong1414/omnitrade/issues
 
 ---
 
