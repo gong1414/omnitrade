@@ -9,12 +9,13 @@ Usage::
         --end 2026-02-01 \\
         --strategy arena-autopilot \\
         --initial-balance 10000 \\
-        --use-cache \\
         --output .backtest/runs/
 
-The LLM defaults to ``LiteLLMClient.from_settings(Settings())`` (real
-DeepSeek). ``--use-cache`` wraps it with ``CachedLLMClient`` so
-identical request bodies replay from disk.
+Drives the Agno-backed ``BacktestEngine`` (post-cutover): an Agno Agent
+hits DeepSeek directly each cycle, no MCP / DB / news. For deterministic
+replay across runs, point ``HTTPX_*`` env vars at a vcrpy cassette — the
+caching that the legacy ``CachedLLMClient`` provided is now an HTTP-layer
+concern (Agno owns the model HTTP client).
 """
 
 from __future__ import annotations
@@ -27,14 +28,12 @@ from pathlib import Path
 
 import structlog
 
+from omnitrade.backtest.agno_think import build_backtest_think_fn
 from omnitrade.backtest.clock import BacktestClock
 from omnitrade.backtest.data_source import HistoricalOHLCV
 from omnitrade.backtest.engine import BacktestEngine
 from omnitrade.backtest.exchange import BacktestExchange
-from omnitrade.backtest.llm_cache import CachedLLMClient
 from omnitrade.config import Settings
-from omnitrade.domain.protocols import LLMClient
-from omnitrade.infrastructure.llm.agno_llm_adapter import AgnoLLMAdapter
 
 logger = structlog.get_logger(__name__)
 
@@ -81,16 +80,6 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         help="Run one cycle every N bars of the primary timeframe (default 1)",
     )
     p.add_argument(
-        "--use-cache",
-        action="store_true",
-        help="Wrap the LLM client in a sqlite response cache.",
-    )
-    p.add_argument(
-        "--cache-path",
-        default=".backtest/llm_cache.db",
-        help="Path to the LLM sqlite cache (default .backtest/llm_cache.db)",
-    )
-    p.add_argument(
         "--ohlcv-cache-path",
         default=".backtest/ohlcv_cache.db",
         help="Path to the OHLCV sqlite cache (default .backtest/ohlcv_cache.db)",
@@ -103,21 +92,11 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     return p
 
 
-def _build_llm(*, use_cache: bool, cache_path: str) -> LLMClient:
-    settings = Settings()
-    base: LLMClient = AgnoLLMAdapter.from_settings(settings)
-    if use_cache:
-        return CachedLLMClient(base, cache_path=cache_path, use_cache=True)
-    return base
-
-
 async def _run_async(args: argparse.Namespace) -> int:
     symbols = args.symbols or ["BTC_USDT"]
     start = _parse_iso(args.start)
     end = _parse_iso(args.end)
 
-    # Settings is the ONLY canonical source for the trading strategy + model.
-    # We override trading_strategy on a private copy so the CLI flag wins.
     settings = Settings()
     settings = settings.model_copy(update={"trading_strategy": args.strategy})
 
@@ -127,13 +106,13 @@ async def _run_async(args: argparse.Namespace) -> int:
         data_source=data_source,
     )
     clock = BacktestClock(start=start)
-    llm = _build_llm(use_cache=args.use_cache, cache_path=args.cache_path)
+    think_fn = build_backtest_think_fn(settings)
 
     engine = BacktestEngine(
         exchange=exchange,
         clock=clock,
         data_source=data_source,
-        llm=llm,
+        think_fn=think_fn,
         settings=settings,
         symbols=symbols,
         timeframe=args.timeframe,
@@ -154,8 +133,6 @@ async def _run_async(args: argparse.Namespace) -> int:
         result = await engine.run()
     finally:
         await data_source.close()
-        if isinstance(llm, CachedLLMClient):
-            llm.close()
 
     out_dir = Path(args.output)
     out_dir.mkdir(parents=True, exist_ok=True)

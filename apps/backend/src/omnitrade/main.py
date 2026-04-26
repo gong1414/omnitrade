@@ -80,6 +80,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         except Exception as exc:  # startup wiring is best-effort
             await logger.aerror("omnitrade.scheduler_start_failed", error=str(exc))
 
+    # Phase 4.5: bind the trading monitor to the AgentOS workflow holder
+    # so the registered Workflow can resolve its step callables. Holder is
+    # set up in `create_app`; missing in test paths that don't wrap with
+    # AgentOS, in which case we silently skip.
+    holder = getattr(app.state, "agent_os_monitor_holder", None)
+    monitor = getattr(app.state, "trading_monitor", None)
+    if holder is not None and monitor is not None:
+        holder.monitor = monitor
+        logger.info("omnitrade.agent_os_workflow_monitor_bound")
+
     yield
 
     scheduler = getattr(app.state, "scheduler", None)
@@ -383,14 +393,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(api_v8_router)
     app.include_router(sse_router)
 
-    # AgentOS overlays its REST surface (sessions / memory / runs / schedules)
-    # onto the same app. `on_route_conflict='preserve_base_app'` keeps every
-    # legacy route live; AgentOS adds its own surface alongside. Skipped when
-    # no LLM credentials are configured (test / read-only deployments).
+    # AgentOS overlays its REST surface (sessions / memory / runs / schedules /
+    # workflows) onto the same app. `on_route_conflict='preserve_base_app'`
+    # keeps every legacy route live; AgentOS adds its own surface alongside.
+    # The trading workflow registers via a MonitorHolder so it can be wired
+    # before the lifespan builds the real monitor (see `lifespan` for the
+    # late-binding step). Skipped when no LLM credentials are configured.
     if settings.llm_api_key is not None or settings.deepseek_api_key is not None:
-        from omnitrade.api.agent_os_app import wrap_with_agent_os
+        from omnitrade.api.agent_os_app import MonitorHolder, wrap_with_agent_os
 
-        app = wrap_with_agent_os(app, settings)
+        holder = MonitorHolder()
+        app.state.agent_os_monitor_holder = holder
+        app = wrap_with_agent_os(app, settings, holder)
+        # `wrap_with_agent_os` returns a new merged FastAPI app; preserve
+        # the holder reference on the merged app's state so the lifespan
+        # (which runs against this returned app) can find it.
+        app.state.agent_os_monitor_holder = holder
 
     return app
 

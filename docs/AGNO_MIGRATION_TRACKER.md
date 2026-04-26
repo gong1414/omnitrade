@@ -4,19 +4,26 @@ Source spec: `.omc/specs/deep-interview-agno-migration.md`
 Source plan: `~/.claude/plans/mossy-frolicking-hickey.md`
 
 **Cutover complete (2026-04-26).** Stages A–E of the hard cutover plan
-have shipped on `main` (commits 148534d, 6f814cc, e7ccbff, a81da88,
-plus Stage E). The four `AGNO_*_ENABLED` flags are deleted, every
+shipped on `main` (commits 148534d, 6f814cc, e7ccbff, a81da88, f58bc7d).
+Phase 4.5 (Workflow registration) and the backtest engine port followed
+on the same day. The four `AGNO_*_ENABLED` flags are deleted, every
 LangGraph / LangChain / LiteLLM / mcp2py consumer is gone, the
-dashboard runs on SSE, and the trading Agent persists each cycle as a
-run inside a single Postgres-backed Agno session.
+dashboard runs on SSE, the trading Agent persists each cycle as a run
+inside a single Postgres-backed Agno session, and the `trading-cycle`
+Workflow is now visible at `/workflows/{id}/run` with optional native
+AgentOS scheduler when Postgres is configured.
 
-What's still tracked but **not** required for the cutover:
+What's still pending (smaller follow-ups):
 
-- **Phase 4.5** (AgentOS scheduler + `Workflow` registration) — APScheduler
-  still drives the cycle today. The `Workflow` scaffold and AgentOS
-  `/schedules` route are in place; flipping the seam is a follow-up.
-- **Backtest engine** — `backtest/engine.py` is a stub raising
-  `NotImplementedError`; port to Agno + `MockModel` is a follow-up.
+- **Programmatic schedule bootstrap** — AgentOS scheduler is enabled
+  when `AGNO_POSTGRES_URL` is set, but the cron entry that drives the
+  trading cycle is still registered through APScheduler. Migrating the
+  20-minute trigger to AgentOS via `POST /schedules` at lifespan startup
+  is the next clean step (drops one APScheduler job; keeps the 6 fast
+  position-protection monitors on APScheduler).
+- **Backtest cassette layer** — `backtest/llm_cache.py` was deleted with
+  `LLMClient`. For deterministic Agno replays, wrap the DeepSeek HTTP
+  client with vcrpy or use Agno's session DB.
 
 Last updated: 2026-04-26
 
@@ -31,10 +38,11 @@ Last updated: 2026-04-26
 | 2 — Agent + MCPTools | ✅ shipped, **flag deleted** | `agents/trading_agent.py` + `agents/tools/decision_schemas.py` + `agents/tools/mcp_bridge.py`. `composition._build_base_think_fn` is single-path. LangGraph `think_node.py` deleted. |
 | 3 — Workflow + Team | ✅ scaffolded, **flag deleted** | `application/trading_workflow.py` + `agents/experts_team.py` exist; not yet driving the cycle (see Phase 4.5). Legacy `application/multi_agent/` deleted. |
 | 4 — AgentOS shell | ✅ shipped, **flag deleted** | `api/agent_os_app.py::wrap_with_agent_os` is unconditional when LLM creds are present. AgentOS overlay adds +88 routes (sessions / runs / schedules / workflows) on top of the legacy `/api/v1/*` surface. |
-| 4.5 — AgentOS scheduler + Workflow registration | ⏳ deferred | APScheduler still drives the trading cycle. Workflow registration needs the AgentOS overlay to be built post-lifespan; tracked as a follow-up. |
+| 4.5 — AgentOS Workflow registration | ✅ shipped | `agent_os_app.MonitorHolder` lazy-binds the trading monitor populated in lifespan. `application/trading_workflow.build_agno_trading_workflow` exposes `monitor.tick()` as a single-step `Workflow` registered with `AgentOS(workflows=[wf])`. `POST /workflows/trading-cycle/runs` runs the cycle end-to-end via AgentOS (~90s real DeepSeek). Schedule **bootstrap** (programmatically registering an AgentOS cron entry) is the only piece still on APScheduler. |
 | 5 — Frontend SSE | ✅ shipped, **default transport** | `apps/frontend/lib/sse/{client,singleton}.ts` + `hooks/useRealtime.ts`. WS client + hook deleted; Playwright e2e ported to `fake-sse-server.ts`. |
 | 6 — Postgres + Agent.memory | ✅ shipped | `infrastructure/persistence/database.py` routes Postgres through psycopg3. The trading Agent runs against `ai.agno_sessions` (session_id="omnitrade-trading", `add_history_to_context=True`, `num_history_runs=5`). |
-| Legacy purge | ✅ shipped (Stages A + E) | LangGraph / LangChain / LiteLLM / mcp2py / multi_agent / api/ws all deleted on disk. APScheduler + `application/trading_loop.py` remain pending Phase 4.5. |
+| Legacy purge | ✅ shipped (Stages A + E) | LangGraph / LangChain / LiteLLM / mcp2py / multi_agent / api/ws all deleted on disk. APScheduler + `application/trading_loop.py` still drive ticks until the schedule-bootstrap follow-up lands. |
+| Backtest engine | ✅ shipped (Phase 4.5) | `backtest/engine.py` rewritten against an injected `ThinkFn`. `backtest/agno_think.py` builds an Agno-Agent-backed think_fn (no MCP / no DB) for CLI runs. `backtest/llm_cache.py` deleted — for deterministic Agno replays use vcrpy at the HTTP layer. `tests/backtest/test_engine.py` covers the open/close dispatch path with stub data. |
 
 ---
 

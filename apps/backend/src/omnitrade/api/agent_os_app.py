@@ -1,21 +1,27 @@
-"""AgentOS wrapper for the FastAPI app.
+"""AgentOS overlay for the FastAPI app (Phase 4 + 4.5).
 
-`omnitrade.main.create_app(...)` always overlays AgentOS on top of the
-base FastAPI app via `AgentOS(base_app=app, on_route_conflict="preserve_base_app")`.
-Legacy `/api/v1/...` and `/ws/stream` routes survive intact while AgentOS
-adds its own REST surface (sessions / memory / runs / schedules).
+:func:`omnitrade.main.create_app` overlays AgentOS on top of the base
+FastAPI app via ``AgentOS(base_app=app, on_route_conflict='preserve_base_app')``.
+Legacy ``/api/v1/...`` and ``/sse/stream`` routes survive intact while
+AgentOS adds its own REST surface (sessions / memory / runs / schedules /
+workflows).
 
-If `settings.agno_postgres_url` is set, an `agno.db.postgres.PostgresDb`
-backs AgentOS for session/run persistence. When unset, AgentOS runs
-DB-less (in-memory only) so deployments without Postgres still work.
+Phase 4.5 (this revision) registers the trading ``Workflow`` with
+AgentOS via a ``MonitorHolder`` — the monitor itself doesn't exist
+until the lifespan handler runs, so the workflow's step closures
+read it from the holder on every cycle. AgentOS's cron scheduler is
+also enabled when ``settings.agno_postgres_url`` is set; schedules are
+managed via ``POST /schedules`` at runtime (see
+``docs/AGNO_MIGRATION_TRACKER.md`` for the bootstrap recipe).
 
-The Workflow + AgentOS native scheduler land in Stage B of the cutover
-plan (`/Users/daoyu/.claude/plans/mossy-frolicking-hickey.md`). Today
-APScheduler still drives the trading cycle.
+The placeholder "omnitrade-status" agent stays — AgentOS still requires
+at least one entity registered, and an operator-facing read-only Q&A
+agent is a nice surface to keep around.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import structlog
@@ -23,16 +29,34 @@ import structlog
 if TYPE_CHECKING:
     from fastapi import FastAPI
 
+    from omnitrade.application.monitors.trading_loop_monitor import TradingLoopMonitor
     from omnitrade.config import Settings
 
 logger = structlog.get_logger(__name__)
 
 
+@dataclass
+class MonitorHolder:
+    """Late-bound reference to the trading monitor.
+
+    AgentOS captures the trading workflow object at ``create_app`` time,
+    but the monitor is only constructed inside the FastAPI lifespan
+    handler (after the ``ApiContainer`` is built). The holder closes the
+    gap: the workflow's step closures resolve ``holder.monitor`` on
+    every cycle, so populating it from the lifespan is enough to make
+    the workflow runnable.
+    """
+
+    monitor: TradingLoopMonitor | None = None
+
+
 def _build_status_agent(settings: Settings) -> Any:
-    """Return a minimal Agno Agent so AgentOS has at least one registered
-    entity. AgentOS refuses to start without agents/teams/workflows/db,
-    so this stub gives operators a `/agents/{id}/runs` surface they can
-    poke to verify wiring before plugging real agents into the OS.
+    """Operator-facing read-only Q&A agent.
+
+    AgentOS requires at least one entity (agent / team / workflow / db)
+    to start; the trading workflow is the load-bearing entity, but a
+    tiny status agent stays around so operators have a low-stakes
+    surface to poke at /agents/* before invoking the workflow.
     """
     from agno.agent import Agent
     from agno.models.deepseek import DeepSeek
@@ -65,24 +89,32 @@ def _build_status_agent(settings: Settings) -> Any:
     )
 
 
-def wrap_with_agent_os(app: FastAPI, settings: Settings) -> FastAPI:
+def wrap_with_agent_os(
+    app: FastAPI,
+    settings: Settings,
+    holder: MonitorHolder,
+) -> FastAPI:
     """Return the merged AgentOS+FastAPI app.
 
     Args:
-        app: The base FastAPI app from `create_app(settings)`.
+        app: The base FastAPI app from ``create_app(settings)``.
         settings: The active Settings instance.
+        holder: A :class:`MonitorHolder` whose ``monitor`` is populated
+            by the FastAPI lifespan once the ``ApiContainer`` exists.
+            The trading workflow's step callables read from this on
+            every run.
 
     Returns:
         A FastAPI app whose routes are the union of the original routes
         and AgentOS's built-in routes. Path collisions resolve to the
-        base app's handler (`on_route_conflict='preserve_base_app'`).
+        base app's handler (``on_route_conflict='preserve_base_app'``).
     """
     from agno.os import AgentOS
 
+    from omnitrade.application.trading_workflow import build_agno_trading_workflow
+
     db: Any | None = None
     if settings.agno_postgres_url:
-        # Imported lazily so projects without Postgres don't pay the
-        # psycopg import cost on every cold start.
         from agno.db.postgres import PostgresDb
 
         db = PostgresDb(db_url=settings.agno_postgres_url)
@@ -91,19 +123,29 @@ def wrap_with_agent_os(app: FastAPI, settings: Settings) -> FastAPI:
             url_host=settings.agno_postgres_url.split("@", 1)[-1].split("/", 1)[0],
         )
 
-    # AgentOS requires at least one entity to be registered. We always wire
-    # a tiny status agent — operator-facing health helper — so the merged
-    # app starts even before any trading agents/workflows are registered.
     status_agent = _build_status_agent(settings)
+    workflow = build_agno_trading_workflow(
+        lambda: holder.monitor,
+        settings,
+        db=db,
+    )
+
+    # AgentOS native scheduler: enabled only when Postgres is available
+    # (the scheduler persists schedules to the same DB). Without it,
+    # /schedules would 500 the moment a cron tick fires.
+    scheduler_enabled = db is not None
 
     agent_os = AgentOS(
         name="OmniTrade",
         description="LLM-driven crypto-futures arena · AgentOS shell",
         version="0.1.0",
         agents=[status_agent],
+        workflows=[workflow],
         db=db,
         base_app=app,
         on_route_conflict="preserve_base_app",
+        scheduler=scheduler_enabled,
+        telemetry=False,
     )
 
     merged: FastAPI = agent_os.get_app()
@@ -111,8 +153,10 @@ def wrap_with_agent_os(app: FastAPI, settings: Settings) -> FastAPI:
         "agent_os_app.wrapped",
         n_routes=len(merged.routes),
         has_db=db is not None,
+        scheduler_enabled=scheduler_enabled,
+        n_workflows=1,
     )
     return merged
 
 
-__all__ = ["wrap_with_agent_os"]
+__all__ = ["MonitorHolder", "wrap_with_agent_os"]
