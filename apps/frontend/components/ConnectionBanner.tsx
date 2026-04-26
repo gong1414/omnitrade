@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Badge } from "./ui/badge";
-import type { ConnectionState } from "@/lib/ws/client";
+import type { ConnectionState } from "@/lib/sse/client";
 import type { OrchestratorErrorPayload } from "@/lib/api/types";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";

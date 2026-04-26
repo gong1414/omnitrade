@@ -1,16 +1,8 @@
 /**
- * SSE client for the AgentOS run-events stream (Phase 5 Agno migration).
- *
- * Mirrors the public surface of `lib/ws/client.ts` so the dashboard hook
- * can drop SSE in by flag flip alone — same `ConnectionState`, same
- * `WsEnvelope` payload shape (renamed back from `EventEnvelope` for
- * cross-transport reuse).
- *
- * The default endpoint targets `/sse/stream` on the existing FastAPI host;
- * the AgentOS-side handler that re-emits trading decisions over SSE is
- * authored in Phase 4.5 alongside the AgentOS Workflow registration.
- * Until that lands the client merely connects and waits — but the wiring
- * end-to-end is already in place.
+ * SSE client for the FastAPI `/sse/stream` route — the dashboard's only
+ * realtime transport after Stage C of the Agno cutover. Replaces the
+ * legacy `lib/ws/client.ts` while preserving the same `WsEnvelope`
+ * payload shape so consumers don't have to rewrite their type imports.
  */
 
 import type {
@@ -21,9 +13,24 @@ import type {
   WsEnvelope,
   WsEventType,
 } from "../api/types";
-import type { ConnectionState, WsListener, WsPayloadMap } from "../ws/client";
 
-export type { ConnectionState, WsPayloadMap };
+export type ConnectionState =
+  | "idle"
+  | "connecting"
+  | "open"
+  | "closed"
+  | "reconnecting";
+
+export type WsPayloadMap = {
+  account_update: AccountUpdatePayload;
+  position_update: PositionUpdatePayload;
+  decision_update: DecisionUpdatePayload;
+  orchestrator_error: OrchestratorErrorPayload;
+};
+
+export type WsListener<T extends WsEventType> = (
+  envelope: WsEnvelope<WsPayloadMap[T]>,
+) => void;
 
 export interface SseClientOptions {
   url?: string;
@@ -50,7 +57,8 @@ type AnyListener = (envelope: WsEnvelope<unknown>) => void;
 export class SseClient {
   private es: EventSource | null = null;
   private url: string;
-  private state: ConnectionState = "idle";
+  private _state: ConnectionState = "idle";
+  private _lastDisconnectAt: number | null = null;
   private listeners = new Map<WsEventType, Set<AnyListener>>();
   private stateListeners = new Set<(s: ConnectionState) => void>();
   private retryAttempt = 0;
@@ -66,14 +74,32 @@ export class SseClient {
     this.impl = opts.EventSourceImpl ?? (typeof window !== "undefined" ? window.EventSource : (undefined as unknown as typeof EventSource));
   }
 
+  // Surface the same shape the dashboard hook expected from `WsClient`
+  // (`state`, `onStateChange`, `lastDisconnectAt`) so the realtime
+  // singleton can swap one for the other without changing call sites.
+  get state(): ConnectionState {
+    return this._state;
+  }
+
+  /** @deprecated Kept for callers that still read `currentState`. */
   get currentState(): ConnectionState {
-    return this.state;
+    return this._state;
+  }
+
+  get lastDisconnectAt(): number | null {
+    return this._lastDisconnectAt;
+  }
+
+  onStateChange(cb: (s: ConnectionState) => void): () => void {
+    return this.onState(cb);
   }
 
   onState(cb: (s: ConnectionState) => void): () => void {
     this.stateListeners.add(cb);
-    cb(this.state);
-    return () => this.stateListeners.delete(cb);
+    cb(this._state);
+    return () => {
+      this.stateListeners.delete(cb);
+    };
   }
 
   subscribe<T extends WsEventType>(
@@ -83,7 +109,9 @@ export class SseClient {
     const set = this.listeners.get(type) ?? new Set<AnyListener>();
     set.add(listener as AnyListener);
     this.listeners.set(type, set);
-    return () => set.delete(listener as AnyListener);
+    return () => {
+      set.delete(listener as AnyListener);
+    };
   }
 
   connect(): void {
@@ -92,7 +120,7 @@ export class SseClient {
       this.setState("closed");
       return;
     }
-    if (this.es && this.state === "open") return;
+    if (this.es && this._state === "open") return;
     this.setState(this.retryAttempt > 0 ? "reconnecting" : "connecting");
     try {
       this.es = new this.impl(this.url, { withCredentials: false });
@@ -103,11 +131,13 @@ export class SseClient {
 
     this.es.onopen = () => {
       this.retryAttempt = 0;
+      this._lastDisconnectAt = null;
       this.setState("open");
     };
     this.es.onerror = () => {
       this.es?.close();
       this.es = null;
+      this._lastDisconnectAt = Date.now();
       this.scheduleReconnect();
     };
     this.es.onmessage = (ev: MessageEvent) => this.dispatch(ev.data);
@@ -128,8 +158,11 @@ export class SseClient {
       clearTimeout(this.retryTimer);
       this.retryTimer = null;
     }
-    this.es?.close();
-    this.es = null;
+    if (this.es) {
+      this.es.close();
+      this.es = null;
+      this._lastDisconnectAt = Date.now();
+    }
     this.setState("closed");
   }
 
@@ -157,8 +190,8 @@ export class SseClient {
   }
 
   private setState(next: ConnectionState): void {
-    if (this.state === next) return;
-    this.state = next;
+    if (this._state === next) return;
+    this._state = next;
     for (const cb of this.stateListeners) cb(next);
   }
 

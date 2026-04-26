@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useDecisions } from "@/hooks/useDecisions";
 import { apiClient, ApiError } from "@/lib/api/client";
 import { useTranslations } from "@/lib/i18n/context";
-import type { ConnectionState } from "@/lib/ws/client";
+import type { ConnectionState } from "@/lib/sse/client";
 
 interface ConsoleHeaderProps {
   intervalMin: number | null;

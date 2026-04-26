@@ -26,7 +26,7 @@ export default defineConfig({
     stderr: "pipe",
     env: {
       NEXT_PUBLIC_API_BASE_URL: "http://localhost:8765",
-      NEXT_PUBLIC_WS_URL: "ws://localhost:8765",
+      NEXT_PUBLIC_SSE_URL: "http://localhost:8765",
     },
   },
   projects: [

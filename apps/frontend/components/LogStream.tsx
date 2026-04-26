@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Chip, Panel, StatusDot } from "./obs/Panel";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn, fmtTime } from "@/lib/utils";
-import type { WsLogEntry } from "@/hooks/useWebSocket";
+import type { RealtimeLogEntry as WsLogEntry } from "@/hooks/useRealtime";
 import type { WsEventType } from "@/lib/api/types";
 
 const FILTERS: ("all" | WsEventType)[] = [

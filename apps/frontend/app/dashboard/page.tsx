@@ -11,7 +11,7 @@ import { StrategyMini } from "@/components/console/StrategyMini";
 import { TweaksPanel } from "@/components/console/TweaksPanel";
 import { ReasoningStream } from "@/components/stream/ReasoningStream";
 import { useDecisions } from "@/hooks/useDecisions";
-import { useWebSocket } from "@/hooks/useWebSocket";
+import { useRealtime } from "@/hooks/useRealtime";
 import { TweaksProvider } from "@/lib/console/tweaks";
 import { apiClient } from "@/lib/api/client";
 import type { ConfigResponse } from "@/lib/api/types";
@@ -34,7 +34,7 @@ const CONFIG_KEY = "/api/v1/config";
  *   └─ TweaksPanel (floating, bottom-right) ─────────────────┘
  */
 export default function DashboardPage() {
-  const { state, lastDisconnectAt, orchestratorError, lastDecisionEvent } = useWebSocket();
+  const { state, lastDisconnectAt, orchestratorError, lastDecisionEvent } = useRealtime();
   const { decisions } = useDecisions({ limit: 1 });
   const { data: config } = useSWR<ConfigResponse>(
     CONFIG_KEY,

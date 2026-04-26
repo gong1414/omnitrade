@@ -5,7 +5,7 @@ import { useDecisions } from "@/hooks/useDecisions";
 import { useHealth } from "@/hooks/useHealth";
 import { usePositions } from "@/hooks/usePositions";
 import { useTranslations } from "@/lib/i18n/context";
-import type { ConnectionState } from "@/lib/ws/client";
+import type { ConnectionState } from "@/lib/sse/client";
 import { Chip, Panel, StatusDot } from "./obs/Panel";
 
 function formatUptime(ms: number): string {

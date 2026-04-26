@@ -13,7 +13,9 @@ export function useDecisions({ limit = 50, offset = 0 }: { limit?: number; offse
   const { data, error, isLoading, mutate } = useSWR<DecisionsResponse>(
     key,
     () => apiClient.fetchDecisions({ limit, offset }),
-    { refreshInterval: 5000, revalidateOnFocus: false },
+    // SSE `decision_update` triggers a global mutate of every
+    // `/api/v1/decisions...` key, so the periodic poll is redundant.
+    { revalidateOnFocus: false },
   );
   return {
     decisions: data?.decisions ?? [],

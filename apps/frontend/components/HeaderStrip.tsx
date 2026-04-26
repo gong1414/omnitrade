@@ -7,7 +7,7 @@ import { useStats } from "@/hooks/useStats";
 import { apiClient, ApiError } from "@/lib/api/client";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn, fmtNum } from "@/lib/utils";
-import type { ConnectionState } from "@/lib/ws/client";
+import type { ConnectionState } from "@/lib/sse/client";
 import { Chip, StatusDot } from "./obs/Panel";
 
 export function HeaderStrip({ state }: { state: ConnectionState }) {

@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { mutate as globalMutate } from "swr";
-import { getWsClient } from "@/lib/ws/singleton";
-import type { ConnectionState } from "@/lib/ws/client";
+import { getSseClient } from "@/lib/sse/singleton";
+import type { ConnectionState } from "@/lib/sse/client";
 import { ACCOUNT_KEY } from "./useAccount";
 import { POSITIONS_KEY } from "./usePositions";
 import type {
@@ -13,7 +13,7 @@ import type {
   WsEventType,
 } from "@/lib/api/types";
 
-export interface WsLogEntry {
+export interface RealtimeLogEntry {
   id: number;
   type: WsEventType;
   ts: string;
@@ -23,28 +23,23 @@ export interface WsLogEntry {
 
 let logCounter = 0;
 
-export function useWebSocket({ maxLog = 200 }: { maxLog?: number } = {}) {
+export function useRealtime({ maxLog = 200 }: { maxLog?: number } = {}) {
   const [state, setState] = useState<ConnectionState>("idle");
   const [lastDisconnectAt, setLastDisconnectAt] = useState<number | null>(null);
-  const [log, setLog] = useState<WsLogEntry[]>([]);
-  // Phase 8.5a (plan v3 G-5): surface the most recent multi-agent orchestrator
-  // degradation to ConnectionBanner. `null` = no current error.
+  const [log, setLog] = useState<RealtimeLogEntry[]>([]);
   const [orchestratorError, setOrchestratorError] =
     useState<OrchestratorErrorPayload | null>(null);
-  // Task 5c — expose the most recent decision_update envelope so
-  // PipelineStatus can animate with real per-stage timings from the
-  // backend instead of a hardcoded setTimeout ladder.
   const [lastDecisionEvent, setLastDecisionEvent] =
     useState<WsEnvelope<DecisionUpdatePayload> | null>(null);
 
   useEffect(() => {
-    const client = getWsClient();
+    const client = getSseClient();
     if (!client) return;
 
     const pushLog = (env: WsEnvelope<unknown>) => {
       logCounter += 1;
       setLog((prev) => {
-        const next: WsLogEntry[] = [
+        const next: RealtimeLogEntry[] = [
           { id: logCounter, type: env.type, ts: env.ts, trace_id: env.trace_id, payload: env.payload },
           ...prev,
         ];
@@ -52,10 +47,6 @@ export function useWebSocket({ maxLog = 200 }: { maxLog?: number } = {}) {
       });
     };
 
-    // Cycle-completion events affect several SWR caches that aren't directly
-    // keyed by the event type. Refresh them here so the dashboard doesn't
-    // wait out the next 10-15s poll interval to show a fresh trade or
-    // KPI recomputation.
     const mutateTrades = () =>
       globalMutate((key) => typeof key === "string" && key.startsWith("/api/v1/trades"));
     const mutateStats = () => globalMutate("/api/stats");
@@ -63,24 +54,17 @@ export function useWebSocket({ maxLog = 200 }: { maxLog?: number } = {}) {
     const unsubAccount = client.subscribe("account_update", (env) => {
       pushLog(env);
       globalMutate(ACCOUNT_KEY);
-      // Stats sharpe/return are computed from account_history — refresh when
-      // a new snapshot lands.
       mutateStats();
     });
     const unsubPosition = client.subscribe("position_update", (env) => {
       pushLog(env);
       globalMutate(POSITIONS_KEY);
-      // position_update fires for every open/close/partial_close and carries
-      // a trade in its payload. Bounce the trades cache so TradesTable shows
-      // the new row instantly instead of on the next 10s poll.
       mutateTrades();
     });
     const unsubDecision = client.subscribe("decision_update", (env) => {
       pushLog(env);
       setLastDecisionEvent(env as WsEnvelope<DecisionUpdatePayload>);
-      // mutate every /decisions key variant (limit/offset) — SWR key-pattern mutate
       globalMutate((key) => typeof key === "string" && key.startsWith("/api/v1/decisions"));
-      // A cycle just finished — win_rate / n_trades / sharpe probably moved.
       mutateStats();
     });
     const unsubOrchestratorError = client.subscribe(

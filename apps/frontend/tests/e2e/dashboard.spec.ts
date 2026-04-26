@@ -1,14 +1,14 @@
 import { test, expect } from "@playwright/test";
-import { startFakeWsServer, type FakeWsServer } from "./fixtures/fake-ws-server";
+import { startFakeSseServer, type FakeSseServer } from "./fixtures/fake-sse-server";
 
-let ws: FakeWsServer;
+let sse: FakeSseServer;
 
 test.beforeAll(async () => {
-  ws = await startFakeWsServer(8765);
+  sse = await startFakeSseServer(8765);
 });
 
 test.afterAll(async () => {
-  if (ws) await ws.close();
+  if (sse) await sse.close();
 });
 
 // ---- REST response fixtures (match Phase 5 Pydantic shapes verbatim) ------
@@ -133,8 +133,8 @@ test.describe("dashboard", () => {
     await expect(page.locator('[data-testid="decision-row"]').first()).toBeVisible();
     await expect(page.locator('[data-testid="position-row"]').first()).toBeVisible();
 
-    // ── WS-driven new decision row ────────────────────────────────────────
-    // Intercept the /decisions revalidation triggered by the WS event and
+    // ── SSE-driven new decision row ───────────────────────────────────────
+    // Intercept the /decisions revalidation triggered by the SSE event and
     // return a fresh payload whose first row has a distinctive decision text.
     await page.unroute("**/api/v1/decisions*");
     const pushedDecision = {
@@ -143,12 +143,12 @@ test.describe("dashboard", () => {
           id: 99,
           timestamp: new Date().toISOString(),
           iteration: 8,
-          decision: "LIVE-WS-INJECTED close 50% BTC_USDT",
+          decision: "LIVE-SSE-INJECTED close 50% BTC_USDT",
           market_analysis: "Top-of-range fade trigger.",
           actions_taken: "partial_close",
           account_value: "10400.00",
           positions_count: 1,
-          correlation_id: "trace-ws-99",
+          correlation_id: "trace-sse-99",
         },
         ...DECISIONS_FIXTURE.decisions,
       ],
@@ -164,15 +164,15 @@ test.describe("dashboard", () => {
       }),
     );
 
-    ws.push({
+    sse.push({
       type: "decision_update",
       payload: pushedDecision.decisions[0],
-      trace_id: "trace-ws-99",
+      trace_id: "trace-sse-99",
       ts: new Date().toISOString(),
     });
 
     await expect(page.locator('[data-testid="decision-row"]').first()).toContainText(
-      "LIVE-WS-INJECTED",
+      "LIVE-SSE-INJECTED",
       { timeout: 10_000 },
     );
   });
