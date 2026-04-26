@@ -20,6 +20,12 @@
   <img src="https://img.shields.io/badge/固化_fixture-22%2F22-FFD93D" alt="Fixtures">
   <img src="https://img.shields.io/badge/测试-702_绿-2BB673" alt="Tests">
   <img src="https://img.shields.io/badge/交易所-Gate%20%2B%20OKX-F6465D" alt="Exchanges">
+  <br>
+  <a href="https://github.com/gong1414/omnitrade/stargazers"><img src="https://img.shields.io/github/stars/gong1414/omnitrade?style=flat&logo=github&color=FFD43B" alt="GitHub stars"></a>
+  <a href="https://github.com/gong1414/omnitrade/network/members"><img src="https://img.shields.io/github/forks/gong1414/omnitrade?style=flat&logo=github&color=4F8BC9" alt="GitHub forks"></a>
+  <a href="https://github.com/gong1414/omnitrade/issues"><img src="https://img.shields.io/github/issues/gong1414/omnitrade?style=flat&logo=github&color=FF6B6B" alt="GitHub issues"></a>
+  <a href="https://github.com/gong1414/omnitrade/releases/latest"><img src="https://img.shields.io/github/v/release/gong1414/omnitrade?style=flat&logo=github&include_prereleases&color=8A2BE2" alt="GitHub release"></a>
+  <a href="https://github.com/gong1414/omnitrade/commits/main"><img src="https://img.shields.io/github/last-commit/gong1414/omnitrade?style=flat&logo=github&color=2BB673" alt="last commit"></a>
 </p>
 
 <p align="center">
