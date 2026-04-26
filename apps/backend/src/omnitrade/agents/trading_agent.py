@@ -47,12 +47,18 @@ from agno.agent import Agent
 from agno.models.deepseek import DeepSeek
 
 from omnitrade.agents.guardrails.qa_phrase import build_qa_phrase_post_hook
+from omnitrade.agents.hitl import (
+    HITL_OPEN_TOOL_NAME,
+    ApprovalRegistry,
+    should_require_confirmation,
+)
 from omnitrade.agents.tools.decision_schemas import (
     DecisionRecorder,
     build_decision_tools,
+    wrap_open_position_for_hitl,
 )
 from omnitrade.agents.tools.mcp_bridge import AgnoMCPBridge
-from omnitrade.application.events.bus import EventBus
+from omnitrade.application.events.bus import EVENT_RUN_PAUSED, EventBus
 from omnitrade.domain.entities import Decision, MarketSnapshot, NewsItem
 from omnitrade.domain.enums import StrategyName
 from omnitrade.observability.trace_context import with_context
@@ -133,6 +139,170 @@ def _build_session_db(settings: Settings) -> Any:
     return PostgresDb(db_url=settings.agno_postgres_url)
 
 
+_MAX_PAUSE_RESOLVE_ITERATIONS: int = 4
+"""Hard cap on the inner pause-resume loop. The Agent shouldn't legitimately
+re-pause more than once per cycle (one open per cycle in the prompt
+contract), but a runaway LLM that keeps emitting paused tools must not
+spin forever — this bounds the worst case."""
+
+
+async def _resolve_pauses(
+    *,
+    agent: Any,
+    run_result: Any,
+    settings: Settings,
+    event_bus: EventBus | None,
+    approval_registry: ApprovalRegistry | None,
+) -> Any:
+    """Resume any paused ``RunOutput`` until the agent run completes.
+
+    For each ``ToolExecution`` flagged ``requires_confirmation``:
+
+    * ``open_position`` with USD notional ≤
+      ``settings.hitl_open_size_threshold_usd`` is auto-confirmed
+      (server-side resume) so existing testnet flows are unchanged.
+    * ``open_position`` over the threshold publishes ``EVENT_RUN_PAUSED``
+      (when an event bus is wired) and waits on
+      ``approval_registry`` for an operator decision. Timeout / no
+      registry / rejection ⇒ ``confirmed=False`` (Agno records a
+      rejection result the LLM can react to or, more typically, the
+      cycle proceeds without firing the tool).
+    * Any other paused tool name is auto-rejected — the trading agent
+      only opts into HITL for the open path.
+
+    Returns the resumed :class:`RunOutput`. When the agent stays paused
+    beyond ``_MAX_PAUSE_RESOLVE_ITERATIONS`` we bail out and return the
+    last ``run_result`` so the caller can fall through to a defensive
+    hold.
+    """
+    threshold = float(getattr(settings, "hitl_open_size_threshold_usd", 0.0) or 0.0)
+    wait_timeout = float(getattr(settings, "hitl_approval_wait_seconds", 30.0) or 30.0)
+
+    iterations = 0
+    while getattr(run_result, "is_paused", False) and iterations < _MAX_PAUSE_RESOLVE_ITERATIONS:
+        iterations += 1
+        paused_tools = list(getattr(run_result, "tools_requiring_confirmation", []) or [])
+        if not paused_tools:
+            break
+
+        for tool_exec in paused_tools:
+            tool_name = getattr(tool_exec, "tool_name", "") or ""
+            tool_args = getattr(tool_exec, "tool_args", None) or {}
+
+            if tool_name != HITL_OPEN_TOOL_NAME:
+                # Defensive: any other tool flagged for confirmation is
+                # rejected — only the open path opted in. Agno will
+                # record the rejection and the LLM can recover.
+                tool_exec.confirmed = False
+                with_context(logger).warning(
+                    "trading_agent.hitl.unexpected_tool_paused",
+                    tool=tool_name,
+                )
+                continue
+
+            if not should_require_confirmation(tool_args, threshold_usd=threshold):
+                # Below threshold ⇒ auto-confirm immediately. This is
+                # the common case and matches "no behavior change for
+                # routine opens" from the T9 spec.
+                tool_exec.confirmed = True
+                with_context(logger).info(
+                    "trading_agent.hitl.auto_confirmed",
+                    tool=tool_name,
+                    threshold_usd=threshold,
+                )
+                continue
+
+            # Above threshold ⇒ escalate to a human via the dashboard.
+            run_id = str(getattr(run_result, "run_id", "") or "")
+            decision = await _await_human_approval(
+                run_id=run_id,
+                tool_name=tool_name,
+                tool_args=dict(tool_args) if isinstance(tool_args, dict) else {},
+                threshold_usd=threshold,
+                wait_timeout=wait_timeout,
+                event_bus=event_bus,
+                approval_registry=approval_registry,
+            )
+            tool_exec.confirmed = decision == "approve"
+            with_context(logger).info(
+                "trading_agent.hitl.human_resolved",
+                tool=tool_name,
+                run_id=run_id,
+                decision=decision,
+            )
+
+        try:
+            run_result = await agent.acontinue_run(run_response=run_result)
+        except Exception as exc:
+            with_context(logger).error(
+                "trading_agent.continue_run_failed",
+                error=str(exc),
+            )
+            return run_result
+
+    return run_result
+
+
+async def _await_human_approval(
+    *,
+    run_id: str,
+    tool_name: str,
+    tool_args: dict[str, Any],
+    threshold_usd: float,
+    wait_timeout: float,
+    event_bus: EventBus | None,
+    approval_registry: ApprovalRegistry | None,
+) -> str:
+    """Publish ``EVENT_RUN_PAUSED`` and wait for ``/confirm`` or ``/reject``.
+
+    Returns ``"approve"`` or ``"reject"``. Without a wired bus +
+    registry (e.g. unit tests building the think-fn with stub renderers)
+    the function rejects immediately — production composition always
+    wires both, so this is a no-op safety net rather than a feature
+    gap.
+    """
+    if event_bus is None or approval_registry is None or not run_id:
+        with_context(logger).warning(
+            "trading_agent.hitl.no_approval_channel",
+            has_event_bus=event_bus is not None,
+            has_registry=approval_registry is not None,
+            run_id_present=bool(run_id),
+        )
+        return "reject"
+
+    future = await approval_registry.register(run_id)
+
+    payload: dict[str, Any] = {
+        "run_id": run_id,
+        "tool_name": tool_name,
+        "tool_args": tool_args,
+        "requires_confirmation_reason": (
+            f"open exceeds HITL threshold of {threshold_usd:.0f} USD"
+        ),
+    }
+    try:
+        await event_bus.publish(EVENT_RUN_PAUSED, payload)
+    except Exception as exc:
+        with_context(logger).warning(
+            "trading_agent.hitl.publish_failed",
+            error=str(exc),
+            run_id=run_id,
+        )
+
+    try:
+        decision = await asyncio.wait_for(future, timeout=wait_timeout)
+        return str(decision)
+    except TimeoutError:
+        with_context(logger).warning(
+            "trading_agent.hitl.timeout",
+            run_id=run_id,
+            wait_timeout=wait_timeout,
+        )
+        return "reject"
+    finally:
+        await approval_registry.unregister(run_id)
+
+
 def build_agno_think_fn(
     container: Any,
     settings: Settings,
@@ -142,6 +312,7 @@ def build_agno_think_fn(
     market_block_builder: Callable[[Any, MarketSnapshot], Awaitable[str]],
     recent_trades_block_builder: Callable[[Any], Awaitable[str]],
     event_bus: EventBus | None = None,
+    approval_registry: ApprovalRegistry | None = None,
 ) -> ThinkFn:
     """Return a `think_fn` backed by Agno's Agent.
 
@@ -270,6 +441,11 @@ def build_agno_think_fn(
         # between concurrent triggers.
         recorder = DecisionRecorder()
         decision_tools = build_decision_tools(recorder)
+        # T9: re-wrap ``open_position`` with ``requires_confirmation=True``
+        # so Agno emits a ``RunPausedEvent`` per open. The pause loop in
+        # ``_resolve_pauses`` then auto-confirms below the HITL
+        # threshold or escalates to a human.
+        decision_tools = wrap_open_position_for_hitl(decision_tools)
 
         try:
             await _ensure_mcp_connected()
@@ -352,6 +528,13 @@ def build_agno_think_fn(
 
         try:
             run_result = await agent.arun(user_prompt)
+            run_result = await _resolve_pauses(
+                agent=agent,
+                run_result=run_result,
+                settings=settings,
+                event_bus=event_bus,
+                approval_registry=approval_registry,
+            )
         except Exception as exc:
             with_context(logger).error(
                 "trading_agent.run_failed",

@@ -23,12 +23,25 @@ from decimal import Decimal
 from typing import Any
 
 import structlog
+from agno.tools import tool
+from agno.tools.function import Function
 
 from omnitrade.agents.tools.structured_reason import StructuredReason
 from omnitrade.domain.entities import Decision
 from omnitrade.observability.trace_context import with_context
 
 logger = structlog.get_logger(__name__)
+
+
+# T9: ``open_position`` is decorated with ``requires_confirmation=True``
+# so Agno emits a ``RunPausedEvent`` whenever the LLM picks it. The
+# trading-agent wrapper inspects the paused tool args against
+# ``settings.hitl_open_size_threshold_usd`` and either auto-confirms
+# (below threshold — preserves legacy behaviour) or publishes
+# ``EVENT_RUN_PAUSED`` and waits for an operator response. The pause
+# is the natural breakpoint Agno gives us; the per-call threshold
+# decision lives in :mod:`omnitrade.agents.hitl`.
+_OPEN_POSITION_REQUIRES_CONFIRMATION: bool = True
 
 
 class DecisionRecorder:
@@ -91,6 +104,12 @@ def build_decision_tools(recorder: DecisionRecorder) -> list[DecisionTool]:
 
     Order matters: hold_tool last to counter recency bias (PR-B2 Phase A
     pre-mortem item M1). The Agno Agent will see them in this order.
+
+    ``open_position`` is wrapped via :func:`agno.tools.tool` with
+    ``requires_confirmation=True`` — every open call surfaces as a
+    :class:`agno.run.agent.RunPausedEvent` so the trading-agent wrapper
+    can decide (per-call) whether to auto-confirm under the HITL
+    notional threshold or escalate to a human approval banner.
     """
 
     async def open_position(
@@ -208,4 +227,47 @@ def build_decision_tools(recorder: DecisionRecorder) -> list[DecisionTool]:
     return [open_position, close_position, partial_close, hold_tool]
 
 
-__all__ = ["DecisionRecorder", "DecisionTool", "build_decision_tools"]
+def wrap_open_position_for_hitl(
+    tools: list[Function | DecisionTool],
+) -> list[Function | DecisionTool]:
+    """Replace the ``open_position`` callable with an Agno
+    :class:`agno.tools.function.Function` that carries
+    ``requires_confirmation=True``.
+
+    The trading-agent factory calls this just before handing the tool
+    list to ``Agent(...)``. We intentionally do NOT do this inside
+    :func:`build_decision_tools` because legacy callers (T7's reliability
+    eval) iterate the returned tools and assert ``callable(t)`` /
+    ``t.__name__`` — both true of the bare async fn but not of the
+    Agno ``Function`` Pydantic model.
+
+    The other three decision tools stay as plain callables; Agno's
+    agent registration converts them via ``Function.from_callable`` at
+    runtime with ``requires_confirmation=False`` (no pause path).
+    """
+    wrapped: list[Function | DecisionTool] = []
+    for fn in tools:
+        if callable(fn) and getattr(fn, "__name__", "") == "open_position":
+            decorated = tool(
+                name="open_position",
+                description=(
+                    "Open a new leveraged futures position. Pauses for "
+                    "human approval when the USD notional exceeds "
+                    "HITL_OPEN_SIZE_THRESHOLD_USD; below the threshold "
+                    "the trading agent auto-confirms so existing testnet "
+                    "flows remain unchanged."
+                ),
+                requires_confirmation=_OPEN_POSITION_REQUIRES_CONFIRMATION,
+            )(fn)
+            wrapped.append(decorated)
+        else:
+            wrapped.append(fn)
+    return wrapped
+
+
+__all__ = [
+    "DecisionRecorder",
+    "DecisionTool",
+    "build_decision_tools",
+    "wrap_open_position_for_hitl",
+]

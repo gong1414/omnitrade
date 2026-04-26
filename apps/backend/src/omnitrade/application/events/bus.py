@@ -30,8 +30,12 @@ EVENT_POSITION_UPDATE = "position_update"
 EVENT_DECISION_UPDATE = "decision_update"
 EVENT_ACCOUNT_UPDATE = "account_update"
 # Phase 8.5a (plan v3 G-5): multi-agent orchestrator degradation surface
-# — payload carries {strategy, correlation_id, reason}.
+# — payload carries {strategy, run_id, reason}.
 EVENT_ORCHESTRATOR_ERROR = "orchestrator_error"
+# T9: human-in-the-loop pause surface. Payload carries
+# ``{run_id, tool_name, tool_args, requires_confirmation_reason}`` so
+# the dashboard ApprovalBanner can render context for the paused open.
+EVENT_RUN_PAUSED = "run_paused"
 
 
 @dataclass(frozen=True)
@@ -106,6 +110,7 @@ class EventBus:
                 EVENT_DECISION_UPDATE,
                 EVENT_ACCOUNT_UPDATE,
                 EVENT_ORCHESTRATOR_ERROR,
+                EVENT_RUN_PAUSED,
             }
         )
         queue: asyncio.Queue[Event] = asyncio.Queue(maxsize=self._queue_maxsize)
@@ -173,6 +178,7 @@ __all__ = [
     "EVENT_DECISION_UPDATE",
     "EVENT_ORCHESTRATOR_ERROR",
     "EVENT_POSITION_UPDATE",
+    "EVENT_RUN_PAUSED",
     "AsyncHandler",
     "Event",
     "EventBus",

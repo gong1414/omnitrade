@@ -14,6 +14,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from omnitrade.agents.hitl import ApprovalRegistry
 from omnitrade.application.account_service import AccountService
 from omnitrade.application.decision_service import DecisionService
 from omnitrade.application.events.bus import EventBus
@@ -91,6 +92,10 @@ class ApiContainer:
     # ``settings.use_ws_market_data`` is False — rollback-safe default).
     ws_client: WSClient | None = None
     vec_store: SQLiteVecStore | None = None
+    # T9: shared HITL approval registry. The trading agent registers
+    # paused-run futures here; the ``/api/v1/runs/{run_id}/{confirm,reject}``
+    # routes resolve them.
+    approval_registry: ApprovalRegistry | None = None
 
 
 def build_api_container(
@@ -180,6 +185,10 @@ def build_api_container(
         session_factory=open_session,
     )
 
+    # T9: HITL approval registry. Process-local in-memory store —
+    # safe under the single-process FastAPI deployment we ship today.
+    approval_registry = ApprovalRegistry()
+
     return ApiContainer(
         event_bus=event_bus,
         session_factory=session_factory,
@@ -204,6 +213,7 @@ def build_api_container(
         signal_service=signal_service,
         ws_client=ws_client,
         vec_store=vec_store,
+        approval_registry=approval_registry,
     )
 
 

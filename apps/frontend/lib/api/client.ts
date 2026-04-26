@@ -19,6 +19,7 @@ import type {
   Position,
   PositionsResponse,
   RebateSummary,
+  RunApprovalResponse,
   StatsResponse,
   StrategyResponse,
   TradesResponse,
@@ -156,6 +157,25 @@ export function createApiClient(options: ApiClientOptions = {}) {
     triggerCycle: () =>
       request<CycleTriggerResponse>(
         `/api/v1/cycle/trigger`,
+        { method: "POST" },
+        opts,
+      ),
+
+    // T9 — HITL approvals on large opens. Resolves the asyncio.Future
+    // the trading agent registered when the open exceeded
+    // ``HITL_OPEN_SIZE_THRESHOLD_USD``. The 404 path (no pending
+    // approval) is the operator-double-click case; consumers should
+    // swallow it.
+    confirmRun: (runId: string) =>
+      request<RunApprovalResponse>(
+        `/api/v1/runs/${encodeURIComponent(runId)}/confirm`,
+        { method: "POST" },
+        opts,
+      ),
+
+    rejectRun: (runId: string) =>
+      request<RunApprovalResponse>(
+        `/api/v1/runs/${encodeURIComponent(runId)}/reject`,
         { method: "POST" },
         opts,
       ),

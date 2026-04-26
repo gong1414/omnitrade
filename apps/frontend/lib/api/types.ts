@@ -274,13 +274,29 @@ export interface CycleTriggerResponse {
   elapsed_seconds: number;
 }
 
+// ── /api/v1/runs/{run_id}/{confirm,reject} (T9 — HITL approvals) ──────────
+
+export interface RunApprovalResponse {
+  status: "resolved";
+  decision: "approve" | "reject";
+  run_id: string;
+}
+
+export interface RunPausedPayload {
+  run_id: string;
+  tool_name: string;
+  tool_args: Record<string, unknown>;
+  requires_confirmation_reason: string;
+}
+
 // ── /ws/stream ────────────────────────────────────────────────────────────
 
 export type WsEventType =
   | "position_update"
   | "decision_update"
   | "account_update"
-  | "orchestrator_error";
+  | "orchestrator_error"
+  | "run_paused";
 
 export interface WsEnvelope<T = unknown> {
   type: WsEventType;

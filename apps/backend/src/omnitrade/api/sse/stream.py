@@ -39,6 +39,7 @@ from omnitrade.application.events import (
     EVENT_DECISION_UPDATE,
     EVENT_ORCHESTRATOR_ERROR,
     EVENT_POSITION_UPDATE,
+    EVENT_RUN_PAUSED,
 )
 from omnitrade.observability.trace_context import with_context
 
@@ -55,6 +56,7 @@ _SUBSCRIBED_NAMES: set[str] = {
     EVENT_DECISION_UPDATE,
     EVENT_ACCOUNT_UPDATE,
     EVENT_ORCHESTRATOR_ERROR,
+    EVENT_RUN_PAUSED,
 }
 
 # Heartbeat interval — keeps middleboxes from culling the long-lived

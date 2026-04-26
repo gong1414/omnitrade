@@ -192,6 +192,7 @@ const en = {
   "log.filter.position": "position",
   "log.filter.decision": "decision",
   "log.filter.orchestrator": "orchestrator",
+  "log.filter.approval": "approval",
 
   // ── Console design (OmniTrade · Agent Observatory) ────────────────────────
   "cd.brand.name": "OmniTrade",
@@ -460,6 +461,7 @@ const zh: Record<keyof typeof en, string> = {
   "log.filter.position": "持仓",
   "log.filter.decision": "决策",
   "log.filter.orchestrator": "编排",
+  "log.filter.approval": "待审批",
 
   // ── Console design (OmniTrade · Agent Observatory) ────────────────────────
   "cd.brand.name": "OmniTrade",

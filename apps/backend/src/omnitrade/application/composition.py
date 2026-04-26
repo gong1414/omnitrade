@@ -393,6 +393,10 @@ def _build_base_think_fn(
         # publish ``EVENT_ORCHESTRATOR_ERROR`` when the LLM reports a
         # data-quality fault (auto-lights the dashboard banner).
         event_bus=container.event_bus,
+        # T9: forward the HITL approval registry so the trading agent
+        # can pause large opens for operator approval via the dashboard
+        # banner. ``None`` paths in tests fall through to auto-reject.
+        approval_registry=getattr(container, "approval_registry", None),
     )
 
 

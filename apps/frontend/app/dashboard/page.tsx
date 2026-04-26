@@ -1,6 +1,7 @@
 "use client";
 
 import useSWR from "swr";
+import { ApprovalBanner } from "@/components/ApprovalBanner";
 import { ConnectionBanner } from "@/components/ConnectionBanner";
 import { AccountSummary } from "@/components/console/AccountSummary";
 import { ConsoleHeader } from "@/components/console/ConsoleHeader";
@@ -34,7 +35,7 @@ const CONFIG_KEY = "/api/v1/config";
  *   └─ TweaksPanel (floating, bottom-right) ─────────────────┘
  */
 export default function DashboardPage() {
-  const { state, lastDisconnectAt, orchestratorError, lastDecisionEvent } = useRealtime();
+  const { state, lastDisconnectAt, orchestratorError, lastDecisionEvent, pausedRun, clearPausedRun } = useRealtime();
   const { decisions } = useDecisions({ limit: 1 });
   const { data: config } = useSWR<ConfigResponse>(
     CONFIG_KEY,
@@ -58,6 +59,12 @@ export default function DashboardPage() {
               lastDisconnectAt={lastDisconnectAt}
               orchestratorError={orchestratorError}
             />
+          </div>
+        )}
+
+        {pausedRun && (
+          <div className="px-6 pt-4">
+            <ApprovalBanner pausedRun={pausedRun} onResolved={clearPausedRun} />
           </div>
         )}
 

@@ -10,6 +10,7 @@ import type {
   DecisionUpdatePayload,
   OrchestratorErrorPayload,
   PositionUpdatePayload,
+  RunPausedPayload,
   WsEnvelope,
   WsEventType,
 } from "../api/types";
@@ -26,6 +27,7 @@ export type WsPayloadMap = {
   position_update: PositionUpdatePayload;
   decision_update: DecisionUpdatePayload;
   orchestrator_error: OrchestratorErrorPayload;
+  run_paused: RunPausedPayload;
 };
 
 export type WsListener<T extends WsEventType> = (
@@ -151,6 +153,7 @@ export class SseClient {
       "position_update",
       "decision_update",
       "orchestrator_error",
+      "run_paused",
     ];
     for (const t of namedTypes) {
       this.es.addEventListener(t, (ev: MessageEvent) => this.dispatch(ev.data, t));
@@ -218,6 +221,7 @@ export type {
   DecisionUpdatePayload,
   OrchestratorErrorPayload,
   PositionUpdatePayload,
+  RunPausedPayload,
   WsEnvelope,
   WsEventType,
 };

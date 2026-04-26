@@ -24,6 +24,7 @@ from omnitrade.api.routes import (
     prices,
     ready,
     rebate,
+    runs,
     stats,
     strategy,
     trades,
@@ -38,6 +39,8 @@ api_router.include_router(actions.router)
 api_router.include_router(rebate.router)
 api_router.include_router(cycle.router)
 api_router.include_router(trades.router)
+# T9: HITL approval surface — POST /api/v1/runs/{run_id}/{confirm,reject}.
+api_router.include_router(runs.router)
 
 
 # Phase 8.3: upstream-parity REST routes live at ``/api/...`` (no v1 prefix).

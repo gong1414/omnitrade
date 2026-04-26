@@ -5,6 +5,7 @@ from omnitrade.application.events.bus import (
     EVENT_DECISION_UPDATE,
     EVENT_ORCHESTRATOR_ERROR,
     EVENT_POSITION_UPDATE,
+    EVENT_RUN_PAUSED,
     Event,
     EventBus,
 )
@@ -14,6 +15,7 @@ __all__ = [
     "EVENT_DECISION_UPDATE",
     "EVENT_ORCHESTRATOR_ERROR",
     "EVENT_POSITION_UPDATE",
+    "EVENT_RUN_PAUSED",
     "Event",
     "EventBus",
 ]

@@ -13,6 +13,7 @@ const FILTERS: ("all" | WsEventType)[] = [
   "position_update",
   "decision_update",
   "orchestrator_error",
+  "run_paused",
 ];
 
 // Map event types to i18n filter labels.
@@ -22,6 +23,7 @@ const FILTER_KEY: Record<(typeof FILTERS)[number], string> = {
   position_update: "position",
   decision_update: "decision",
   orchestrator_error: "orchestrator",
+  run_paused: "approval",
 };
 
 const toneFor: Record<WsEventType, Parameters<typeof Chip>[0]["tone"]> = {
@@ -29,6 +31,7 @@ const toneFor: Record<WsEventType, Parameters<typeof Chip>[0]["tone"]> = {
   position_update: "blue",
   decision_update: "violet",
   orchestrator_error: "coral",
+  run_paused: "amber",
 };
 
 const dotFor: Record<WsEventType, Parameters<typeof StatusDot>[0]["tone"]> = {
@@ -36,6 +39,7 @@ const dotFor: Record<WsEventType, Parameters<typeof StatusDot>[0]["tone"]> = {
   position_update: "violet",
   decision_update: "amber",
   orchestrator_error: "coral",
+  run_paused: "amber",
 };
 
 function shortPayload(payload: unknown): string {

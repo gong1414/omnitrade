@@ -9,6 +9,7 @@ import { POSITIONS_KEY } from "./usePositions";
 import type {
   DecisionUpdatePayload,
   OrchestratorErrorPayload,
+  RunPausedPayload,
   WsEnvelope,
   WsEventType,
 } from "@/lib/api/types";
@@ -31,6 +32,10 @@ export function useRealtime({ maxLog = 200 }: { maxLog?: number } = {}) {
     useState<OrchestratorErrorPayload | null>(null);
   const [lastDecisionEvent, setLastDecisionEvent] =
     useState<WsEnvelope<DecisionUpdatePayload> | null>(null);
+  // T9 — most recent paused-run prompt (an above-threshold open
+  // awaiting operator approval). Cleared when ApprovalBanner posts to
+  // /confirm or /reject.
+  const [pausedRun, setPausedRun] = useState<RunPausedPayload | null>(null);
 
   useEffect(() => {
     const client = getSseClient();
@@ -89,6 +94,10 @@ export function useRealtime({ maxLog = 200 }: { maxLog?: number } = {}) {
         setOrchestratorError(env.payload as OrchestratorErrorPayload);
       },
     );
+    const unsubRunPaused = client.subscribe("run_paused", (env) => {
+      pushLog(env);
+      setPausedRun(env.payload as RunPausedPayload);
+    });
 
     const unsubState = client.onStateChange((s) => {
       setState(s);
@@ -100,9 +109,18 @@ export function useRealtime({ maxLog = 200 }: { maxLog?: number } = {}) {
       unsubPosition();
       unsubDecision();
       unsubOrchestratorError();
+      unsubRunPaused();
       unsubState();
     };
   }, [maxLog]);
 
-  return { state, lastDisconnectAt, log, orchestratorError, lastDecisionEvent };
+  return {
+    state,
+    lastDisconnectAt,
+    log,
+    orchestratorError,
+    lastDecisionEvent,
+    pausedRun,
+    clearPausedRun: () => setPausedRun(null),
+  };
 }

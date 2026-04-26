@@ -387,6 +387,32 @@ class Settings(BaseSettings):
     ``hold`` decisions are always passed through (no-op).
     """
 
+    # ------------------------------------------------------------------ #
+    # T9 — Human-in-the-loop approvals on large opens                     #
+    # ------------------------------------------------------------------ #
+    hitl_open_size_threshold_usd: float = 10_000.0
+    """USD-notional threshold above which an ``open_position`` tool call
+    pauses for human approval.
+
+    The trading Agent decorates ``record_open_decision`` with
+    ``requires_confirmation=True``; the trading-agent wrapper then
+    auto-confirms when ``size * entry_price <= hitl_open_size_threshold_usd``
+    so existing testnet-scale opens never block. Opens above the
+    threshold publish ``EVENT_RUN_PAUSED`` to the dashboard banner and
+    block until the operator hits ``POST /api/v1/runs/{run_id}/confirm``
+    or ``/reject`` — bounded by the cycle's outer timeout.
+
+    Default 10,000 USD is well above the project's typical testnet
+    sizes; raise/lower per deployment via ``HITL_OPEN_SIZE_THRESHOLD_USD``.
+    """
+
+    hitl_approval_wait_seconds: float = 30.0
+    """How long the trading agent waits for a human approval response
+    after publishing ``EVENT_RUN_PAUSED``. On timeout the wrapper rejects
+    the paused open and the cycle records a defensive ``hold``. The
+    cycle's own ``cycle_trigger_timeout_seconds`` outer budget always
+    wins, so this value should stay well below it."""
+
 
 _settings: Settings | None = None
 
