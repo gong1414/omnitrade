@@ -21,13 +21,24 @@ Validated end-to-end on 2026-04-26 against testnet:
 - AgentOS poller fires `trading-cycle` automatically at the next cron
   edge (`0 */2 * * *` for `TRADING_INTERVAL_MINUTES=120`)
 - No APScheduler `trading_cycle` job in `scheduler.add_job` calls
-- 579 backend tests passed, 1 skipped, 0 failed
+- 653 backend tests passed, 2 skipped, 0 failed (after Tier A T1–T4 + T7)
 
-All open Agno-migration follow-ups are landed. The trading cycle
-runs on AgentOS native scheduler, the workflow is registered with
-AgentOS, the backtest engine has been ported, and deterministic
-replays go through vcrpy (`backtest/cassette.py`,
+The trading cycle runs on AgentOS native scheduler, the workflow is
+registered with AgentOS, the backtest engine has been ported, and
+deterministic replays go through vcrpy (`backtest/cassette.py`,
 `--cassette / --cassette-mode` CLI flags).
+
+## Tier A follow-ups (post-cutover hardening)
+
+| Task | Commit | Status |
+|------|--------|--------|
+| **T1 — Agent + Team native retries** (`retries=2, exponential_backoff=True` on trading_agent + experts_team) | `fe53df0` | ✅ shipped |
+| **T2 — Cross-cycle session summaries** (`enable_session_summaries=True` when `agno_postgres_url` is wired; rolling summary in `ai.agno_sessions.summary`) | `fe53df0` | ✅ shipped |
+| **T3 — G5 QA-phrase post_hook** (Agno post_hook scans `RunOutput.content` for the 11 CLAUDE.md G5 fault phrases → publishes `EVENT_ORCHESTRATOR_ERROR` so the dashboard banner auto-lights; `agents/guardrails/qa_phrase.py` + 24 unit tests) | `b8fea4d` | ✅ shipped |
+| **T4 — OpenTelemetry tracing overlay** (`agno.tracing.setup_tracing(db=PostgresDb)` registered in lifespan; AgentOS `GET /traces` returns one span per cycle / model call / tool call; idempotent + kill-switched on `OTEL_TRACING_ENABLED`) | `1f15118` | ✅ shipped (G1 docker rebuild gate not yet walked) |
+| **T7 — `ReliabilityEval` in CI** (`tests/eval/test_reliability_cycle.py`, hermetic synthesised `RunOutput` per decision tool, dedicated CI step `Agent ReliabilityEval (Agno)`) | `dc35280` | ✅ shipped |
+
+Tier B (sequential, blocked on Tier A): **T5** dual-write `correlation_id` + `run_id` (front-runs T6) → **T6** drop `correlation_id`. Tier C (independent, ranked by ROI): **T8** `AccuracyEval` LLM-as-judge replacing G2 jq checks; **T9** HITL approvals via `requires_confirmation` on big-size opens; **T10** Knowledge / trade-journal RAG. None of T5–T10 are in flight yet.
 
 Last updated: 2026-04-26
 
