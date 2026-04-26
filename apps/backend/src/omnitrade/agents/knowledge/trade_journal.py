@@ -63,6 +63,86 @@ _TABLE_NAME = "trade_journal"
 _MAX_CONTENT_CHARS = 4_000
 
 
+def _build_embedder(settings: Settings, provider: str) -> Any | None:
+    """Construct the configured embedder. ``None`` when unbuildable.
+
+    ``fastembed`` is the safe default — runs CPU-bound, no API key.
+    ``openai`` routes through Agno's :class:`OpenAIEmbedder` against the
+    configured (or LLM-fallback) base URL + key. Any failure logs a
+    structured warning and returns ``None`` so the caller can short-circuit
+    the whole RAG layer rather than crash the cycle.
+    """
+    if provider == "fastembed":
+        try:
+            from agno.knowledge.embedder.fastembed import FastEmbedEmbedder
+        except ImportError as exc:
+            logger.warning(
+                "trade_journal.build.embedder_unavailable",
+                provider=provider,
+                error=str(exc),
+                hint="install `fastembed` — pinned in apps/backend/pyproject.toml",
+            )
+            return None
+        try:
+            return FastEmbedEmbedder(id=settings.embedder_model_id)
+        except Exception as exc:  # pragma: no cover — best-effort
+            logger.warning(
+                "trade_journal.build.embedder_failed",
+                provider=provider,
+                error=str(exc),
+            )
+            return None
+
+    if provider == "openai":
+        embedder_key_secret = settings.embedder_api_key or settings.llm_api_key
+        api_key = (
+            embedder_key_secret.get_secret_value()
+            if embedder_key_secret is not None
+            else None
+        )
+        if not api_key:
+            logger.warning(
+                "trade_journal.build.skip",
+                reason="embedder_api_key/llm_api_key unset",
+                hint=(
+                    "set EMBEDDER_API_KEY or LLM_API_KEY to enable the "
+                    "OpenAI-protocol embedder; the trading cycle still "
+                    "runs without it"
+                ),
+            )
+            return None
+        embedder_base_raw = settings.embedder_base_url or settings.llm_base_url
+        base_url = str(embedder_base_raw) if embedder_base_raw is not None else None
+        try:
+            from agno.knowledge.embedder.openai import OpenAIEmbedder
+        except ImportError as exc:
+            logger.warning(
+                "trade_journal.build.embedder_unavailable",
+                provider=provider,
+                error=str(exc),
+            )
+            return None
+        kwargs: dict[str, Any] = {"id": settings.embedder_model_id, "api_key": api_key}
+        if base_url:
+            kwargs["base_url"] = base_url
+        try:
+            return OpenAIEmbedder(**kwargs)
+        except Exception as exc:  # pragma: no cover — best-effort
+            logger.warning(
+                "trade_journal.build.embedder_failed",
+                provider=provider,
+                error=str(exc),
+            )
+            return None
+
+    logger.warning(
+        "trade_journal.build.unknown_provider",
+        provider=provider,
+        hint="set EMBEDDER_PROVIDER to one of: fastembed, openai",
+    )
+    return None
+
+
 def build_trade_journal_knowledge(settings: Settings) -> Any | None:
     """Construct an Agno :class:`Knowledge` instance backed by PgVector.
 
@@ -86,29 +166,9 @@ def build_trade_journal_knowledge(settings: Settings) -> Any | None:
         )
         return None
 
-    # Embedder credentials — prefer the dedicated `embedder_*` setting
-    # but fall back to `llm_*` so the operator can reuse a single
-    # OpenAI-compatible key + base_url (DeepSeek / OpenRouter / proxy).
-    embedder_key_secret = settings.embedder_api_key or settings.llm_api_key
-    embedder_api_key = (
-        embedder_key_secret.get_secret_value() if embedder_key_secret is not None else None
-    )
-    if not embedder_api_key:
-        logger.warning(
-            "trade_journal.build.skip",
-            reason="embedder_api_key/llm_api_key unset",
-            hint=(
-                "set EMBEDDER_API_KEY or LLM_API_KEY to enable "
-                "trade-journal RAG; the trading cycle still runs without it"
-            ),
-        )
-        return None
-
-    embedder_base_raw = settings.embedder_base_url or settings.llm_base_url
-    embedder_base_url = str(embedder_base_raw) if embedder_base_raw is not None else None
+    provider = (settings.embedder_provider or "fastembed").lower()
 
     try:
-        from agno.knowledge.embedder.openai import OpenAIEmbedder
         from agno.knowledge.knowledge import Knowledge
         from agno.vectordb.pgvector import PgVector
         from agno.vectordb.search import SearchType
@@ -123,14 +183,11 @@ def build_trade_journal_knowledge(settings: Settings) -> Any | None:
         )
         return None
 
+    embedder = _build_embedder(settings, provider)
+    if embedder is None:
+        return None
+
     try:
-        embedder_kwargs: dict[str, Any] = {
-            "id": settings.embedder_model_id,
-            "api_key": embedder_api_key,
-        }
-        if embedder_base_url:
-            embedder_kwargs["base_url"] = embedder_base_url
-        embedder = OpenAIEmbedder(**embedder_kwargs)
         vector_db = PgVector(
             table_name=_TABLE_NAME,
             db_url=settings.agno_postgres_url,

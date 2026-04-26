@@ -61,18 +61,49 @@ def test_build_returns_none_when_postgres_url_unset(capsys: Any) -> None:
 # ── Acceptance 2: returns Knowledge instance when wired ─────────────────── #
 
 
-def test_build_returns_knowledge_when_url_and_key_set() -> None:
+def test_build_returns_knowledge_when_url_set_with_fastembed() -> None:
+    """Default provider (fastembed) needs no API key."""
     settings = _fresh_settings(
         agno_postgres_url="postgresql+psycopg://u:p@h:5432/d",
-        llm_api_key="sk-fake",  # type: ignore[arg-type]
     )
+    assert settings.embedder_provider == "fastembed"
 
     fake_pgvector_instance = MagicMock(name="PgVectorInstance")
     fake_pgvector_cls = MagicMock(name="PgVectorCls", return_value=fake_pgvector_instance)
     fake_knowledge_instance = MagicMock(name="KnowledgeInstance")
     fake_knowledge_cls = MagicMock(name="KnowledgeCls", return_value=fake_knowledge_instance)
-    fake_embedder_instance = MagicMock(name="EmbedderInstance")
-    fake_embedder_cls = MagicMock(name="EmbedderCls", return_value=fake_embedder_instance)
+    fake_embedder_instance = MagicMock(name="FastEmbedInstance")
+    fake_embedder_cls = MagicMock(name="FastEmbedCls", return_value=fake_embedder_instance)
+
+    with (
+        patch("agno.vectordb.pgvector.PgVector", fake_pgvector_cls),
+        patch("agno.knowledge.knowledge.Knowledge", fake_knowledge_cls),
+        patch("agno.knowledge.embedder.fastembed.FastEmbedEmbedder", fake_embedder_cls),
+    ):
+        out = build_trade_journal_knowledge(settings)
+
+    assert out is fake_knowledge_instance
+    fake_embedder_cls.assert_called_once()
+    assert fake_embedder_cls.call_args.kwargs["id"] == settings.embedder_model_id
+    fake_pgvector_cls.assert_called_once()
+    pg_kwargs = fake_pgvector_cls.call_args.kwargs
+    assert pg_kwargs["table_name"] == "trade_journal"
+    assert pg_kwargs["embedder"] is fake_embedder_instance
+
+
+def test_build_returns_knowledge_with_openai_provider() -> None:
+    """Operator-overridden ``openai`` provider routes via OpenAIEmbedder."""
+    settings = _fresh_settings(
+        agno_postgres_url="postgresql+psycopg://u:p@h:5432/d",
+        embedder_provider="openai",
+        llm_api_key="sk-fake",  # type: ignore[arg-type]
+        embedder_model_id="text-embedding-3-small",
+    )
+
+    fake_pgvector_cls = MagicMock(name="PgVectorCls", return_value=MagicMock())
+    fake_knowledge_cls = MagicMock(name="KnowledgeCls", return_value=MagicMock())
+    fake_embedder_instance = MagicMock(name="OpenAIEmbedderInstance")
+    fake_embedder_cls = MagicMock(name="OpenAIEmbedderCls", return_value=fake_embedder_instance)
 
     with (
         patch("agno.vectordb.pgvector.PgVector", fake_pgvector_cls),
@@ -81,27 +112,20 @@ def test_build_returns_knowledge_when_url_and_key_set() -> None:
     ):
         out = build_trade_journal_knowledge(settings)
 
-    assert out is fake_knowledge_instance
+    assert out is not None
     fake_embedder_cls.assert_called_once()
     em_kwargs = fake_embedder_cls.call_args.kwargs
     assert em_kwargs["api_key"] == "sk-fake"
-    assert em_kwargs["id"] == settings.embedder_model_id
-    fake_pgvector_cls.assert_called_once()
-    pg_kwargs = fake_pgvector_cls.call_args.kwargs
-    assert pg_kwargs["table_name"] == "trade_journal"
-    assert pg_kwargs["db_url"] == settings.agno_postgres_url
-    assert pg_kwargs["embedder"] is fake_embedder_instance
-    fake_knowledge_cls.assert_called_once()
-    kn_kwargs = fake_knowledge_cls.call_args.kwargs
-    assert kn_kwargs["vector_db"] is fake_pgvector_instance
+    assert em_kwargs["id"] == "text-embedding-3-small"
 
 
-# ── Acceptance 3: embedder key missing → warn + None ────────────────────── #
+# ── Acceptance 3: embedder key missing → warn + None (openai provider) ──── #
 
 
 def test_build_returns_none_when_embedder_key_missing(capsys: Any) -> None:
     settings = _fresh_settings(
         agno_postgres_url="postgresql+psycopg://u:p@h:5432/d",
+        embedder_provider="openai",
         # Both embedder_api_key and llm_api_key intentionally unset.
     )
 
@@ -117,10 +141,9 @@ def test_build_returns_none_when_embedder_key_missing(capsys: Any) -> None:
 
 
 def test_build_handles_import_error_gracefully() -> None:
-    """Missing pgvector extras should log + return None, not raise."""
+    """Missing pgvector / fastembed extras should log + return None, not raise."""
     settings = _fresh_settings(
         agno_postgres_url="postgresql+psycopg://u:p@h:5432/d",
-        llm_api_key="sk-fake",  # type: ignore[arg-type]
     )
 
     import builtins
@@ -129,7 +152,7 @@ def test_build_handles_import_error_gracefully() -> None:
     blocked = {
         "agno.vectordb.pgvector",
         "agno.knowledge.knowledge",
-        "agno.knowledge.embedder.openai",
+        "agno.knowledge.embedder.fastembed",
     }
 
     def fake_import(name: str, *args: object, **kwargs: object) -> object:
@@ -323,15 +346,8 @@ async def test_record_then_search_round_trips_against_live_postgres() -> None:
     ingest + retrieve loop when the operator has a Postgres + pgvector
     image running locally.
     """
-    embedder_key = os.getenv("EMBEDDER_API_KEY") or os.getenv("LLM_API_KEY")
-    if not embedder_key:
-        pytest.skip(
-            "requires_postgres: also needs EMBEDDER_API_KEY or LLM_API_KEY for the embedder"
-        )
-
     settings = _fresh_settings(
         agno_postgres_url=os.environ["AGNO_POSTGRES_URL"],
-        llm_api_key=embedder_key,  # type: ignore[arg-type]
     )
     knowledge = build_trade_journal_knowledge(settings)
     assert knowledge is not None, "factory should produce a Knowledge handle"

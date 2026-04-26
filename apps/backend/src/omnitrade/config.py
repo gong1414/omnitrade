@@ -131,19 +131,31 @@ class Settings(BaseSettings):
     # reused directly — no second credential needed. Each field falls back
     # to the matching ``llm_*`` field when unset; ``embedder_model_id``
     # has a sensible OpenAI-compatible default.
+    embedder_provider: str = "fastembed"
+    """Which embedder backend to use for the T10 trade-journal RAG layer.
+    ``fastembed`` runs CPU-bound locally (no API key, ~25MB model
+    download on first boot) — chosen as the safe default because
+    DeepSeek's API only ships chat models. ``openai`` routes through
+    Agno's :class:`OpenAIEmbedder` against ``embedder_base_url`` /
+    ``llm_base_url`` for operators on real OpenAI / aggregators
+    (OpenRouter, LiteLLM proxy, ...) that actually serve
+    ``/embeddings``."""
+
     embedder_api_key: SecretStr | None = None
-    """Optional dedicated embedder API key. Falls back to ``llm_api_key`` /
-    ``deepseek_api_key`` when unset so the same key serves both chat and
-    embedding when the upstream is OpenAI-compatible."""
+    """Optional dedicated embedder API key (only used when
+    ``embedder_provider="openai"``). Falls back to ``llm_api_key`` so
+    the same key serves both chat and embedding when the upstream is
+    OpenAI-compatible end-to-end."""
 
     embedder_base_url: AnyHttpUrl | None = None
-    """Optional dedicated embedder base URL. Falls back to ``llm_base_url``
-    when unset so DeepSeek / proxy users don't need to repeat the host."""
+    """Optional dedicated embedder base URL (``embedder_provider="openai"``
+    only). Falls back to ``llm_base_url`` when unset."""
 
-    embedder_model_id: str = "text-embedding-3-small"
-    """OpenAI-compatible embedding model id. Override when the upstream
-    proxy requires a different identifier (e.g. ``deepseek-embedding``,
-    ``text-embedding-3-large``)."""
+    embedder_model_id: str = "BAAI/bge-small-en-v1.5"
+    """Embedder model id. The default is fastembed's
+    ``BAAI/bge-small-en-v1.5`` (384-dim, multilingual-friendly).
+    Override to ``text-embedding-3-small`` (1536-dim) when
+    ``embedder_provider="openai"`` and the upstream is real OpenAI."""
 
     # ── Agno runtime (always-on after Stage A cutover) ─────────────────────
     agno_llm_model: str = "deepseek-reasoner"

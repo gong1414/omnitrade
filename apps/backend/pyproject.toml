@@ -46,6 +46,12 @@ dependencies = [
     # type Agno's PgVector vectordb uses to persist embeddings. Pinned
     # at the same minor floor as Agno's own optional extra.
     "pgvector>=0.3.0",
+    # T10: local embedder for trade-journal RAG. DeepSeek's API only
+    # serves chat models, so we default to fastembed (CPU-bound, no
+    # external key). The OpenAI-protocol path stays available via the
+    # `embedder_provider` setting for operators on a real OpenAI /
+    # OpenAI-compatible aggregator.
+    "fastembed>=0.4.0",
     "psycopg[binary]>=3.2.0",
 ]
 
