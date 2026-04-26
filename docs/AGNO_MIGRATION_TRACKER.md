@@ -3,9 +3,20 @@
 Source spec: `.omc/specs/deep-interview-agno-migration.md`
 Source plan: `~/.claude/plans/mossy-frolicking-hickey.md`
 
-This document tracks **what's landed**, **what's still flag-gated**, and
-**what gets deleted in the legacy purge** (Phase 6 final step) once the
-six phases are validated end-to-end on the testnet deployment.
+**Cutover complete (2026-04-26).** Stages A–E of the hard cutover plan
+have shipped on `main` (commits 148534d, 6f814cc, e7ccbff, a81da88,
+plus Stage E). The four `AGNO_*_ENABLED` flags are deleted, every
+LangGraph / LangChain / LiteLLM / mcp2py consumer is gone, the
+dashboard runs on SSE, and the trading Agent persists each cycle as a
+run inside a single Postgres-backed Agno session.
+
+What's still tracked but **not** required for the cutover:
+
+- **Phase 4.5** (AgentOS scheduler + `Workflow` registration) — APScheduler
+  still drives the cycle today. The `Workflow` scaffold and AgentOS
+  `/schedules` route are in place; flipping the seam is a follow-up.
+- **Backtest engine** — `backtest/engine.py` is a stub raising
+  `NotImplementedError`; port to Agno + `MockModel` is a follow-up.
 
 Last updated: 2026-04-26
 
@@ -13,17 +24,17 @@ Last updated: 2026-04-26
 
 ## Phase status
 
-| Phase | Status | Flag(s) | Notes |
-|-------|--------|---------|-------|
-| 0 — Preflight | ✅ landed | — | `agno>=2.0.0`, `psycopg[binary]>=3.2.0` in `apps/backend/pyproject.toml`; Postgres service in `docker-compose.yml`. |
-| 1 — LLM swap | ✅ landed | `AGNO_LLM_ENABLED` | `factory.build_llm_client` dispatches on the flag; `AgnoLLMAdapter` wraps Agno's DeepSeek. Default OFF preserves LiteLLM bit-for-bit. |
-| 2 — Agent + MCPTools | ✅ landed | `AGNO_AGENT_ENABLED` | `agents/trading_agent_agno.py` + `agents/tools/decision_schemas.py` + `agents/tools/mcp_bridge_agno.py`. `composition._build_base_think_fn` branches on the flag. |
-| 3 — Workflow + Team | ✅ landed | `AGNO_WORKFLOW_ENABLED` | `application/trading_workflow_agno.py` + `agents/experts_team_agno.py`. Workflow scaffolding ready for AgentOS scheduler in Phase 4.5. |
-| 4 — AgentOS shell | ✅ landed | `AGNO_AGENT_OS_ENABLED` | `api/agent_os_app.py::wrap_with_agent_os` overlays AgentOS routes on the existing FastAPI app (`on_route_conflict='preserve_base_app'`). +92 routes when on. |
-| 4.5 — AgentOS scheduler + Workflow registration | ⏳ deferred | (planned: `AGNO_OS_SCHEDULER`) | Wire `Workflow` into AgentOS via `workflows=[...]` so its built-in cron replaces APScheduler. Requires Postgres + verified end-to-end cycle. |
-| 5 — Frontend SSE client | ✅ landed | `NEXT_PUBLIC_USE_SSE` (planned) | `apps/frontend/lib/sse/client.ts` mirrors WS client surface. Hook switch arrives once AgentOS exposes the trading-decision SSE stream (Phase 4.5). |
-| 6 — Postgres engines + tracker | ✅ landed (this doc) | `DATABASE_URL=postgresql://...` | `_make_async_url` / `_make_sync_url` route Postgres through psycopg3 (Agno-aligned). Existing 5 alembic revisions auto-upgrade on Postgres. |
-| Legacy purge | ⏳ deferred | (no flag — code deletion) | Pulls listed files. Gated on user sign-off of all G1–G6 acceptance gates against the AgentOS path. |
+| Phase | Status | Notes |
+|-------|--------|-------|
+| 0 — Preflight | ✅ shipped | `agno>=2.0.0`, `psycopg[binary]>=3.2.0` in `apps/backend/pyproject.toml`; Postgres service in `docker-compose.yml`. |
+| 1 — LLM swap | ✅ shipped, **flag deleted** | `infrastructure/llm/agno_llm_adapter.py` is the only LLMClient. `factory.py` + `litellm_client.py` deleted. |
+| 2 — Agent + MCPTools | ✅ shipped, **flag deleted** | `agents/trading_agent.py` + `agents/tools/decision_schemas.py` + `agents/tools/mcp_bridge.py`. `composition._build_base_think_fn` is single-path. LangGraph `think_node.py` deleted. |
+| 3 — Workflow + Team | ✅ scaffolded, **flag deleted** | `application/trading_workflow.py` + `agents/experts_team.py` exist; not yet driving the cycle (see Phase 4.5). Legacy `application/multi_agent/` deleted. |
+| 4 — AgentOS shell | ✅ shipped, **flag deleted** | `api/agent_os_app.py::wrap_with_agent_os` is unconditional when LLM creds are present. AgentOS overlay adds +88 routes (sessions / runs / schedules / workflows) on top of the legacy `/api/v1/*` surface. |
+| 4.5 — AgentOS scheduler + Workflow registration | ⏳ deferred | APScheduler still drives the trading cycle. Workflow registration needs the AgentOS overlay to be built post-lifespan; tracked as a follow-up. |
+| 5 — Frontend SSE | ✅ shipped, **default transport** | `apps/frontend/lib/sse/{client,singleton}.ts` + `hooks/useRealtime.ts`. WS client + hook deleted; Playwright e2e ported to `fake-sse-server.ts`. |
+| 6 — Postgres + Agent.memory | ✅ shipped | `infrastructure/persistence/database.py` routes Postgres through psycopg3. The trading Agent runs against `ai.agno_sessions` (session_id="omnitrade-trading", `add_history_to_context=True`, `num_history_runs=5`). |
+| Legacy purge | ✅ shipped (Stages A + E) | LangGraph / LangChain / LiteLLM / mcp2py / multi_agent / api/ws all deleted on disk. APScheduler + `application/trading_loop.py` remain pending Phase 4.5. |
 
 ---
 

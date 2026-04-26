@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat&logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/Backend-FastAPI-009688?style=flat&logo=fastapi&logoColor=white" alt="FastAPI">
   <img src="https://img.shields.io/badge/Frontend-Next.js%2014-000000?style=flat&logo=next.js&logoColor=white" alt="Next.js">
-  <img src="https://img.shields.io/badge/LLM-LiteLLM-8A2BE2?style=flat" alt="LiteLLM">
+  <img src="https://img.shields.io/badge/Agent-Agno%20%2B%20AgentOS-8A2BE2?style=flat" alt="Agno">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow?style=flat" alt="License"></a>
   <br>
   <img src="https://img.shields.io/badge/策略-11-FF6B6B" alt="Strategies">
@@ -47,7 +47,7 @@ OmniTrade 是一个自动化**合约期货竞技场**，11 套由大模型驱动
 - **三位一体原子状态** —— `cumulative_close_pct` / `stop_loss` / `trailing_peak_pnl_pct` 在单条 SQL `UPDATE` 内落盘，止损监控器永远看不到 torn write
 - **默认 testnet** —— `GATE_USE_TESTNET=true` / `OKX_USE_TESTNET=true` 开箱即用；实盘必须显式改写
 - **行为等价门** —— 22 份固化 fixture 以 ≥ 0.95 的 Decision-equivalent 通过率确定性重放
-- **实时仪表盘** —— Next.js 14 App Router + SWR + WebSocket，自带指数退避重连
+- **实时仪表盘** —— Next.js 14 App Router + SWR + Server-Sent Events（EventSource），自带指数退避重连
 
 ---
 
@@ -182,7 +182,7 @@ docker compose -f docker-compose.prod.yml up -d
 
 ### 前置条件
 
-- **LLM API key** —— 任何 OpenAI 兼容 provider，通过 LiteLLM 接入（DeepSeek / OpenAI / Anthropic / 千问 / Kimi 等）
+- **LLM API key** —— DeepSeek（默认 `deepseek-reasoner`，可切 `deepseek-v4-pro` / `-flash`），由 Agno 的 DeepSeek 模型类直连。
 - **交易所凭证** —— Gate.io 或 OKX；**建议先 testnet**
 - 方案 B 需要 Python 3.11+ 和 [`uv`](https://github.com/astral-sh/uv)
 - 方案 A / C 需要 Docker + Docker Compose
@@ -203,7 +203,7 @@ docker compose -f docker-compose.prod.yml up -d
 | `EXTREME_STOP_LOSS_PERCENT` | `-30` | 极限止损硬地板 |
 | `EXCHANGE` | `gate` | `gate` 或 `okx` |
 | `GATE_USE_TESTNET` / `OKX_USE_TESTNET` | `true` | **默认 testnet，实盘必须显式改 `false`** |
-| `LLM_PROVIDER` | `deepseek` | LiteLLM routing key |
+| `LLM_PROVIDER` | `deepseek` | Agno DeepSeek provider key |
 | `LLM_MODEL_NAME` | `deepseek/deepseek-v3.2-exp` | 任意 OpenAI 兼容模型 |
 | `MULTI_AGENT_ENABLED` | `false` | 启用 `arena-raider-squad` / `arena-tribunal` |
 | `FEE_REBATE_PERCENT` | `20` | 在 `/api/account` 显示为 `rebateAmount` |
@@ -231,8 +231,8 @@ flowchart TD
     api[api<br/>FastAPI + 中间件 + DI]
     app[application<br/>services、monitors、orchestrators]
     dom[(domain<br/>entities、protocols、纯服务)]
-    infra[infrastructure<br/>SQLAlchemy、ccxt、LiteLLM、sqlite-vec]
-    agents[agents<br/>LangGraph think_node、jury、team experts]
+    infra[infrastructure<br/>SQLAlchemy、ccxt、Agno DeepSeek、sqlite-vec]
+    agents[agents<br/>Agno Agent + MultiMCPTools + Team]
 
     api --> app
     app --> dom
@@ -296,12 +296,12 @@ llmtrading/
 │   │   ├── src/omnitrade/
 │   │   │   ├── domain/               # entities、protocols、纯服务
 │   │   │   ├── application/          # services、5 条 monitor、multi-agent
-│   │   │   ├── infrastructure/       # SQLAlchemy、ccxt、LiteLLM、WS
-│   │   │   ├── agents/               # LangGraph think_node、prompts
+│   │   │   ├── infrastructure/       # SQLAlchemy、ccxt、Agno DeepSeek、SSE
+│   │   │   ├── agents/               # Agno Agent + MultiMCPTools、prompts
 │   │   │   └── api/                  # FastAPI router + 中间件
 │   │   ├── alembic/                  # 迁移（0001 init、0002 rename）
-│   │   └── tests/                    # 642 绿（≥ 0.95 行为等价）
-│   └── frontend/                     # Next.js 14 + SWR + WebSocket
+│   │   └── tests/                    # 586 绿
+│   └── frontend/                     # Next.js 14 + SWR + Server-Sent Events
 ├── tests/fixtures/frozen/            # 22 份手工策展决策契约
 ├── docs/                             # 架构 / 策略 / 发布 / ...
 ├── scripts/                          # 运维 + 行为等价 CLI

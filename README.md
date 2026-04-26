@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat&logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/Backend-FastAPI-009688?style=flat&logo=fastapi&logoColor=white" alt="FastAPI">
   <img src="https://img.shields.io/badge/Frontend-Next.js%2014-000000?style=flat&logo=next.js&logoColor=white" alt="Next.js">
-  <img src="https://img.shields.io/badge/LLM-LiteLLM-8A2BE2?style=flat" alt="LiteLLM">
+  <img src="https://img.shields.io/badge/Agent-Agno%20%2B%20AgentOS-8A2BE2?style=flat" alt="Agno">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow?style=flat" alt="License"></a>
   <br>
   <img src="https://img.shields.io/badge/Strategies-11-FF6B6B" alt="Strategies">
@@ -48,7 +48,7 @@ OmniTrade is an autonomous **crypto-futures trading arena** where 11 LLM-driven 
 - **Atomic three-way state contract** — `cumulative_close_pct`, `stop_loss`, `trailing_peak_pnl_pct` land in a single SQL `UPDATE` so the stop-loss monitor can never read a torn write
 - **Testnet by default** — `GATE_USE_TESTNET=true` / `OKX_USE_TESTNET=true` out of the box; live trading requires explicit override
 - **Characterization gate** — 22 frozen fixtures replay deterministically at ≥ 0.95 Decision-equivalent pass rate
-- **Real-time dashboard** — Next.js 14 App Router + SWR + WebSocket with exponential-backoff reconnect
+- **Real-time dashboard** — Next.js 14 App Router + SWR + Server-Sent Events (EventSource) with exponential-backoff reconnect
 
 ---
 
@@ -82,7 +82,7 @@ OmniTrade is an autonomous **crypto-futures trading arena** where 11 LLM-driven 
       <div align="left">
         • ccxt unified adapter; testnet default<br>
         • REST: ticker, OHLCV, order book, open interest, funding<br>
-        • WebSocket market stream (hand-rolled <code>websockets&gt;=12</code>)<br>
+        • Optional WebSocket market stream (hand-rolled <code>websockets&gt;=12</code>) into the trading cycle<br>
         • Order lifecycle: open, close, partial close, cancel
       </div>
     </td>
@@ -183,7 +183,7 @@ Full release checklist (smoke tests, observability, rollback plan): [docs/RELEAS
 
 ### Prerequisites
 
-- **LLM API key** — any OpenAI-compatible provider via LiteLLM (DeepSeek, OpenAI, Anthropic, Qwen, Moonshot, …)
+- **LLM API key** — DeepSeek (default `deepseek-reasoner`; switch to `deepseek-v4-pro` / `-flash` via `AGNO_LLM_MODEL`), driven directly by Agno's DeepSeek model class
 - **Exchange credentials** — Gate.io or OKX; **testnet recommended**
 - Python 3.11+ with [`uv`](https://github.com/astral-sh/uv) for Path B
 - Docker + Docker Compose for Paths A / C
@@ -204,7 +204,7 @@ All config is env-driven — see [`apps/backend/.env.example`](./apps/backend/.e
 | `EXTREME_STOP_LOSS_PERCENT` | `-30` | hard floor — force-close below this PnL % |
 | `EXCHANGE` | `gate` | `gate` or `okx` |
 | `GATE_USE_TESTNET` / `OKX_USE_TESTNET` | `true` | **testnet default — live trading requires `false`** |
-| `LLM_PROVIDER` | `deepseek` | LiteLLM routing key |
+| `LLM_PROVIDER` | `deepseek` | Agno DeepSeek provider key |
 | `LLM_MODEL_NAME` | `deepseek/deepseek-v3.2-exp` | any OpenAI-compatible model |
 | `MULTI_AGENT_ENABLED` | `false` | enable `arena-raider-squad` / `arena-tribunal` dispatch |
 | `FEE_REBATE_PERCENT` | `20` | shown as `rebateAmount` in `/api/account` |
@@ -232,8 +232,8 @@ flowchart TD
     api[api<br/>FastAPI + middleware + DI]
     app[application<br/>services, monitors, orchestrators]
     dom[(domain<br/>entities, protocols, pure services)]
-    infra[infrastructure<br/>SQLAlchemy, ccxt, LiteLLM, sqlite-vec]
-    agents[agents<br/>LangGraph think_node, jury, team experts]
+    infra[infrastructure<br/>SQLAlchemy, ccxt, Agno DeepSeek, sqlite-vec]
+    agents[agents<br/>Agno Agent + MultiMCPTools + Team]
 
     api --> app
     app --> dom
@@ -297,12 +297,12 @@ llmtrading/
 │   │   ├── src/omnitrade/
 │   │   │   ├── domain/               # entities, protocols, pure services
 │   │   │   ├── application/          # services, 5 monitors, multi-agent
-│   │   │   ├── infrastructure/       # SQLAlchemy, ccxt, LiteLLM, WS
-│   │   │   ├── agents/               # LangGraph think_node, prompts
+│   │   │   ├── infrastructure/       # SQLAlchemy, ccxt, Agno DeepSeek, SSE
+│   │   │   ├── agents/               # Agno Agent + MultiMCPTools, prompts
 │   │   │   └── api/                  # FastAPI routers + middleware
 │   │   ├── alembic/                  # migrations (0001 init, 0002 rename)
 │   │   └── tests/                    # structured output + integration tests
-│   └── frontend/                     # Next.js 14 + SWR + WebSocket
+│   └── frontend/                     # Next.js 14 + SWR + Server-Sent Events
 ├── tests/fixtures/frozen/            # 22 hand-curated decision contracts
 ├── docs/                             # architecture, strategies, release, ...
 ├── scripts/                          # ops + drift-detection probes
@@ -316,7 +316,7 @@ llmtrading/
 | Phase | Scope | Status |
 |---|---|---|
 | 0-7 | DDD port, monitors, dashboard, observability | ✅ shipped |
-| 8.x | Port-boundary stubs, multi-timeframe, LLM tools, multi-agent orchestrator, WebSocket market stream | ✅ shipped |
+| 8.x | Port-boundary stubs, multi-timeframe, LLM tools, multi-agent orchestrator, WebSocket market stream | ✅ shipped (WS replaced by SSE in Agno cutover) |
 | 9.x | Zero-share rebrand (strategy names, schema columns, fixture IDs, brand sentinel) | ✅ shipped |
 | 10.x | License inventory, provenance audit, history scrub | ✅ shipped |
 | 11 | Postgres + Decimal/Numeric precision, observability events, per-strategy sub-agent cassettes | 📋 planned |
@@ -328,7 +328,7 @@ llmtrading/
 Issues and PRs welcome. Please:
 
 1. Run `uv run pytest` inside `apps/backend` — the **642-test suite must stay green**, and the 22 frozen fixtures must replay at ≥ 0.95.
-2. Respect the **LangGraph scope constraint** — only `agents/think_node.py` is allowed to import `langgraph`.
+2. The Agno cutover (Stages A–E, see `docs/AGNO_MIGRATION_TRACKER.md`) removed every LangGraph / LangChain / LiteLLM / mcp2py / WebSocket consumer — keep them out of new code.
 3. Respect the **three-way state atomicity** — any code path that writes a position's `cumulative_close_pct`, `stop_loss`, or `trailing_peak_pnl_pct` must go through `PositionRepository.apply_three_way_state`.
 4. Keep new dependencies within the allow-list (MIT / Apache-2.0 / BSD / ISC / MPL-2.0). See [docs/LICENSE_INVENTORY.md](./docs/LICENSE_INVENTORY.md).
 

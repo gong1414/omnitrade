@@ -85,7 +85,7 @@ class AgnoMCPBridge:
         await toolset.connect()
         self._toolset = toolset
         with_context(logger).info(
-            "mcp_bridge_agno.connected",
+            "mcp_bridge.connected",
             commands=self._commands,
         )
         return toolset
@@ -98,7 +98,7 @@ class AgnoMCPBridge:
             await self._toolset.close()
         except Exception as exc:  # noqa: BLE001 — best-effort cleanup
             with_context(logger).warning(
-                "mcp_bridge_agno.close_failed",
+                "mcp_bridge.close_failed",
                 error=str(exc),
             )
         self._toolset = None

@@ -211,7 +211,7 @@ def build_agno_team(
         telemetry=False,
     )
     logger.info(
-        "experts_team_agno.built",
+        "experts_team.built",
         strategy=str(strategy),
         team=team_name,
         n_members=len(members),

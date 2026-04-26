@@ -39,7 +39,7 @@ from omnitrade.agents.tools.decision_schemas import (
     DecisionRecorder,
     build_decision_tools,
 )
-from omnitrade.agents.tools.mcp_bridge_agno import AgnoMCPBridge
+from omnitrade.agents.tools.mcp_bridge import AgnoMCPBridge
 from omnitrade.domain.entities import Decision, MarketSnapshot, NewsItem
 from omnitrade.observability.trace_context import with_context
 
@@ -158,7 +158,7 @@ def build_agno_think_fn(
             await _ensure_mcp_connected()
         except Exception as exc:  # noqa: BLE001 — degrade to no-MCP rather than fail
             with_context(logger).warning(
-                "trading_agent_agno.mcp_unavailable",
+                "trading_agent.mcp_unavailable",
                 error=str(exc),
             )
 
@@ -188,7 +188,7 @@ def build_agno_think_fn(
         agent = Agent(**agent_kwargs)
 
         with_context(logger).info(
-            "trading_agent_agno.run",
+            "trading_agent.run",
             model=settings.agno_llm_model,
             n_tools=len(tools_for_agent),
             mcp_connected=bridge._toolset is not None,
@@ -199,7 +199,7 @@ def build_agno_think_fn(
             run_result = await agent.arun(user_prompt)
         except Exception as exc:  # noqa: BLE001 — Phase 2 must not crash the cycle
             with_context(logger).error(
-                "trading_agent_agno.run_failed",
+                "trading_agent.run_failed",
                 error=str(exc),
             )
             return Decision(
@@ -216,7 +216,7 @@ def build_agno_think_fn(
         # failed cycle still produces a row downstream observers can see.
         text = str(getattr(run_result, "content", "") or "")[:512]
         with_context(logger).warning(
-            "trading_agent_agno.no_decision_tool_fired",
+            "trading_agent.no_decision_tool_fired",
             run_text_head=text[:120],
         )
         return Decision(

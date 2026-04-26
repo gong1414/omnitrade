@@ -366,7 +366,7 @@ def _build_base_think_fn(
     The Agno Agent owns its DeepSeek model + MultiMCPTools toolkit, so no
     separate ``LLMClient`` is needed at this seam.
     """
-    from omnitrade.agents.trading_agent_agno import build_agno_think_fn
+    from omnitrade.agents.trading_agent import build_agno_think_fn
 
     try:
         strategy = StrategyName(settings.trading_strategy)

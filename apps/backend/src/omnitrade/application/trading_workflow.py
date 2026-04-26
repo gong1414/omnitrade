@@ -152,7 +152,7 @@ def build_agno_trading_workflow(
         session_state={},
     )
     logger.info(
-        "trading_workflow_agno.built",
+        "trading_workflow.built",
         n_steps=len(workflow_steps),
         has_db=db is not None,
     )
