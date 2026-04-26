@@ -1,0 +1,73 @@
+name: Auto-format
+
+# Runs `ruff format` + `ruff check --fix-only` on every PR opened from the
+# same repository (NOT from forks — those don't get write access by design)
+# and pushes the result back as a "style: auto-format" commit on the PR
+# branch. PRs from forks fall back to the regular `ruff format --check`
+# gate in ci.yml, which fails the build until the contributor formats
+# locally.
+#
+# Why a separate workflow?
+# - Keeps `permissions: contents: write` scoped to this single job
+#   instead of leaking into the main CI matrix.
+# - Lets `ci.yml` stay strict-read-only for security review.
+# - The auto-commit triggers a fresh ci.yml run on the new HEAD,
+#   so contributors still see the full lint/type/test suite green
+#   before merge.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  autoformat:
+    name: Auto-format Python (ruff)
+    # Only run on PRs from the same repo — forks intentionally don't have
+    # write access. PRs from forks see the regular `ruff format --check`
+    # gate in ci.yml fail and must format locally.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Sync dependencies
+        working-directory: apps/backend
+        run: uv sync --all-extras
+
+      - name: Run ruff format
+        working-directory: apps/backend
+        run: uv run ruff format src/ tests/
+
+      - name: Run ruff check --fix (safe fixes only)
+        working-directory: apps/backend
+        # --exit-zero so a remaining unfixable violation doesn't fail this
+        # job — ci.yml's strict `ruff check` is what gates merge.
+        run: uv run ruff check --fix-only --exit-zero src/ tests/
+
+      - name: Commit formatting changes (if any)
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "style: auto-format with ruff"
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "41898282+github-actions[bot]@users.noreply.github.com"
+          file_pattern: "apps/backend/src/**/*.py apps/backend/tests/**/*.py"

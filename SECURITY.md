@@ -105,6 +105,33 @@ Even after our hardening, **you** are responsible for:
   may be too high for some users. Lower it to whatever notional you
   want to physically approve for.
 
+## Automated security tooling
+
+The repo opts into every free GitHub security feature available to
+public projects:
+
+- **CodeQL code scanning** (`.github/workflows/codeql.yml`) — runs
+  the `security-and-quality` query suite on Python + JS/TS on every
+  push, PR, and weekly cron. Findings appear under
+  [Security → Code scanning][cs].
+- **Copilot Autofix** — for any new CodeQL finding, GitHub auto-suggests
+  a patch you can commit straight from the alert page. Free for public
+  repos; no extra config required.
+- **Dependabot vulnerability alerts** — Security tab pings the moment
+  a dep we use lands in the GHSA database.
+- **Dependabot security updates** — auto-opens a PR with the patched
+  version pinned. Major bumps are deliberately blocked
+  (`.github/dependabot.yml`); patch + minor are auto-grouped.
+- **Secret scanning + push protection** — pre-receive hook blocks any
+  push that contains a known-format token (AWS, Slack, GitHub PAT,
+  Stripe, …). Bypass is logged.
+- **Auto-format on PR** (`.github/workflows/autoformat.yml`) — every
+  same-repo PR runs `ruff format` + `ruff check --fix-only` and pushes
+  back a `style: auto-format` commit, so the human review focuses on
+  logic, not whitespace.
+
+[cs]: https://github.com/gong1414/omnitrade/security/code-scanning
+
 ## Disclosure history
 
 This file will be updated when security issues are patched.
