@@ -90,6 +90,7 @@ class EventBus:
         try:
             bucket.remove(handler)
         except ValueError:
+            # Handler already gone — idempotent unsubscribe is the contract.
             pass
 
     # ── queue-style subscription (WS) ─────────────────────────────────── #

@@ -173,8 +173,10 @@ def _render_market_block_with_indicators(
         return _render_market_block(market)
 
     lines: list[str] = [
-        "| Symbol | Price | 15m EMA20/50/200 | 15m RSI14 | 15m MACD(hist) | "
-        "15m ATR14 | Volx | 1h EMA20 | 4h EMA20 |",
+        (
+            "| Symbol | Price | 15m EMA20/50/200 | 15m RSI14 | 15m MACD(hist) | "
+            "15m ATR14 | Volx | 1h EMA20 | 4h EMA20 |"
+        ),
         "|---|---|---|---|---|---|---|---|---|",
     ]
     for snap, ema20_1h, ema20_4h in snapshots:

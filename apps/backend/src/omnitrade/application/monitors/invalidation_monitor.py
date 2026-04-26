@@ -55,11 +55,6 @@ SessionFactory = Callable[[], Awaitable[AsyncSession]]
 # 15m snapshot needs at least 50 candles per ``snapshot_from_ohlcv``
 # warm-up contract.
 _MIN_CANDLES: int = 50
-# Pull 100 so EMA/MACD/RSI/ATR are all well-seeded.
-_OHLCV_LIMIT: int = 100
-# Minimal LLM call — generous enough for one JSON object, stingy enough
-# to keep cost trivial.
-_LLM_MAX_TOKENS: int = 120
 
 
 class InvalidationMonitor:

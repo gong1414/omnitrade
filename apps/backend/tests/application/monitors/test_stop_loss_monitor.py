@@ -136,7 +136,6 @@ async def test_tick_fires_per_position_override() -> None:
 
 
 def test_positive_extreme_threshold_is_flipped_to_negative() -> None:
-    _factory = None  # unused
     mon = StopLossMonitor(
         interval_seconds=10,
         extreme_stop_loss_percent=Decimal("30"),

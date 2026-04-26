@@ -249,6 +249,7 @@ class CCXTExchange:
             # Re-apply precision after clamping (e.g. round to integer).
             amount = float(self._exchange.amount_to_precision(ccxt_symbol, amount))
         except Exception:
+            # Best-effort precision; raw amount is an acceptable fallback.
             pass
 
         if amount <= 0:
@@ -317,6 +318,7 @@ class CCXTExchange:
             close_amount = self._exchange.amount_to_precision(ccxt_symbol, close_amount)
             close_amount = float(close_amount)
         except Exception:
+            # Best-effort precision; raw size is an acceptable fallback.
             pass
 
         # Gate.io perpetuals require integer-contract amounts. A partial
@@ -332,6 +334,7 @@ class CCXTExchange:
             try:
                 escalated = float(self._exchange.amount_to_precision(ccxt_symbol, escalated))
             except Exception:
+                # Best-effort precision; raw contracts is fine.
                 pass
             with_context(logger).warning(
                 "ccxt_exchange.partial_close_escalated_to_full",

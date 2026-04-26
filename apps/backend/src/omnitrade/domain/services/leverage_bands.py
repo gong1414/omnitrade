@@ -63,3 +63,5 @@ def get_leverage_band(strategy: StrategyName, max_leverage: int) -> tuple[int, i
         case StrategyName.MULTI_AGENT_CONSENSUS:
             # arena-steward band
             return (max(math.ceil(0.3 * max_lev), 3), max(math.ceil(0.6 * max_lev), 8))
+        case _:
+            raise ValueError(f"Unknown strategy for leverage band: {strategy!r}")

@@ -124,11 +124,13 @@ class HistoricalOHLCV:
             try:
                 await self._exchange.close()
             except Exception:
+                # Best-effort cleanup during shutdown.
                 pass
             self._exchange = None
         try:
             self._conn.close()
         except Exception:
+            # Best-effort cleanup during shutdown.
             pass
 
     # ── cache IO ───────────────────────────────────────────────────── #

@@ -29,11 +29,6 @@ import asyncio
 from collections.abc import Mapping
 from typing import Any, Literal
 
-import structlog
-
-logger = structlog.get_logger(__name__)
-
-
 # Tool name the trading agent decorates with ``requires_confirmation=True``
 # is registered as ``open_position`` (Function name, see
 # :mod:`omnitrade.agents.tools.decision_schemas`). Re-exported here so

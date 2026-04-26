@@ -81,7 +81,7 @@ async function request<T>(
 
   if (!res.ok) {
     const detail =
-      body && typeof body === "object" && body !== null && "detail" in body
+      body && typeof body === "object" && "detail" in body
         ? String((body as { detail: unknown }).detail)
         : res.statusText;
     throw new ApiError(res.status, body, detail);

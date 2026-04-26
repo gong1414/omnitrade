@@ -75,7 +75,7 @@ class Money(BaseModel):
         if not isinstance(other, Money):
             return NotImplemented
         if self.currency != other.currency:
-            raise ValueError(
+            raise ArithmeticError(
                 f"Cannot add Money with different currencies: {self.currency} vs {other.currency}"
             )
         return Money(amount=self.amount + other.amount, currency=self.currency)
@@ -84,7 +84,7 @@ class Money(BaseModel):
         if not isinstance(other, Money):
             return NotImplemented
         if self.currency != other.currency:
-            raise ValueError(
+            raise ArithmeticError(
                 f"Cannot subtract Money with different currencies: "
                 f"{self.currency} vs {other.currency}"
             )

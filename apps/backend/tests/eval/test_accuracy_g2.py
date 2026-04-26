@@ -79,25 +79,39 @@ pytestmark = pytest.mark.eval
 # ---------------------------------------------------------------------------
 
 G2_GUIDELINES: list[str] = [
-    "market_context must describe current market conditions in 2-4 sentences "
-    "(>= 100 chars), not just restate input numbers.",
-    "gates_passed must contain at least one substantive entry (each >= 5 chars). "
-    'A list like ["ok"] is BAD — gate entries should be of the form '
-    "'<Gate name>: <evidence>'.",
-    "invalidation_condition must be specific and testable (>= 20 chars). "
-    "Tautologies like 'market goes the wrong way' or 'price moves against us' "
-    "are BAD.",
-    "If action is open/partial_close, plan must populate non-zero entry, "
-    "stop_loss, and take_profit_1. If action is hold, plan must be null.",
-    "confidence must be a calibrated float in [0.0, 1.0] — not 0.0, not NaN, "
-    "and not always pinned at 0.95.",
-    "justification must be a substantive chain-of-thought (>= 200 chars) — "
-    "explain why the setup qualifies, which indicators contributed, and why "
-    "alternatives were rejected.",
+    (
+        "market_context must describe current market conditions in 2-4 sentences "
+        "(>= 100 chars), not just restate input numbers."
+    ),
+    (
+        "gates_passed must contain at least one substantive entry (each >= 5 chars). "
+        'A list like ["ok"] is BAD — gate entries should be of the form '
+        "'<Gate name>: <evidence>'."
+    ),
+    (
+        "invalidation_condition must be specific and testable (>= 20 chars). "
+        "Tautologies like 'market goes the wrong way' or 'price moves against us' "
+        "are BAD."
+    ),
+    (
+        "If action is open/partial_close, plan must populate non-zero entry, "
+        "stop_loss, and take_profit_1. If action is hold, plan must be null."
+    ),
+    (
+        "confidence must be a calibrated float in [0.0, 1.0] — not 0.0, not NaN, "
+        "and not always pinned at 0.95."
+    ),
+    (
+        "justification must be a substantive chain-of-thought (>= 200 chars) — "
+        "explain why the setup qualifies, which indicators contributed, and why "
+        "alternatives were rejected."
+    ),
     "output_language must be either 'zh' or 'en' and must match the requested language.",
-    "If the agent's reasoning text contains '异常', '错误', 'system issue', "
-    "or similar fault-strings, that is a BUG REPORT — score it as a quality "
-    "failure even if the structural fields are populated.",
+    (
+        "If the agent's reasoning text contains '异常', '错误', 'system issue', "
+        "or similar fault-strings, that is a BUG REPORT — score it as a quality "
+        "failure even if the structural fields are populated."
+    ),
 ]
 
 G2_EXPECTED_OUTPUT: str = (

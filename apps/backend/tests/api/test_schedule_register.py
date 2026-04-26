@@ -15,6 +15,8 @@ import pytest
 from fastapi import FastAPI
 from pydantic import SecretStr
 
+import omnitrade.config as cfg
+import omnitrade.main as main_mod
 from omnitrade.api.agent_os_app import MonitorHolder
 from omnitrade.config import Settings
 from omnitrade.main import _cron_for_interval, _register_agentos_trading_schedule, lifespan
@@ -138,9 +140,6 @@ async def test_lifespan_builds_agentos_monitor_before_schedule_register(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """AgentOS-driven cycles must have a bound monitor before cron registration."""
-    import omnitrade.config as cfg
-    import omnitrade.main as main_mod
-
     app = FastAPI()
     app.state.api_container = object()
     holder = MonitorHolder()

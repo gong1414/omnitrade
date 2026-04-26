@@ -12,6 +12,7 @@ from decimal import Decimal
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+import omnitrade.config as cfg
 from omnitrade.api.container import build_api_container
 from omnitrade.config import Settings
 from omnitrade.domain.entities import AccountSnapshot
@@ -22,8 +23,6 @@ from tests.application._fakes import FakeExchange, build_sqlite_session_factory,
 @pytest.fixture(autouse=True)
 def _reset_settings_singleton(monkeypatch):  # type: ignore[no-untyped-def]
     """Keep per-test environment clean of the cached Settings singleton."""
-    import omnitrade.config as cfg
-
     monkeypatch.setattr(cfg, "_settings", None)
     yield
     monkeypatch.setattr(cfg, "_settings", None)
@@ -58,8 +57,6 @@ async def api_app(api_settings):  # type: ignore[no-untyped-def]
     )
 
     # Monkey-patch get_settings() so deps see our test settings.
-    import omnitrade.config as cfg
-
     cfg._settings = api_settings
 
     container = build_api_container(
