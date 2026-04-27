@@ -85,11 +85,17 @@ services:
       retries: 3
     restart: unless-stopped
 
-  # ── frontend: Next.js 14 App Router ──────────────────────────────────
+  # ── frontend: Next.js 15 App Router ──────────────────────────────────
   frontend:
     build:
       context: .
       dockerfile: apps/frontend/Dockerfile
+      # Use host networking during the build so `next/font/google` can
+      # reach fonts.googleapis.com from inside the buildkit sandbox.
+      # Without this, Next 15's eager font fetch hangs with "Client
+      # network socket disconnected before secure TLS connection" on
+      # networks with restrictive egress.
+      network: host
       args:
         # Baked into the .next/standalone build — the rewrite destination
         # in next.config.mjs is evaluated at build time. Browser-facing
